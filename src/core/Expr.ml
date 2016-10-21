@@ -1,18 +1,23 @@
 
 (* This file is free software. See file "license" for more details. *)
 
-type property =
-  | HoldAll
-  | HoldFirst
-  | HoldRest
-  | Orderless
-  | Flatten
-  | SequenceHold
-  | OneIdentity
+(** {1 Expressions} *)
+
+module Properties = Bit_set.Make(struct end)
+
+let field_protected = Properties.mk_field()
+let field_hold_all = Properties.mk_field()
+let field_hold_first = Properties.mk_field()
+let field_hold_rest = Properties.mk_field()
+let field_orderless = Properties.mk_field()
+let field_flatten = Properties.mk_field()
+let field_one_identity = Properties.mk_field()
+let () = Properties.freeze()
 
 type const = {
   name: string;
-  mutable properties: property list;
+  id: int;
+  mutable properties: Properties.t;
   mutable defs: def list;
 }
 
@@ -26,7 +31,7 @@ and t =
 (* (partial) definition of a symbol *)
 and def =
   | Rewrite of pattern * t
-  | Fun of (t -> t option)
+  | Fun of ((t -> t) -> t -> t option)
 
 and pattern = t
 
@@ -38,16 +43,26 @@ module Str_tbl = CCHashtbl.Make(struct
 
 type bank = {
   by_name: t Str_tbl.t; (* name -> const *)
+  mutable const_id: int; (* unique name *)
 }
 
 let bank : bank = {
   by_name = Str_tbl.create 1_024;
+  const_id = 0;
 }
 
-let const name =
+let const c = Const c
+
+let const_of_string name =
   try Str_tbl.find bank.by_name name
   with Not_found ->
-    let c = Const {name; properties=[]; defs=[]} in
+    let c = Const {
+        name;
+        properties=Properties.empty;
+        id= bank.const_id;
+        defs=[];
+      } in
+    bank.const_id <- bank.const_id + 1;
     Str_tbl.add bank.by_name name c;
     c
 
@@ -67,16 +82,22 @@ let of_int_ratio a b = Q (Q.of_ints a b)
 
 let of_float x = Q (Q.of_float x)
 
-let set_properties t l = match t with
-  | Const r -> r.properties <- l
-  | Z _ | Q _ | App _ | String _ -> invalid_arg "Expr.set_properties"
+module Cst = struct
+  type t = const
 
-let const_with ~properties ~defs name =
-  let c = const name in
+  let equal a b = a.id = b.id
+
+  let get_field f c = Properties.get f c.properties
+
+  let set_field f b c = c.properties <- Properties.set f b c.properties
+
+  let add_def d c = c.defs <- d :: c.defs
+end
+
+let const_of_string_with ~f name =
+  let c = const_of_string name in
   begin match c with
-    | Const r ->
-      r.properties <- properties;
-      r.defs <- defs;
+    | Const r -> f r;
     | App _ | Z _ | Q _ | String _ -> assert false
   end;
   c

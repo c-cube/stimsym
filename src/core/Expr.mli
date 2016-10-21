@@ -5,18 +5,22 @@
 
     The main data structure *)
 
-type property =
-  | HoldAll
-  | HoldFirst
-  | HoldRest
-  | Orderless
-  | Flatten
-  | SequenceHold
-  | OneIdentity
+module Properties : Bit_set.S
+
+val field_protected : Properties.field
+(** Cannot modify the evaluation function of this constant *)
+
+val field_hold_all : Properties.field
+val field_hold_first : Properties.field
+val field_hold_rest : Properties.field
+val field_orderless : Properties.field
+val field_flatten : Properties.field
+val field_one_identity : Properties.field
 
 type const = private {
   name: string;
-  mutable properties: property list;
+  id: int; (* unique ID *)
+  mutable properties: Properties.t;
   mutable defs: def list;
 }
 
@@ -30,14 +34,18 @@ and t = private
 (* (partial) definition of a symbol *)
 and def =
   | Rewrite of pattern * t
-  | Fun of (t -> t option)
+  | Fun of ((t -> t) -> t -> t option)
+  (* takes an evaluation function, a term [t], return [Some t']
+     if it reduces [t] to [t'] *)
 
 (* TODO: matching *)
 and pattern = t
 
-val const : string -> t
+val const : const -> t
 
-val const_with : properties:property list -> defs:def list -> string -> t
+val const_of_string : string -> t
+
+val const_of_string_with : f:(const -> unit) -> string -> t
 
 val z : Z.t -> t
 
@@ -55,9 +63,17 @@ val app : t -> t array -> t
 
 val app_l : t -> t list -> t
 
-val set_properties : t -> property list -> unit
-(** [set_properties t p] sets the properties of [t] to [p].
-    @raise Invalid_argument if [t] is not a constant *)
+module Cst : sig
+  type t = const
+
+  val equal : t -> t -> bool
+
+  val set_field : Properties.field -> bool -> t -> unit
+
+  val get_field : Properties.field -> t -> bool
+
+  val add_def : def -> t -> unit
+end
 
 val pp_full_form : t CCFormat.printer
 (** Printer without any fancy display, just serialize the raw structure *)

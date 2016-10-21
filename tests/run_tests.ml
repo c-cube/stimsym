@@ -8,6 +8,8 @@ open OUnit
 
 let mk_name prefix line = Printf.sprintf "%s (line %d)" prefix line
 
+(** {2 Parser} *)
+
 let test_parser line a b : test =
   mk_name "parser" line >:: (fun _ ->
     let buf = Lexing.from_string a in
@@ -28,7 +30,6 @@ let test_parser_fail line a : test =
         true
   )
 
-
 let suite_parser =
   "parser" >::: [
     test_parser __LINE__ "f" "f";
@@ -48,12 +49,32 @@ let suite_parser =
       "Plus[f[g[h[i[Plus[j[k,l],m]],n,Plus[o,p,q]]]],r]";
   ]
 
-let suite =
-  "rewrite" >::: [
-    suite_parser;
+(** {2 Eval} *)
+
+let mk_eval line a b : test =
+  mk_name "eval" line >:: (fun _ ->
+    let buf = Lexing.from_string a in
+    let e = Parser.parse_expr Lexer.token buf in
+    let e = Eval.eval e in
+    OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
+      b (CCFormat.to_string Expr.pp_full_form e)
+  )
+
+let suite_eval =
+  "eval" >::: [
+    mk_eval __LINE__ "1+2" "3";
+    mk_eval __LINE__ "f[1+2,a,b]" "f[3,a,b]";
+    mk_eval __LINE__ "f[g[1+2],a,b]" "f[g[3],a,b]";
+    mk_eval __LINE__ "f[a+b+1+c+2+d+3]" "f[Plus[a,b,1,c,2,d,3]]";
   ]
 
 (** {2 Main} *)
+
+let suite =
+  "rewrite" >::: [
+    suite_parser;
+    suite_eval;
+  ]
 
 let () =
   let _ = OUnit.run_test_tt_main suite in
