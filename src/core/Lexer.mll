@@ -46,6 +46,8 @@ rule token = parse
   | ']' { RIGHT_BRACKET }
   | '(' { LEFT_PAREN }
   | ')' { RIGHT_PAREN }
+  | '{' { LEFT_BRACE }
+  | '}' { RIGHT_BRACE }
   | symbol { SYMBOL (Lexing.lexeme lexbuf) }
   | _ as c
     { Parse_loc.parse_errorf_buf lexbuf "lexer failed on char '%c'" c }

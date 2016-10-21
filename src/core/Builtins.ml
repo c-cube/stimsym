@@ -68,6 +68,8 @@ let plus =
       E.Cst.add_def (E.Fun (plus_eval c)) c;
     )
 
+let list = E.const_of_string "List"
+
 let all_builtins =
   [ hold;
     full_form;

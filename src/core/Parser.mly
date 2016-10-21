@@ -21,6 +21,8 @@
 %token RIGHT_BRACKET
 %token LEFT_PAREN
 %token RIGHT_PAREN
+%token LEFT_BRACE
+%token RIGHT_BRACE
 %token COMMA
 
 %token <string> SYMBOL
@@ -52,6 +54,8 @@ app_expr:
 
 atomic_expr:
   | LEFT_PAREN e=expr RIGHT_PAREN { e }
+  | LEFT_BRACE l=separated_list(COMMA,expr) RIGHT_BRACE
+    { E.app_l B.list l }
   | t=SYMBOL { E.const_of_string t }
   | n=INT_LIT { E.z (Z.of_string n) }
   | n=RAT_LIT { E.q (Q.of_string n) }

@@ -47,6 +47,9 @@ let suite_parser =
     test_parser __LINE__ 
       "f[g[h[i[j[k,l]+m],n,o+p+(q)]]]+r"
       "Plus[f[g[h[i[Plus[j[k,l],m]],n,Plus[o,p,q]]]],r]";
+    test_parser __LINE__ "{1,2,3}" "List[1,2,3]";
+    test_parser __LINE__ "{1,{2},{3,a}}" "List[1,List[2],List[3,a]]";
+    test_parser __LINE__ "{}" "List[]";
   ]
 
 (** {2 Eval} *)

@@ -9,5 +9,6 @@ type t = Expr.t
 val hold : t
 val plus : t
 val full_form : t
+val list : t
 
 val all_builtins : t list
