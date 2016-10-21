@@ -48,6 +48,19 @@ let suite_parser =
     test_parser __LINE__ "{1,2,3}" "List[1,2,3]";
     test_parser __LINE__ "{1,{2},{3,a+0}}" "List[1,List[2],List[3,Plus[a,0]]]";
     test_parser __LINE__ "{}" "List[]";
+    test_parser __LINE__ "{a, b,c,d+e+1 + 3}" "List[a,b,c,Plus[d,e,1,3]]";
+    test_parser __LINE__ "  {  a, b,c,d +e +1  + 3 } " "List[a,b,c,Plus[d,e,1,3]]";
+    test_parser __LINE__ "_" "Blank[]";
+    test_parser __LINE__ "_a" "Blank[a]";
+    test_parser __LINE__ "a_b" "Pattern[a,Blank[b]]";
+    test_parser __LINE__ "a__b" "Pattern[a,BlankSequence[b]]";
+    test_parser __LINE__ "a___b" "Pattern[a,BlankNullSequence[b]]";
+    test_parser __LINE__ "a___" "Pattern[a,BlankNullSequence[]]";
+    test_parser __LINE__ "___" "BlankNullSequence[]";
+    test_parser __LINE__ "a b c" "Times[a,b,c]";
+    test_parser __LINE__ "f[a b, c+d e + 1]" "f[Times[a,b],Plus[c,Times[d,e],1]]";
+    test_parser __LINE__ "a ___b" "Times[a,BlankNullSequence[b]]";
+    test_parser __LINE__ "a ___ b" "Times[a,BlankNullSequence[],b]";
   ]
 
 (** {2 Eval} *)

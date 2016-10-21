@@ -35,19 +35,27 @@ let symbol = (lower_alpha | upper_alpha) (lower_alpha | upper_alpha | numeric)*
 rule token = parse
   | eof { EOI }
   | comment { token lexbuf }
-  | '\n' { Lexing.new_line lexbuf; token lexbuf }
-  | ' ' | '\t' { token lexbuf }
+  | ['\n' '\t' ' ']+
+    { let s = Lexing.lexeme lexbuf in
+      CCString.iter (fun c -> if c='\n' then Lexing.new_line lexbuf) s;
+      SPACE
+    }
   | rational { RAT_LIT (Lexing.lexeme lexbuf) }
   | decimal { INT_LIT (Lexing.lexeme lexbuf) }
   | quoted_string { STRING_LIT (Lexing.lexeme lexbuf) }
   | ',' { COMMA }
-  | '+' { PLUS }
   | '[' { LEFT_BRACKET }
   | ']' { RIGHT_BRACKET }
   | '(' { LEFT_PAREN }
   | ')' { RIGHT_PAREN }
   | '{' { LEFT_BRACE }
   | '}' { RIGHT_BRACE }
+  | '+' { O_PLUS }
+  | ":=" { O_SET_DELAYED }
+  | "=" { O_SET }
+  | "___" { O_BLANK_NULL_SEQ }
+  | "__" { O_BLANK_SEQ }
+  | "_" { O_BLANK }
   | symbol { SYMBOL (Lexing.lexeme lexbuf) }
   | _ as c
     { Parse_loc.parse_errorf_buf lexbuf "lexer failed on char '%c'" c }
