@@ -82,6 +82,13 @@ let of_int_ratio a b = Q (Q.of_ints a b)
 
 let of_float x = Q (Q.of_float x)
 
+exception No_head
+
+let rec head = function
+  | Const c -> c
+  | App (hd, _) -> head hd
+  | Z _ | Q _ | String _ -> raise No_head
+
 module Cst = struct
   type t = const
 

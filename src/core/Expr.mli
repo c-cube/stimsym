@@ -63,6 +63,12 @@ val app : t -> t array -> t
 
 val app_l : t -> t list -> t
 
+exception No_head
+
+val head : t -> const
+(** Head constant.
+    @raise No_head if the head is a primitive (int,rat,string) *)
+
 module Cst : sig
   type t = const
 
