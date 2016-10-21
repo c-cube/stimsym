@@ -52,7 +52,7 @@ app_expr:
 
 atomic_expr:
   | LEFT_PAREN e=expr RIGHT_PAREN { e }
-  | t=SYMBOL { E.const t }
+  | t=SYMBOL { E.const_of_string t }
   | n=INT_LIT { E.z (Z.of_string n) }
   | n=RAT_LIT { E.q (Q.of_string n) }
   | s=STRING_LIT { E.string (remove_quotes s) }

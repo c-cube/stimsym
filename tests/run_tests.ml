@@ -6,24 +6,18 @@
 open Rewrite
 open OUnit
 
-(* fresh name for a test *)
-let mk_name =
-  let n = ref 0 in
-  fun prefix ->
-    let s = Printf.sprintf "%s%d" prefix  !n in
-    incr n;
-    s
+let mk_name prefix line = Printf.sprintf "%s (line %d)" prefix line
 
-let test_parser a b : test =
-  mk_name "parser" >:: (fun _ ->
+let test_parser line a b : test =
+  mk_name "parser" line >:: (fun _ ->
     let buf = Lexing.from_string a in
     let e = Parser.parse_expr Lexer.token buf in
     OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
       b (CCFormat.to_string Expr.pp_full_form e)
   )
 
-let test_parser_fail a : test =
-  mk_name "parser_fail" >:: (fun _ ->
+let test_parser_fail line a : test =
+  mk_name "parser_fail" line >:: (fun _ ->
     let buf = Lexing.from_string a in
     try
       let _ = Parser.parse_expr Lexer.token buf in
@@ -37,16 +31,19 @@ let test_parser_fail a : test =
 
 let suite_parser =
   "parser" >::: [
-    test_parser "f" "f";
-    test_parser "f[]" "f[]";
-    test_parser "f[a,b,c]" "f[a,b,c]";
-    test_parser "a+b" "Plus[a,b]";
-    test_parser "a+b+c+d" "Plus[a,b,c,d]";
-    test_parser "f[a+b+c,d]" "f[Plus[a,b,c],d]";
-    test_parser "f[a+b+c,d]" "f[Plus[a,b,c],d]";
-    test_parser_fail "f[a+b+,d]";
-    test_parser_fail "+ +";
-    test_parser
+    test_parser __LINE__ "f" "f";
+    test_parser __LINE__ "f[]" "f[]";
+    test_parser __LINE__ "f[a,b,c]" "f[a,b,c]";
+    test_parser __LINE__ "a+b" "Plus[a,b]";
+    test_parser __LINE__ "a+b+c+d" "Plus[a,b,c,d]";
+    test_parser __LINE__ "f[a+b+c,d]" "f[Plus[a,b,c],d]";
+    test_parser __LINE__ "3/2" "3/2";
+    test_parser __LINE__ "6/4" "3/2";
+    test_parser __LINE__ "f[a+b+2+c,d]" "f[Plus[a,b,2,c],d]";
+    test_parser __LINE__ "f[a+b+2/3+c,1/34+d]" "f[Plus[a,b,2/3,c],Plus[1/34,d]]";
+    test_parser_fail __LINE__ "f[a+b+,d]";
+    test_parser_fail __LINE__ "+ +";
+    test_parser __LINE__ 
       "f[g[h[i[j[k,l]+m],n,o+p+(q)]]]+r"
       "Plus[f[g[h[i[Plus[j[k,l],m]],n,Plus[o,p,q]]]],r]";
   ]
