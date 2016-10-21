@@ -1,0 +1,9 @@
+= Rewrite
+:toc: macro
+:source-highlighter: pygments
+
+Rewrite system designed for symbolic manipulations and maximal expressiveness.
+
+== License
+
+BSD license, you can modify as you like. Contributions are welcome.
