@@ -27,4 +27,17 @@ Executable cli
   MainIs:           cli.ml
   BuildDepends:     rewrite, linenoise
 
+Executable run_tests
+  Path:             tests/
+  Install:          false
+  MainIs:           run_tests.ml
+  CompiledObject:   native
+  Build$:           flag(tests)
+  BuildDepends:     rewrite, oUnit
+
+Test all
+  Command:          ./run_tests.native
+  TestTools:        run_tests
+  Run$:             flag(tests)
+
 

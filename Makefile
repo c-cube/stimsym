@@ -46,7 +46,8 @@ setup.exe: setup.ml
 # OASIS_STOP
 
 watch:
-	while find src/ -print0 | xargs -0 inotifywait -e delete_self -e modify ; do \
+	while find src/ tests/ -print0 | \
+	  xargs -0 inotifywait -e delete_self -e modify ; do \
 		echo "============ at `date` ==========" ; \
 		make all; \
 	done
