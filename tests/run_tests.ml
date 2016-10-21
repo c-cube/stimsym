@@ -6,12 +6,12 @@
 open Rewrite
 open OUnit
 
-let mk_name prefix line = Printf.sprintf "%s (line %d)" prefix line
+let mk_name prefix line = Printf.sprintf "%s_line_%d" prefix line
 
 (** {2 Parser} *)
 
 let test_parser line a b : test =
-  mk_name "parser" line >:: (fun _ ->
+  mk_name "ok" line >:: (fun _ ->
     let buf = Lexing.from_string a in
     let e = Parser.parse_expr Lexer.token buf in
     OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
@@ -19,7 +19,7 @@ let test_parser line a b : test =
   )
 
 let test_parser_fail line a : test =
-  mk_name "parser_fail" line >:: (fun _ ->
+  mk_name "fail" line >:: (fun _ ->
     let buf = Lexing.from_string a in
     try
       let _ = Parser.parse_expr Lexer.token buf in
@@ -40,22 +40,20 @@ let suite_parser =
     test_parser __LINE__ "f[a+b+c,d]" "f[Plus[a,b,c],d]";
     test_parser __LINE__ "3/2" "3/2";
     test_parser __LINE__ "6/4" "3/2";
-    test_parser __LINE__ "f[a+b+2+c,d]" "f[Plus[a,b,2,c],d]";
-    test_parser __LINE__ "f[a+b+2/3+c,1/34+d]" "f[Plus[a,b,2/3,c],Plus[1/34,d]]";
     test_parser_fail __LINE__ "f[a+b+,d]";
     test_parser_fail __LINE__ "+ +";
     test_parser __LINE__ 
       "f[g[h[i[j[k,l]+m],n,o+p+(q)]]]+r"
       "Plus[f[g[h[i[Plus[j[k,l],m]],n,Plus[o,p,q]]]],r]";
     test_parser __LINE__ "{1,2,3}" "List[1,2,3]";
-    test_parser __LINE__ "{1,{2},{3,a}}" "List[1,List[2],List[3,a]]";
+    test_parser __LINE__ "{1,{2},{3,a+0}}" "List[1,List[2],List[3,Plus[a,0]]]";
     test_parser __LINE__ "{}" "List[]";
   ]
 
 (** {2 Eval} *)
 
 let mk_eval line a b : test =
-  mk_name "eval" line >:: (fun _ ->
+  mk_name "ok" line >:: (fun _ ->
     let buf = Lexing.from_string a in
     let e = Parser.parse_expr Lexer.token buf in
     let e = Eval.eval e in
@@ -68,9 +66,12 @@ let suite_eval =
     mk_eval __LINE__ "1+2" "3";
     mk_eval __LINE__ "f[1+2,a,b]" "f[3,a,b]";
     mk_eval __LINE__ "f[g[1+2],a,b]" "f[g[3],a,b]";
-    mk_eval __LINE__ "f[a+b+1+c+2+d+3]" "f[Plus[a,b,1,c,2,d,3]]";
+    mk_eval __LINE__ "f[a+b+1+c+2+d+3]" "f[Plus[6,a,b,c,d]]";
     mk_eval __LINE__ "f[Hold[1+2],3]" "f[Hold[Plus[1,2]],3]";
     mk_eval __LINE__ "f[2/3+1/3]" "f[1]";
+    mk_eval __LINE__ "{1,{a,1+0+b},{3,a+0}}" "List[1,List[a,Plus[1,b]],List[3,a]]";
+    mk_eval __LINE__ "f[a+1+b+2/3+c,1/34+d]" "f[Plus[5/3,a,b,c],Plus[1/34,d]]";
+    mk_eval __LINE__ "f[a+b+2+c,d]" "f[Plus[2,a,b,c],d]";
   ]
 
 (** {2 Main} *)

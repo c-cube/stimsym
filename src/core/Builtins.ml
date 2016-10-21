@@ -17,42 +17,39 @@ let full_form =
     ~f:(fun c ->
       E.Cst.set_field E.field_hold_all true c)
 
-type plus_classify =
-  | Plus_all_Z
-  | Plus_all_Q_or_Z
-  | Plus_other
+type plus_res =
+  | Plus_q of Q.t * E.t list
+  | Plus_z of Z.t * E.t list
 
-let plus_eval plus_cst (eval:E.t -> E.t) (e:E.t): E.t option =
-  (* categorize arguments *)
-  let categorize args =
+let plus_eval plus_cst (_eval:E.t -> E.t) (e:E.t): E.t option =
+  let compute args =
     Array.fold_left
       (fun acc e -> match acc, e with
-         | Plus_all_Z, E.Z _ -> Plus_all_Z
-         | (Plus_all_Z | Plus_all_Q_or_Z), (E.Z _ | E.Q _) -> Plus_all_Q_or_Z
-         | _ -> Plus_other)
-      Plus_all_Z args
-  and compute_z args =
-    Array.fold_left
-      (fun acc e -> match e with
-         | E.Z n -> Z.(acc + n) | _ -> assert false)
-      Z.zero args
-  and compute_q args =
-    Array.fold_left
-      (fun acc e -> match e with
-         | E.Z n -> Q.(acc + of_bigint n)
-         | E.Q n -> Q.(acc + n)
-         | _ -> assert false)
-      Q.zero args
+         | Plus_z (n1,l), E.Z n2 -> Plus_z (Z.(n1 + n2),l)
+         | Plus_z (n1,l), E.Q n2 -> Plus_q (Q.(of_bigint n1 + n2),l)
+         | Plus_q (n1,l), E.Z n2 -> Plus_q (Q.(n1 + of_bigint n2),l)
+         | Plus_q (n1,l), E.Q n2 -> Plus_q (Q.(n1 + n2), l)
+         | Plus_z (n,l), _ -> Plus_z (n,e::l)
+         | Plus_q (n,l), _ -> Plus_q (n,e::l))
+      (Plus_z (Z.zero, [])) args
   in
   match e with
     | E.App (_, [| |]) -> None
     | E.App (E.Const c as hd, args) ->
       assert (E.Cst.equal c plus_cst);
-      let args' = Array.map eval args in
-      begin match categorize args' with
-        | Plus_all_Z -> Some (E.z (compute_z args'))
-        | Plus_all_Q_or_Z -> Some (E.q (compute_q args'))
-        | Plus_other ->
+      let args' = match compute args with
+        | Plus_z (n,[]) -> [E.z n]
+        | Plus_z (n,l) when Z.sign n=0 -> List.rev l
+        | Plus_z (n,l) -> E.z n :: List.rev l
+        | Plus_q (n,[]) -> [E.q n]
+        | Plus_q (n,l) when Q.sign n=0 -> List.rev l
+        | Plus_q (n,l) -> E.q n :: List.rev l
+      in
+      begin match args' with
+        | [] -> assert false
+        | [e] -> Some e
+        | _ ->
+          let args' = Array.of_list args' in
           if CCArray.equal (==) args args'
           then None
           else Some (E.app hd args')
