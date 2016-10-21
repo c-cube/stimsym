@@ -1,0 +1,36 @@
+opam-version: "1.2"
+name: "rewrite"
+version: "dev"
+author: "Simon Cruanes"
+maintainer: "simon.cruanes.2007@m4x.org"
+build: [
+    ["./configure"
+        "--prefix" prefix
+        "--enable-docs"
+    ]
+    [make "build"]
+]
+install: [
+    [make "install"]
+]
+build-doc: [ make "doc" ]
+build-test: [ make "test" ]
+remove: [
+    ["ocamlfind" "remove" "rewrite"]
+]
+depends: [
+    "ocamlfind" {build}
+    "oasis" {build}
+    "base-bytes"
+    "result"
+    "containers"
+    "sequence"
+    "ocamlbuild" {build}
+]
+depopts: [
+]
+tags: [ "rewrite" "cas" "logic" ]
+homepage: "https://github.com/c-cube/ocaml-rewrite/"
+available: [ocaml-version >= "4.02.0"]
+dev-repo: "https://github.com/c-cube/ocaml-rewrite.git"
+bug-reports: "https://github.com/c-cube/ocaml-rewrite/issues/"

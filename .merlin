@@ -1,0 +1,11 @@
+S src/core
+B _build/src/core
+S src/cli
+B _build/src/cli
+PKG result
+PKG bytes
+PKG containers
+PKG sequence
+PKG linenoise
+PKG zarith
+FLG -w +a-4-44@8

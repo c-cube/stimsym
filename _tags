@@ -1,0 +1,4 @@
+# OASIS_START
+# OASIS_STOP
+<src/**/*.cmx>: inline(100)
+<src/**/*.ml>: warn(+a-4-44@8)
