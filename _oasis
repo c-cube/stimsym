@@ -10,7 +10,7 @@ OCamlVersion: >= 4.00.1
 BuildTools:  ocamlbuild
 AlphaFeatures: compiled_setup_ml, ocamlbuild_more_args
 
-XOCamlbuildExtraArgs: "-j 0 -use-menhir"
+XOCamlbuildExtraArgs: "-j 0 -use-menhir -menhir 'menhir --dump --explain'"
 
 Synopsis:  A rewrite system designed for maximal expressiveness
 
