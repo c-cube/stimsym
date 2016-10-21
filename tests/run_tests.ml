@@ -66,6 +66,8 @@ let suite_eval =
     mk_eval __LINE__ "f[1+2,a,b]" "f[3,a,b]";
     mk_eval __LINE__ "f[g[1+2],a,b]" "f[g[3],a,b]";
     mk_eval __LINE__ "f[a+b+1+c+2+d+3]" "f[Plus[a,b,1,c,2,d,3]]";
+    mk_eval __LINE__ "f[Hold[1+2],3]" "f[Hold[Plus[1,2]],3]";
+    mk_eval __LINE__ "f[2/3+1/3]" "f[1]";
   ]
 
 (** {2 Main} *)

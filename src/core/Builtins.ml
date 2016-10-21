@@ -28,7 +28,7 @@ let plus_eval plus_cst (eval:E.t -> E.t) (e:E.t): E.t option =
     Array.fold_left
       (fun acc e -> match acc, e with
          | Plus_all_Z, E.Z _ -> Plus_all_Z
-         | Plus_all_Q_or_Z, (E.Z _ | E.Q _) -> Plus_all_Q_or_Z
+         | (Plus_all_Z | Plus_all_Q_or_Z), (E.Z _ | E.Q _) -> Plus_all_Q_or_Z
          | _ -> Plus_other)
       Plus_all_Z args
   and compute_z args =
