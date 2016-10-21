@@ -22,6 +22,18 @@ let test_parser a b : test =
       b (CCFormat.to_string Expr.pp_full_form e)
   )
 
+let test_parser_fail a : test =
+  mk_name "parser_fail" >:: (fun _ ->
+    let buf = Lexing.from_string a in
+    try
+      let _ = Parser.parse_expr Lexer.token buf in
+      OUnit.assert_failure (Printf.sprintf "should have failed to parse %S" a)
+    with e ->
+      OUnit.assert_bool
+        (Printf.sprintf "properly failed to parse %S with exn %s" a (Printexc.to_string e))
+        true
+  )
+
 
 let suite_parser =
   "parser" >::: [
@@ -32,6 +44,11 @@ let suite_parser =
     test_parser "a+b+c+d" "Plus[a,b,c,d]";
     test_parser "f[a+b+c,d]" "f[Plus[a,b,c],d]";
     test_parser "f[a+b+c,d]" "f[Plus[a,b,c],d]";
+    test_parser_fail "f[a+b+,d]";
+    test_parser_fail "+ +";
+    test_parser
+      "f[g[h[i[j[k,l]+m],n,o+p+(q)]]]+r"
+      "Plus[f[g[h[i[Plus[j[k,l],m]],n,Plus[o,p,q]]]],r]";
   ]
 
 let suite =
