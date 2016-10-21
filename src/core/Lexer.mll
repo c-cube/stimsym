@@ -37,6 +37,7 @@ rule token = parse
   | eof { EOI }
   | comment { token lexbuf }
   | '\n' { Lexing.new_line lexbuf; token lexbuf }
+  | ' ' | '\t' { token lexbuf }
   | decimal { INT_LIT (Lexing.lexeme lexbuf) }
   | rational { RAT_LIT (Lexing.lexeme lexbuf) }
   | quoted_string { STRING_LIT (Lexing.lexeme lexbuf) }
@@ -48,4 +49,4 @@ rule token = parse
   | ')' { RIGHT_PAREN }
   | symbol { SYMBOL (Lexing.lexeme lexbuf) }
   | _ as c
-    { Parse_loc.parse_errorf lexbuf "lexer failed on char '%c'" c }
+    { Parse_loc.parse_errorf_buf lexbuf "lexer failed on char '%c'" c }

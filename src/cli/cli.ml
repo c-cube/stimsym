@@ -10,6 +10,7 @@ let rec main_loop () =
     | None -> ()
     | Some res ->
       let buf = Lexing.from_string res in
+      Parse_loc.set_file buf "<stdin>";
       begin match Parser.parse_expr Lexer.token buf with
         | e ->
           ignore (LNoise.history_add res);

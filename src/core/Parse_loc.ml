@@ -108,9 +108,20 @@ let of_lexbuf lexbuf =
 
 exception Parse_error of t * string
 
-let parse_error lexbuf msg =
-  let loc = of_lexbuf lexbuf in
-  raise (Parse_error (loc, msg))
+let () = Printexc.register_printer
+    (function
+      | Parse_error (loc, msg) ->
+        Some (CCFormat.sprintf "parse error at %a:@ %s" pp loc msg)
+      | _ -> None)
 
-let parse_errorf lexbuf msg =
-  CCFormat.ksprintf ~f:(parse_error lexbuf) msg
+let parse_error loc msg = raise (Parse_error (loc, msg))
+
+let parse_errorf loc msg =
+  CCFormat.ksprintf ~f:(parse_error loc) msg
+
+let parse_error_buf lexbuf msg =
+  let loc = of_lexbuf lexbuf in
+  parse_error loc msg
+
+let parse_errorf_buf lexbuf msg =
+  CCFormat.ksprintf ~f:(parse_error_buf lexbuf) msg

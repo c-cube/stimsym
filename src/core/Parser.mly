@@ -40,6 +40,10 @@ expr:
   | e=app_expr { e }
   | a=app_expr PLUS l=separated_nonempty_list(PLUS,app_expr)
     { E.app_l B.plus (a::l) }
+  | error
+    {
+      let loc = L.mk_pos $startpos $endpos in
+      Parse_loc.parse_error loc "expected expression" }
 
 app_expr:
   | e=atomic_expr { e }

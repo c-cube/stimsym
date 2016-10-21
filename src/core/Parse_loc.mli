@@ -57,7 +57,10 @@ val of_lexbuf : Lexing.lexbuf -> t
 
 exception Parse_error of t * string
 
-val parse_error : Lexing.lexbuf -> string -> _
+val parse_error : t -> string -> _
 
-val parse_errorf : Lexing.lexbuf -> ('a, Format.formatter, unit, 'b) format4 -> 'a
+val parse_errorf : t -> ('a, Format.formatter, unit, 'b) format4 -> 'a
 
+val parse_error_buf : Lexing.lexbuf -> string -> _
+
+val parse_errorf_buf : Lexing.lexbuf -> ('a, Format.formatter, unit, 'b) format4 -> 'a
