@@ -14,10 +14,10 @@ let rec main_loop ~config () =
     | None -> ()
     | Some res ->
       let buf = Lexing.from_string res in
+      ignore (LNoise.history_add res);
       Parse_loc.set_file buf "<stdin>";
       begin match Parser.parse_expr Lexer.token buf with
         | e ->
-          ignore (LNoise.history_add res);
           if config.verbose then (
             Format.printf "parsed: @[%a@]@." Expr.pp_full_form e;
           );
