@@ -19,6 +19,7 @@ type const = {
   id: int;
   mutable properties: Properties.t;
   mutable defs: def list;
+  mutable doc: string;
 }
 
 and t =
@@ -61,6 +62,7 @@ let const_of_string name =
         properties=Properties.empty;
         id= bank.const_id;
         defs=[];
+        doc="";
       } in
     bank.const_id <- bank.const_id + 1;
     Str_tbl.add bank.by_name name c;
@@ -99,6 +101,8 @@ module Cst = struct
   let set_field f b c = c.properties <- Properties.set f b c.properties
 
   let add_def d c = c.defs <- d :: c.defs
+
+  let set_doc d c = c.doc <- d
 end
 
 let const_of_string_with ~f name =
@@ -118,4 +122,26 @@ let rec pp_full_form out t = match t with
   | Q n -> Q.pp_print out n
   | String s -> Format.fprintf out "%S" s
 
+let to_string_compact t =
+  let buf = Buffer.create 32 in
+  let rec aux t = match t with
+    | Const {name; _} -> Buffer.add_string buf name
+    | App (head, args) ->
+      aux head;
+      Buffer.add_char buf '[';
+      Array.iteri
+        (fun i t' ->
+           if i>0 then Buffer.add_char buf ',';
+           aux t')
+        args;
+      Buffer.add_char buf ']';
+    | Z n -> Z.bprint buf n
+    | Q n -> Q.bprint buf n
+    | String s ->
+      Buffer.add_char buf '"';
+      Buffer.add_string buf (String.escaped s);
+      Buffer.add_char buf '"';
+  in
+  aux t;
+  Buffer.contents buf
 

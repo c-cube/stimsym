@@ -31,7 +31,8 @@
 %token <string> INT_LIT
 %token <string> RAT_LIT
 
-%token O_PLUS
+%token O_ALTERNATIVE
+
 %token O_SET
 %token O_SET_DELAYED
 %token O_RULE
@@ -39,6 +40,18 @@
 %token O_BLANK
 %token O_BLANK_SEQ
 %token O_BLANK_NULL_SEQ
+%token O_SAME_Q
+
+%token O_PLUS
+%token O_EQUAL
+%token O_LESS
+%token O_LESS_EQUAL
+%token O_GREATER
+%token O_GREATER_EQUAL
+
+%token O_AND
+%token O_OR
+%token O_BANG
 
 %start <Expr.t> parse_expr
 
@@ -53,9 +66,9 @@ parse_expr: e=expr EOI { e }
 expr: skip_space e=expr_nospace skip_space { e }
 
 expr_nospace:
-  | e=sum_expr { e }
   | e=rule_expr { e }
   | e=set_expr { e }
+  | e=alternative_expr { e }
   | error
     {
       let loc = L.mk_pos $startpos $endpos in
@@ -68,10 +81,53 @@ set_expr:
     { E.app_l B.set_delayed [a;b] }
 
 rule_expr:
-  | a=app_expr_nospace O_RULE b=expr_nospace
+  | a=alternative_expr O_RULE b=expr_nospace
     { E.app_l B.rule [a;b] }
-  | a=app_expr_nospace O_RULE_DELAYED b=expr_nospace
+  | a=alternative_expr O_RULE_DELAYED b=expr_nospace
     { E.app_l B.rule_delayed [a;b] }
+
+alternative_expr:
+  | a=same_expr { a }
+  | a=same_expr O_ALTERNATIVE
+    b=separated_nonempty_list(O_ALTERNATIVE,same_expr)
+    { E.app_l B.alternatives (a::b) }
+
+same_expr:
+  | e=or_expr { e }
+  | a=or_expr O_SAME_Q b=separated_nonempty_list(O_SAME_Q, or_expr)
+    { E.app_l B.same_q (a::b) }
+
+or_expr:
+  | e=and_expr { e }
+  | a=and_expr O_OR b=separated_nonempty_list(O_OR, and_expr)
+    { E.app_l B.or_ (a::b) }
+
+and_expr:
+  | e=not_expr { e }
+  | a=not_expr O_AND b=separated_nonempty_list(O_AND, not_expr)
+    { E.app_l B.and_ (a::b) }
+
+not_expr:
+  | e=ineq_expr { e }
+  | O_BANG skip_space e=not_expr { E.app_l B.not_ [e] }
+
+%inline ineq_op:
+  | O_EQUAL { B.equal }
+  | O_LESS { B.less } 
+  | O_LESS_EQUAL { B.less_equal } 
+  | O_GREATER { B.greater } 
+  | O_GREATER_EQUAL { B.greater_equal } 
+
+ineq_expr:
+  | l=ineq_expr_l
+  { match l with
+  | [] -> assert false
+  | [e] -> e
+  | l -> E.app_l B.inequality (List.rev l) }
+
+ineq_expr_l:
+  | e=sum_expr { [e] }
+  | a=ineq_expr_l op=ineq_op b=sum_expr { b :: op :: a }
 
 sum_expr:
   | e=prod_expr { e }
@@ -85,11 +141,15 @@ prod_expr:
     { match l with
       | [] -> assert false
       | [e] -> e
-      | _ -> E.app_l B.times (List.rev l) }
+      | _ -> E.app_l B.times l }
 
 prod_expr_l:
-  | e=app_expr_nospace { [e] }
-  | a=prod_expr_l SPACE b=app_expr_nospace { b::a }
+  | e=factorial_expr { [e] }
+  | a=factorial_expr SPACE b=prod_expr_l { a::b }
+
+factorial_expr:
+  | e=app_expr_nospace { e }
+  | e=factorial_expr O_BANG { E.app_l B.factorial [e] }
 
 app_expr_nospace:
   | e=atomic_expr_nospace { e }

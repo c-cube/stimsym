@@ -13,14 +13,15 @@ let all_ = ref []
    into [None] (fail) or [Some t'] *)
 type fun_def = E.const -> (E.t -> E.t) -> E.t -> E.t option
 
-let mk_ ?(fields=[]) ?(funs=[]) name =
+let mk_ ?(doc="") ?(fields=[]) ?(funs=[]) name =
   let c =
     E.const_of_string_with name
       ~f:(fun c ->
         List.iter
           (fun field -> E.Cst.set_field field true c)
           fields;
-        List.iter (fun d -> E.Cst.add_def (E.Fun (d c)) c) funs)
+        List.iter (fun d -> E.Cst.add_def (E.Fun (d c)) c) funs;
+        E.Cst.set_doc doc c)
   in
   all_ := c :: !all_;
   c
@@ -71,6 +72,7 @@ let plus =
   in
   mk_ "Plus" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
+    ~doc:"Addition operator (infix form: `a + b + c + d`)"
 
 let times =
   let eval self (_eval:E.t -> E.t) (e:E.t): E.t option =
@@ -112,20 +114,26 @@ let times =
   in
   mk_ "Times" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
+    ~doc:"Product operator (infix: `a b c d`)"
+
+let factorial =
+  (* TODO eval *)
+  mk_ "Factorial"
+    ~doc:"Factorial operator (postfix: `a!`)"
 
 let list = mk_ "List"
-let true_ = mk_ "True"
-let false_ = mk_ "False"
-let if_ = mk_ "If" ~fields:[E.field_hold_rest]
 
-let blank = mk_ "Blank" ~fields:[E.field_hold_all; E.field_protected]
+let blank =
+  mk_ "Blank" ~fields:[E.field_hold_all; E.field_protected] ~doc:"`_`"
 let blank_seq =
-  mk_ "BlankSequence" ~fields:[E.field_hold_all; E.field_protected]
+  mk_ "BlankSequence" ~fields:[E.field_hold_all; E.field_protected] ~doc:"`__`"
 let blank_null_seq =
-  mk_ "BlankNullSequence" ~fields:[E.field_hold_all; E.field_protected]
+  mk_ "BlankNullSequence" ~fields:[E.field_hold_all; E.field_protected] ~doc:"`___`"
 let pattern = mk_ "Pattern" ~fields:[E.field_hold_all; E.field_protected]
 
-let same_q = mk_ "SameQ" ~fields:[E.field_hold_all; E.field_protected]
+let same_q =
+  mk_ "SameQ" ~fields:[E.field_hold_all; E.field_protected]
+    ~doc:"symbolic identity (infix: `a === b`)"
 
 (* TODO: defs *)
 
@@ -144,6 +152,7 @@ let set =
   in
   mk_ "Set" ~funs:[eval]
     ~fields:[E.field_hold_first; E.field_protected] 
+    ~doc:"Eager assignment. Infix: `a = b`"
 
 let set_delayed =
   let eval self _eval e : E.t option = match e with
@@ -159,13 +168,60 @@ let set_delayed =
   in
   mk_ "SetDelayed" ~funs:[eval]
     ~fields:[E.field_hold_all; E.field_protected] 
+    ~doc:"Lazy assignment. Infix: `a := b`"
 
 let rule =
   mk_ "Rule"
     ~fields:[E.field_hold_first; E.field_protected] 
+    ~doc:"Eager rewrite rule. Infix: `a -> b`"
 
 let rule_delayed =
   mk_ "RuleDelayed"
     ~fields:[E.field_hold_all; E.field_protected] 
+    ~doc:"Lazy rewrite rule. Infix: `a :> b`"
+
+let replace =
+  mk_ "Replace"
+    ~fields:[E.field_hold_first; E.field_protected] 
+    ~doc:"Replacement by rewrite rules. Infix: `a /. rules`"
+
+let replace_repeated =
+  mk_ "ReplaceRepeated"
+    ~fields:[E.field_hold_all; E.field_protected] 
+    ~doc:"Replacement by rewrite rules until fixpoint. Infix: `a //. rules`"
+
+let alternatives = mk_ "Alternatives"
+
+let true_ = mk_ "True"
+let false_ = mk_ "False"
+let if_ =
+  mk_ "If" ~fields:[E.field_hold_rest] ~doc:"Test operator. `If[A,B,C]`."
+
+let and_ =
+  (* TODO eval rule *)
+  mk_ "And" ~fields:[E.field_flatten; E.field_orderless]
+    ~doc:"Logical conjunction. Infix: `a && b`"
+
+let or_ =
+  (* TODO eval rule *)
+  mk_ "Or"
+    ~fields:[E.field_flatten; E.field_orderless]
+    ~doc:"Logical disjunction. Infix: `a || b`"
+
+let not_ =
+  (* TODO eval rule *)
+  mk_ "Not"
+    ~fields:[E.field_flatten; E.field_orderless]
+    ~doc:"Logical negation. Prefix: `!a`"
+
+let equal = mk_ "Equal" ~doc:"value identity (infix: `a == b`)"
+let less = mk_ "Less" ~doc:"value comparison (infix: `a < b`)"
+let less_equal = mk_ "LessEqual" ~doc:"value comparison (infix: `a <= b`)"
+let greater = mk_ "Greater" ~doc:"value comparison (infix: `a > b`)"
+let greater_equal = mk_ "GreaterEqual" ~doc:"value comparison (infix: `a >= b`)"
+let inequality =
+  mk_ "Inequality"
+    ~fields:[E.field_flatten; E.field_protected]
+    ~doc:"conjunction of comparisons"
 
 let all_builtins () = !all_

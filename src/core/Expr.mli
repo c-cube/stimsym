@@ -22,6 +22,7 @@ type const = private {
   id: int; (* unique ID *)
   mutable properties: Properties.t;
   mutable defs: def list;
+  mutable doc: string;
 }
 
 and t = private
@@ -79,8 +80,12 @@ module Cst : sig
   val get_field : Properties.field -> t -> bool
 
   val add_def : def -> t -> unit
+
+  val set_doc : string -> t -> unit
 end
 
 val pp_full_form : t CCFormat.printer
 (** Printer without any fancy display, just serialize the raw structure *)
 
+val to_string_compact : t -> string
+(** Compact, easy to parser display using FullForm *)

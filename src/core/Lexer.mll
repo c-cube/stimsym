@@ -51,12 +51,22 @@ rule token = parse
   | '{' space*    { cntspace lexbuf; LEFT_BRACE }
   | space* '}'    { cntspace lexbuf; RIGHT_BRACE }
   | space* ',' space*   { cntspace lexbuf; COMMA }
-  | space* '+' space*   { cntspace lexbuf; O_PLUS }
   | space* ":=" space*  { cntspace lexbuf; O_SET_DELAYED }
   | space* "="  space*  { cntspace lexbuf; O_SET }
+  | space* "===" space* { cntspace lexbuf; O_SAME_Q }
   | space* ":=" space*  { cntspace lexbuf; O_SET_DELAYED }
   | space* "->" space*  { cntspace lexbuf; O_RULE }
   | space* ":>" space*  { cntspace lexbuf; O_RULE_DELAYED }
+  | space* "|"  space*  { cntspace lexbuf; O_ALTERNATIVE }
+  | space* '!'          { cntspace lexbuf; O_BANG }
+  | space* "||" space*  { cntspace lexbuf; O_OR }
+  | space* "&&" space*  { cntspace lexbuf; O_AND }
+  | space* '+' space*   { cntspace lexbuf; O_PLUS }
+  | space* "=="  space* { cntspace lexbuf; O_EQUAL }
+  | space* "<"  space*  { cntspace lexbuf; O_LESS }
+  | space* "<="  space* { cntspace lexbuf; O_LESS_EQUAL }
+  | space* ">"  space*  { cntspace lexbuf; O_GREATER }
+  | space* ">="  space* { cntspace lexbuf; O_GREATER_EQUAL }
   | "___"         { O_BLANK_NULL_SEQ }
   | "__"          { O_BLANK_SEQ }
   | "_"           { O_BLANK }

@@ -10,12 +10,25 @@ let mk_name prefix line = Printf.sprintf "%s_line_%d" prefix line
 
 (** {2 Parser} *)
 
+exception Parse_test_fail of string
+
+let () = Printexc.register_printer
+    (function
+      | Parse_test_fail s -> Some s
+      | _ -> None)
+
 let test_parser line a b : test =
   mk_name "ok" line >:: (fun _ ->
     let buf = Lexing.from_string a in
-    let e = Parser.parse_expr Lexer.token buf in
-    OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
-      b (CCFormat.to_string Expr.pp_full_form e)
+    try
+      let e = Parser.parse_expr Lexer.token buf in
+      OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
+        b (Expr.to_string_compact e)
+    with Parse_loc.Parse_error (_,s) ->
+      let msg =
+        CCFormat.sprintf "failed to parse `%s`:@ %s@ (expected: `%s`)" a s b
+      in
+      raise (Parse_test_fail msg)
   )
 
 let test_parser_fail line a : test =
@@ -64,18 +77,35 @@ let suite_parser =
     test_parser __LINE__ "a b c" "Times[a,b,c]";
     test_parser __LINE__ "a b (c+d) " "Times[a,b,Plus[c,d]]";
     test_parser __LINE__ "f[a b, c+d e + 1]" "f[Times[a,b],Plus[c,Times[d,e],1]]";
+    test_parser __LINE__
+      "a_|f[b__]|c "
+      "Alternatives[Pattern[a,Blank[]],f[Pattern[b,BlankSequence[]]],c]";
     test_parser __LINE__ "a ___b" "Times[a,BlankNullSequence[b]]";
     test_parser __LINE__ "a ___ b" "Times[a,BlankNullSequence[],b]";
     test_parser __LINE__ "f[a_] = b " "Set[f[Pattern[a,Blank[]]],b]";
     test_parser __LINE__
-      "f[a_] := b[c] d+f "
-      "SetDelayed[f[Pattern[a,Blank[]]],Plus[Times[b[c],d],f]]";
+      "f[a_|foo] := b[c] d+f "
+      "SetDelayed[f[Alternatives[Pattern[a,Blank[]],foo]],Plus[Times[b[c],d],f]]";
     test_parser __LINE__ "f[a_] = b " "Set[f[Pattern[a,Blank[]]],b]";
     test_parser __LINE__ "f[a_] :> g[a,a]" "RuleDelayed[f[Pattern[a,Blank[]]],g[a,a]]";
     test_parser __LINE__ "f[x] -> g[x,a]" "Rule[f[x],g[x,a]]";
     test_parser __LINE__ "f[x]:> g[x,a]" "RuleDelayed[f[x],g[x,a]]";
     test_parser __LINE__ "f[x]->g[x,a]" "Rule[f[x],g[x,a]]";
     test_parser __LINE__ "f[x]:> g[x]+ h[x] 3" "RuleDelayed[f[x],Plus[g[x],Times[h[x],3]]]";
+    test_parser __LINE__ "f[a==b==c,1]" "f[Inequality[a,Equal,b,Equal,c],1]";
+    test_parser __LINE__
+      "1==a>=b<d<=e b+c|d<e"
+      "Alternatives[Inequality[1,Equal,a,GreaterEqual,b,Less,d,LessEqual,Plus[Times[e,b],c]],\
+       Inequality[d,Less,e]]";
+    test_parser __LINE__ "!a!" "Not[Factorial[a]]";
+    test_parser __LINE__ "a&&b||!c" "Or[And[a,b],Not[c]]";
+    test_parser __LINE__ "a||b&&!c" "Or[a,And[b,Not[c]]]";
+    test_parser __LINE__ "a===b" "SameQ[a,b]";
+    test_parser __LINE__ "f-> a===b===c" "Rule[f,SameQ[a,b,c]]";
+    test_parser __LINE__ "a!" "Factorial[a]";
+    test_parser __LINE__ "a!+b" "Plus[Factorial[a],b]";
+    test_parser __LINE__ "a! b" "Times[Factorial[a],b]";
+    test_parser __LINE__ "! a + b ! c" "Not[Plus[a,Times[Factorial[b],c]]]";
   ]
 
 (** {2 Eval} *)
