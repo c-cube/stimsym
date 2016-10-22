@@ -24,7 +24,7 @@ let rec main_loop ~config () =
           );
           begin
             try
-              let e' = Eval.eval e in
+              let e' = Expr.eval e in
               Format.printf "@[%a@]@." Expr.pp_full_form e'; (* TODO: use nice printer instead *)
             with Stack_overflow ->
               Format.printf "stack overflow.@.";

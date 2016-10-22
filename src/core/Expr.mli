@@ -17,6 +17,10 @@ val field_orderless : Properties.field
 val field_flatten : Properties.field
 val field_one_identity : Properties.field
 
+type def_style =
+  | Def_eager
+  | Def_lazy
+
 type const = private {
   name: string;
   id: int; (* unique ID *)
@@ -31,16 +35,23 @@ and t = private
   | Z of Z.t
   | Q of Q.t
   | String of string
+  | Reg of int
 
 (* (partial) definition of a symbol *)
-and def =
-  | Rewrite of pattern * t
-  | Fun of ((t -> t) -> t -> t option)
-  (* takes an evaluation function, a term [t], return [Some t']
-     if it reduces [t] to [t'] *)
+and def
 
-(* TODO: matching *)
-and pattern = t
+and prim_fun_args
+
+and pattern
+
+and eval_state
+(** Evaluation state *)
+
+and prim_fun = prim_fun_args -> t -> t option
+(** takes a context for loading variables, a term [t], return [Some t']
+    if it reduces [t] to [t'] *)
+
+(** {2 Basics} *)
 
 val const : const -> t
 
@@ -64,6 +75,17 @@ val app : t -> t array -> t
 
 val app_l : t -> t list -> t
 
+val equal : t -> t -> bool
+(** Syntactic deep equality ("SameQ") *)
+
+val def_rule : lhs:t -> rhs:t -> (def,string) Result.result
+(** [def_rule lhs rhs] makes a proper rewrite rule *)
+
+val def_fun : prim_fun -> def
+(** Make a definition from a primitive function *)
+
+(** {2 Constants} *)
+
 exception No_head
 
 val head : t -> const
@@ -84,8 +106,15 @@ module Cst : sig
   val set_doc : string -> t -> unit
 end
 
+(** {2 IO} *)
+
 val pp_full_form : t CCFormat.printer
 (** Printer without any fancy display, just serialize the raw structure *)
 
 val to_string_compact : t -> string
 (** Compact, easy to parser display using FullForm *)
+
+(** {2 Evaluation} *)
+
+val eval : t -> t
+

@@ -133,7 +133,7 @@ let mk_eval line a b : test =
   mk_name "ok" line >:: (fun _ ->
     let buf = Lexing.from_string a in
     let e = Parser.parse_expr Lexer.token buf in
-    let e = Eval.eval e in
+    let e = Expr.eval e in
     OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
       b (CCFormat.to_string Expr.pp_full_form e)
   )
@@ -148,7 +148,7 @@ let suite_eval =
     mk_eval __LINE__ "f[2/3+1/3]" "f[1]";
     mk_eval __LINE__ "{1,{a,1+0+b},{3,a+0}}" "List[1,List[a,Plus[1,b]],List[3,a]]";
     mk_eval __LINE__ "f[a+1+b+2/3+c,1/34+d]" "f[Plus[5/3,a,b,c],Plus[1/34,d]]";
-    mk_eval __LINE__ "f[a+b+2+c,d]" "f[Plus[2,a,b,c],d]";
+    mk_eval __LINE__ "f[a+b+2+c,d]" "f[Plus[a,b,2,c],d]";
     mk_eval __LINE__ "f[10 2+3,a b c]" "f[23,Times[a,b,c]]";
     mk_eval __LINE__
       "f[10 a+3 b+c+0,a (b+ c)] "

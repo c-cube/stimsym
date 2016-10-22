@@ -27,7 +27,7 @@ let mk_ ?(doc="") ?(fields=[]) ?(funs=[]) name =
              let d_protected eval t =
                try d c eval t with Eval_does_not_apply -> None
              in
-             E.Cst.add_def (E.Fun d_protected) c)
+             E.Cst.add_def (E.def_fun d_protected) c)
           funs;
         E.Cst.set_doc doc c)
   in
@@ -38,12 +38,18 @@ let hold = mk_ "Hold" ~fields:[E.field_hold_all]
 
 let full_form = mk_ "FullForm" ~fields:[E.field_hold_all]
 
+(* TODO: auto-flatten inside anything else: `F[Sequence[a,b],c] --> F[a,b,c]` *)
+let sequence = mk_ "Sequence" ~fields:[E.field_flatten]
+
 type arith_res =
   | Arith_q of Q.t * E.t list
   | Arith_z of Z.t * E.t list
 
+let true_ = mk_ "True"
+let false_ = mk_ "False"
+
 let plus =
-  let eval self (_eval:E.t -> E.t) (e:E.t): E.t option =
+  let eval self _ (e:E.t): E.t option =
     let compute args =
       Array.fold_left
         (fun acc e -> match acc, e with
@@ -72,7 +78,7 @@ let plus =
           | [e] -> Some e
           | _ ->
             let args' = Array.of_list args' in
-            if CCArray.equal (==) args args'
+            if Array.length args = Array.length args'
             then None
             else Some (E.app hd args')
         end
@@ -83,7 +89,7 @@ let plus =
     ~doc:"Addition operator (infix form: `a + b + c + d`)"
 
 let times =
-  let eval self (_eval:E.t -> E.t) (e:E.t): E.t option =
+  let eval self _ (e:E.t): E.t option =
     let z_is_one z = Z.equal z Z.one in
     let q_is_one q = Q.equal q Q.one in
     let compute args =
@@ -114,7 +120,7 @@ let times =
           | [e] -> Some e
           | _ ->
             let args' = Array.of_list args' in
-            if CCArray.equal (==) args args'
+            if Array.length args = Array.length args'
             then None
             else Some (E.app hd args')
         end
@@ -150,72 +156,62 @@ let blank_null_seq =
 let pattern = mk_ "Pattern" ~fields:[E.field_hold_all; E.field_protected]
 
 let same_q =
-  mk_ "SameQ" ~fields:[E.field_hold_all; E.field_protected]
-    ~doc:"symbolic identity (infix: `a === b`)"
-
-(* TODO: defs *)
-
-let set =
-  let eval self _eval e : E.t option = match e with
-    | E.App (E.Const c, [|a; b|]) ->
-      assert (E.Cst.equal self c);
-      (* look for the constant to modify *)
-      assert false
-    (* TODO:
-       - try to turn [a] into a pattern
-       - obtain its head symbol
-       - evaluate [b]
-       - register [a -> b] into [a.head] *)
+  let eval _ _ e = match e with
+    | E.App (_, args) when Array.length args >= 2 ->
+      let rec aux i =
+        if i+1 = Array.length args then Some true_
+        else (
+          if E.equal args.(i) args.(i+1)
+          then aux (i+1)
+          else Some false_
+        )
+      in
+      aux 0
     | _ -> None
   in
-  mk_ "Set" ~funs:[eval]
-    ~fields:[E.field_hold_first; E.field_protected] 
+  mk_ "SameQ" ~funs:[eval]
+    ~fields:[E.field_protected]
+    ~doc:"symbolic identity (infix: `a === b`)"
+
+let set =
+  mk_ "Set"
+    ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Eager assignment. Infix: `a = b`"
 
 let set_delayed =
-  let eval self _eval e : E.t option = match e with
-    | E.App (E.Const c, [|a; b|]) ->
-      assert (E.Cst.equal self c);
-      (* look for the constant to modify *)
-      assert false
-    (* TODO:
-       - try to turn [a] into a pattern
-       - obtain its head symbol
-       - register [a -> b] into [a.head] *)
-    | _ -> None
-  in
-  mk_ "SetDelayed" ~funs:[eval]
-    ~fields:[E.field_hold_all; E.field_protected] 
+  mk_ "SetDelayed"
+    ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Lazy assignment. Infix: `a := b`"
 
 let rule =
   mk_ "Rule"
-    ~fields:[E.field_hold_first; E.field_protected] 
+    ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Eager rewrite rule. Infix: `a -> b`"
 
 let rule_delayed =
   mk_ "RuleDelayed"
-    ~fields:[E.field_hold_all; E.field_protected] 
+    ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Lazy rewrite rule. Infix: `a :> b`"
 
 let condition =
   mk_ "Condition" ~fields:[E.field_protected; E.field_hold_all]
     ~doc:"Conditional pattern. Infix: `a /; b`"
 
+(* TODO: define *)
 let replace_all =
   mk_ "ReplaceAll"
-    ~fields:[E.field_hold_first; E.field_protected] 
+    ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Replacement by rewrite rules. Infix: `a /. rules`"
 
+(* TODO: define *)
 let replace_repeated =
   mk_ "ReplaceRepeated"
-    ~fields:[E.field_hold_all; E.field_protected] 
+    ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Replacement by rewrite rules until fixpoint. Infix: `a //. rules`"
 
 let alternatives = mk_ "Alternatives"
 
-let true_ = mk_ "True"
-let false_ = mk_ "False"
+(* TODO: define *)
 let if_ =
   mk_ "If" ~fields:[E.field_hold_rest] ~doc:"Test operator. `If[A,B,C]`."
 
@@ -237,7 +233,7 @@ let not_ =
     ~doc:"Logical negation. Prefix: `!a`"
 
 let nest =
-  let eval _self eval e = match e with
+  let eval _self _ e = match e with
     | E.App (_, [| f; e; E.Z n |]) ->
       if Z.sign n < 0 then None
       else (
@@ -247,7 +243,7 @@ let nest =
             if n=0 then k e
             else aux (n-1) (fun sub -> k (E.app f [| sub |]))
           in
-          Some (eval (aux n (fun e->e)))
+          Some (aux n (fun e->e))
         with _ ->
           None
       )
@@ -257,6 +253,7 @@ let nest =
     ~doc:"`Nest[f,e,n]` returns `f[f[…[f[e]]]]` nested `n` times"
     ~funs:[eval]
 
+(* TODO: define them all (on constants) *)
 let equal = mk_ "Equal" ~doc:"value identity (infix: `a == b`)"
 let less = mk_ "Less" ~doc:"value comparison (infix: `a < b`)"
 let less_equal = mk_ "LessEqual" ~doc:"value comparison (infix: `a <= b`)"

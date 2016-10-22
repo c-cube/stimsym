@@ -8,10 +8,10 @@ type t = Expr.t
 
 val hold : t
 val full_form : t
-val list : t
 val blank : t
 val blank_seq : t
 val blank_null_seq : t
+val sequence : t
 val pattern : t
 val same_q : t
 val set : t
@@ -33,6 +33,7 @@ val not_ : t
 val plus : t
 val times : t
 val factorial : t
+val list : t
 
 val equal : t
 val less : t
