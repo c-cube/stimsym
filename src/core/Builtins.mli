@@ -44,4 +44,6 @@ val inequality : t
 val print : t
 val null : t
 
+val nest : t
+
 val all_builtins : unit -> t list

@@ -218,6 +218,27 @@ let not_ =
     ~fields:[E.field_flatten; E.field_orderless]
     ~doc:"Logical negation. Prefix: `!a`"
 
+let nest =
+  let eval _self eval e = match e with
+    | E.App (_, [| f; e; E.Z n |]) ->
+      if Z.sign n < 0 then None
+      else (
+        try
+          let n = Z.to_int n in
+          let rec aux n k =
+            if n=0 then k e
+            else aux (n-1) (fun sub -> k (E.app f [| sub |]))
+          in
+          Some (eval (aux n (fun e->e)))
+        with _ ->
+          None
+      )
+    | _ -> None
+  in
+  mk_ "Nest"
+    ~doc:"`Nest[f,e,n]` returns `f[f[…[f[e]]]]` nested `n` times"
+    ~funs:[eval]
+
 let equal = mk_ "Equal" ~doc:"value identity (infix: `a == b`)"
 let less = mk_ "Less" ~doc:"value comparison (infix: `a < b`)"
 let less_equal = mk_ "LessEqual" ~doc:"value comparison (infix: `a <= b`)"
