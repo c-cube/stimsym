@@ -22,8 +22,13 @@ let rec main_loop ~config () =
           if config.verbose then (
             Format.printf "parsed: @[%a@]@." Expr.pp_full_form e;
           );
-          let e' = Eval.eval e in
-          Format.printf "@[%a@]@." Expr.pp_full_form e'; (* TODO: use nice printer instead *)
+          begin
+            try
+              let e' = Eval.eval e in
+              Format.printf "@[%a@]@." Expr.pp_full_form e'; (* TODO: use nice printer instead *)
+            with Stack_overflow ->
+              Format.printf "stack overflow.@.";
+          end
         | exception e ->
           Format.printf "error: %s@." (Printexc.to_string e);
       end;
