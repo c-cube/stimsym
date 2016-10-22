@@ -12,6 +12,7 @@ type config = {
 let rec main_loop ~config () =
   match LNoise.linenoise "> " with
     | None -> ()
+    | Some res when String.trim res = "" -> main_loop ~config ()
     | Some res ->
       let buf = Lexing.from_string res in
       ignore (LNoise.history_add res);
