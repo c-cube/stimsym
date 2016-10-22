@@ -48,11 +48,12 @@ skip_space:
 
 %inline pre(X): x=X skip_space { x }
 %inline post(X): x=X skip_space { x }
-%inline prepost(X): skip_space x=X skip_space { x }
 
-parse_expr: skip_space e=expr EOI { e }
+parse_expr: e=expr EOI { e }
 
-expr:
+expr: e=expr_nospace skip_space { e }
+
+expr_nospace:
   | e=sum_expr { e }
   | error
     {
@@ -67,7 +68,7 @@ sum_expr:
     { E.app_l B.plus (a::l) }
 
 prod_expr:
-  | e=prod_expr_nospace skip_space { e }
+  | e=prod_expr_nospace { e }
 
 prod_expr_nospace:
   | e=app_expr_nospace { e }
@@ -79,9 +80,9 @@ prod_expr_nospace:
 app_expr_nospace:
   | e=atomic_expr_nospace { e }
   | hd=app_expr_nospace
-    prepost(LEFT_BRACKET)
-      args=separated_list(post(COMMA),expr)
-    RIGHT_BRACKET
+      post(LEFT_BRACKET)
+        args=separated_list(post(COMMA),expr)
+      RIGHT_BRACKET
     { E.app_l hd args }
 
 %inline blank:

@@ -49,6 +49,7 @@ let suite_parser =
     test_parser __LINE__ "{1,{2},{3,a+0}}" "List[1,List[2],List[3,Plus[a,0]]]";
     test_parser __LINE__ "{}" "List[]";
     test_parser __LINE__ "{a, b,c,d+e+1 + 3}" "List[a,b,c,Plus[d,e,1,3]]";
+    test_parser __LINE__ "  {  a, b,c,d +e+1 +3 }" "List[a,b,c,Plus[d,e,1,3]]";
     test_parser __LINE__ "  {  a, b,c,d +e +1  + 3 } " "List[a,b,c,Plus[d,e,1,3]]";
     test_parser __LINE__ "_" "Blank[]";
     test_parser __LINE__ "_a" "Blank[a]";
