@@ -7,6 +7,8 @@ module E = Expr
 
 type t = Expr.t
 
+exception Eval_does_not_apply
+
 let all_ = ref []
 
 (* a function definition. Takes [self_cst, eval_fun, t] and evaluates [t]
@@ -20,7 +22,13 @@ let mk_ ?(doc="") ?(fields=[]) ?(funs=[]) name =
         List.iter
           (fun field -> E.Cst.set_field field true c)
           fields;
-        List.iter (fun d -> E.Cst.add_def (E.Fun (d c)) c) funs;
+        List.iter
+          (fun d ->
+             let d_protected eval t =
+               try d c eval t with Eval_does_not_apply -> None
+             in
+             E.Cst.add_def (E.Fun d_protected) c)
+          funs;
         E.Cst.set_doc doc c)
   in
   all_ := c :: !all_;
@@ -117,9 +125,19 @@ let times =
     ~doc:"Product operator (infix: `a b c d`)"
 
 let factorial =
-  (* TODO eval *)
+  let eval self _eval t = match t with
+    | E.App (E.Const c, [| E.Z n |]) when Z.sign n >=0 ->
+      assert (E.Cst.equal self c);
+      let n = try Z.to_int n with _ -> raise Eval_does_not_apply in
+      let rec aux n acc : Z.t =
+        if n=0 then acc
+        else aux (n-1) Z.(of_int n * acc)
+      in
+      Some (E.z (aux n Z.one))
+    | _ -> None
+  in
   mk_ "Factorial"
-    ~doc:"Factorial operator (postfix: `a!`)"
+    ~doc:"Factorial operator (postfix: `a!`)" ~funs:[eval]
 
 let list = mk_ "List"
 

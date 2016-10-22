@@ -153,6 +153,9 @@ let suite_eval =
     mk_eval __LINE__
       "f[10 a+3 b+c+0,a (b+ c)] "
       "f[Plus[Times[10,a],Times[3,b],c],Times[a,Plus[b,c]]]";
+    mk_eval __LINE__ "0!" "1";
+    mk_eval __LINE__ "5!" "120";
+    mk_eval __LINE__ "10!" "3628800";
   ]
 
 (** {2 Main} *)
