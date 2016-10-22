@@ -19,5 +19,9 @@ val blank_seq : t
 val blank_null_seq : t
 val pattern : t
 val same_q : t
+val set : t
+val set_delayed : t
+val rule : t
+val rule_delayed : t
 
 val all_builtins : unit -> t list

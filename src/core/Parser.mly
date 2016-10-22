@@ -34,6 +34,8 @@
 %token O_PLUS
 %token O_SET
 %token O_SET_DELAYED
+%token O_RULE
+%token O_RULE_DELAYED
 %token O_BLANK
 %token O_BLANK_SEQ
 %token O_BLANK_NULL_SEQ
@@ -55,10 +57,24 @@ expr: e=expr_nospace skip_space { e }
 
 expr_nospace:
   | e=sum_expr { e }
+  | e=rule_expr { e }
+  | e=set_expr { e }
   | error
     {
       let loc = L.mk_pos $startpos $endpos in
       Parse_loc.parse_error loc "expected expression" }
+
+set_expr:
+  | a=app_expr_nospace post(O_SET) b=expr_nospace
+    { E.app_l B.set [a;b] }
+  | a=app_expr_nospace post(O_SET_DELAYED) b=expr_nospace
+    { E.app_l B.set_delayed [a;b] }
+
+rule_expr:
+  | a=app_expr_nospace post(O_RULE) b=expr_nospace
+    { E.app_l B.rule [a;b] }
+  | a=app_expr_nospace post(O_RULE_DELAYED) b=expr_nospace
+    { E.app_l B.rule_delayed [a;b] }
 
 sum_expr:
   | e=prod_expr { e }

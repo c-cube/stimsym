@@ -160,4 +160,12 @@ let set_delayed =
   mk_ "SetDelayed" ~funs:[eval]
     ~fields:[E.field_hold_all; E.field_protected] 
 
+let rule =
+  mk_ "Rule"
+    ~fields:[E.field_hold_first; E.field_protected] 
+
+let rule_delayed =
+  mk_ "RuleDelayed"
+    ~fields:[E.field_hold_all; E.field_protected] 
+
 let all_builtins () = !all_

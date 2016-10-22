@@ -56,6 +56,8 @@ rule token = parse
   | space* ":="   { cntspace lexbuf; O_SET_DELAYED }
   | space* "="    { cntspace lexbuf; O_SET }
   | space* ":="   { cntspace lexbuf; O_SET_DELAYED }
+  | space* "->"   { cntspace lexbuf; O_RULE }
+  | space* ":>"   { cntspace lexbuf; O_RULE_DELAYED }
   | "___"         { O_BLANK_NULL_SEQ }
   | "__"          { O_BLANK_SEQ }
   | "_"           { O_BLANK }

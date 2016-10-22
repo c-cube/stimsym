@@ -59,9 +59,20 @@ let suite_parser =
     test_parser __LINE__ "a___" "Pattern[a,BlankNullSequence[]]";
     test_parser __LINE__ "___" "BlankNullSequence[]";
     test_parser __LINE__ "a b c" "Times[a,b,c]";
+    test_parser __LINE__ "a b (c+d) " "Times[a,b,Plus[c,d]]";
     test_parser __LINE__ "f[a b, c+d e + 1]" "f[Times[a,b],Plus[c,Times[d,e],1]]";
     test_parser __LINE__ "a ___b" "Times[a,BlankNullSequence[b]]";
     test_parser __LINE__ "a ___ b" "Times[a,BlankNullSequence[],b]";
+    test_parser __LINE__ "f[a_] = b " "Set[f[Pattern[a,Blank[]]],b]";
+    test_parser __LINE__
+      "f[a_] := b[c] d+f "
+      "SetDelayed[f[Pattern[a,Blank[]]],Plus[Times[b[c],d],f]]";
+    test_parser __LINE__ "f[a_] = b " "Set[f[Pattern[a,Blank[]]],b]";
+    test_parser __LINE__ "f[a_] :> g[a,a]" "RuleDelayed[f[Pattern[a,Blank[]]],g[a,a]]";
+    test_parser __LINE__ "f[x] -> g[x,a]" "Rule[f[x],g[x,a]]";
+    test_parser __LINE__ "f[x]:> g[x,a]" "RuleDelayed[f[x],g[x,a]]";
+    test_parser __LINE__ "f[x]->g[x,a]" "Rule[f[x],g[x,a]]";
+    test_parser __LINE__ "f[x]:> g[x]+ h[x] 3" "RuleDelayed[f[x],Plus[g[x],Times[h[x],3]]]";
   ]
 
 (** {2 Eval} *)
@@ -86,6 +97,10 @@ let suite_eval =
     mk_eval __LINE__ "{1,{a,1+0+b},{3,a+0}}" "List[1,List[a,Plus[1,b]],List[3,a]]";
     mk_eval __LINE__ "f[a+1+b+2/3+c,1/34+d]" "f[Plus[5/3,a,b,c],Plus[1/34,d]]";
     mk_eval __LINE__ "f[a+b+2+c,d]" "f[Plus[2,a,b,c],d]";
+    mk_eval __LINE__ "f[10 2+3,a b c]" "f[23,Times[a,b,c]]";
+    mk_eval __LINE__
+      "f[10 a+3 b+c+0,a (b+ c)] "
+      "f[Plus[Times[10,a],Times[3,b],c],Times[a,Plus[b,c]]]";
   ]
 
 (** {2 Main} *)
