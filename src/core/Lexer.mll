@@ -9,8 +9,8 @@
     CCString.iter (fun c -> if c='\n' then Lexing.new_line b) s
 }
 
-let printable_char = [^ '\n']
-let comment = ';' printable_char*
+let comment_body = [ ^ '*' ] | ('*' [^ ')'])
+let comment = "(*" comment_body* "*)"
 
 let quoted_string_char = [^ '"' '\\' ] |  "\\\\" | "\\\""
 let quoted_string = '"' quoted_string_char* '"'
@@ -36,28 +36,27 @@ let upper_alpha = ['A' - 'Z']
 let alpha_numeric = lower_alpha | upper_alpha | numeric | '_'
 let symbol = (lower_alpha | upper_alpha) (lower_alpha | upper_alpha | numeric)*
 
-let space = ['\n' '\t' ' ']
+let space = ['\n' '\t' ' '] | comment
 
 rule token = parse
   | space* eof    { cntspace lexbuf; EOI }
-  | comment       { token lexbuf }
   | rational      { RAT_LIT (Lexing.lexeme lexbuf) }
   | decimal       { INT_LIT (Lexing.lexeme lexbuf) }
   | quoted_string { STRING_LIT (Lexing.lexeme lexbuf) }
   | space+        { cntspace lexbuf; SPACE }
-  | space* ','    { cntspace lexbuf; COMMA }
-  | space* '['    { cntspace lexbuf; LEFT_BRACKET }
+  | '[' space*    { cntspace lexbuf; LEFT_BRACKET }
   | space* ']'    { cntspace lexbuf; RIGHT_BRACKET }
-  | space* '('    { cntspace lexbuf; LEFT_PAREN }
+  | '(' space*    { cntspace lexbuf; LEFT_PAREN }
   | space* ')'    { cntspace lexbuf; RIGHT_PAREN }
-  | space* '{'    { cntspace lexbuf; LEFT_BRACE }
+  | '{' space*    { cntspace lexbuf; LEFT_BRACE }
   | space* '}'    { cntspace lexbuf; RIGHT_BRACE }
-  | space* '+'    { cntspace lexbuf; O_PLUS }
-  | space* ":="   { cntspace lexbuf; O_SET_DELAYED }
-  | space* "="    { cntspace lexbuf; O_SET }
-  | space* ":="   { cntspace lexbuf; O_SET_DELAYED }
-  | space* "->"   { cntspace lexbuf; O_RULE }
-  | space* ":>"   { cntspace lexbuf; O_RULE_DELAYED }
+  | space* ',' space*   { cntspace lexbuf; COMMA }
+  | space* '+' space*   { cntspace lexbuf; O_PLUS }
+  | space* ":=" space*  { cntspace lexbuf; O_SET_DELAYED }
+  | space* "="  space*  { cntspace lexbuf; O_SET }
+  | space* ":=" space*  { cntspace lexbuf; O_SET_DELAYED }
+  | space* "->" space*  { cntspace lexbuf; O_RULE }
+  | space* ":>" space*  { cntspace lexbuf; O_RULE_DELAYED }
   | "___"         { O_BLANK_NULL_SEQ }
   | "__"          { O_BLANK_SEQ }
   | "_"           { O_BLANK }

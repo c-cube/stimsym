@@ -48,12 +48,9 @@ skip_space:
   | {}
   | SPACE {}
 
-%inline pre(X): x=X skip_space { x }
-%inline post(X): x=X skip_space { x }
-
 parse_expr: e=expr EOI { e }
 
-expr: e=expr_nospace skip_space { e }
+expr: skip_space e=expr_nospace skip_space { e }
 
 expr_nospace:
   | e=sum_expr { e }
@@ -65,39 +62,40 @@ expr_nospace:
       Parse_loc.parse_error loc "expected expression" }
 
 set_expr:
-  | a=app_expr_nospace post(O_SET) b=expr_nospace
+  | a=app_expr_nospace O_SET b=expr_nospace
     { E.app_l B.set [a;b] }
-  | a=app_expr_nospace post(O_SET_DELAYED) b=expr_nospace
+  | a=app_expr_nospace O_SET_DELAYED b=expr_nospace
     { E.app_l B.set_delayed [a;b] }
 
 rule_expr:
-  | a=app_expr_nospace post(O_RULE) b=expr_nospace
+  | a=app_expr_nospace O_RULE b=expr_nospace
     { E.app_l B.rule [a;b] }
-  | a=app_expr_nospace post(O_RULE_DELAYED) b=expr_nospace
+  | a=app_expr_nospace O_RULE_DELAYED b=expr_nospace
     { E.app_l B.rule_delayed [a;b] }
 
 sum_expr:
   | e=prod_expr { e }
   | a=prod_expr
-      post(O_PLUS)
-      l=separated_nonempty_list(post(O_PLUS),prod_expr)
+      O_PLUS
+      l=separated_nonempty_list(O_PLUS,prod_expr)
     { E.app_l B.plus (a::l) }
 
 prod_expr:
-  | e=prod_expr_nospace { e }
+  | l=prod_expr_l
+    { match l with
+      | [] -> assert false
+      | [e] -> e
+      | _ -> E.app_l B.times (List.rev l) }
 
-prod_expr_nospace:
-  | e=app_expr_nospace { e }
-  | a=app_expr_nospace
-      SPACE
-      l=separated_nonempty_list(SPACE,app_expr_nospace)
-    { E.app_l B.times (a::l) }
+prod_expr_l:
+  | e=app_expr_nospace { [e] }
+  | a=prod_expr_l SPACE b=app_expr_nospace { b::a }
 
 app_expr_nospace:
   | e=atomic_expr_nospace { e }
   | hd=app_expr_nospace
-      post(LEFT_BRACKET)
-        args=separated_list(post(COMMA),expr)
+      LEFT_BRACKET
+        args=separated_list(COMMA,expr)
       RIGHT_BRACKET
     { E.app_l hd args }
 
@@ -110,11 +108,8 @@ app_expr_nospace:
   | O_BLANK_NULL_SEQ { E.app_l B.blank_null_seq [] }
 
 atomic_expr_nospace:
-  | LEFT_PAREN skip_space e=expr RIGHT_PAREN { e }
-  | LEFT_BRACE
-      skip_space
-      l=separated_list(post(COMMA),expr)
-    RIGHT_BRACE
+  | LEFT_PAREN e=expr_nospace RIGHT_PAREN { e }
+  | LEFT_BRACE l=separated_list(COMMA,expr) RIGHT_BRACE
     { E.app_l B.list l }
   | a=SYMBOL b=blank
     { E.app_l B.pattern [E.const_of_string a; b] }
