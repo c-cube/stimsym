@@ -180,8 +180,12 @@ let rule_delayed =
     ~fields:[E.field_hold_all; E.field_protected] 
     ~doc:"Lazy rewrite rule. Infix: `a :> b`"
 
-let replace =
-  mk_ "Replace"
+let condition =
+  mk_ "Condition" ~fields:[E.field_protected; E.field_hold_all]
+    ~doc:"Conditional pattern. Infix: `a /; b`"
+
+let replace_all =
+  mk_ "ReplaceAll"
     ~fields:[E.field_hold_first; E.field_protected] 
     ~doc:"Replacement by rewrite rules. Infix: `a /. rules`"
 
@@ -223,5 +227,8 @@ let inequality =
   mk_ "Inequality"
     ~fields:[E.field_flatten; E.field_protected]
     ~doc:"conjunction of comparisons"
+
+let null = mk_ "Null"
+let print = mk_ "Print" ~doc:"Print the expression and return Null"
 
 let all_builtins () = !all_

@@ -106,6 +106,21 @@ let suite_parser =
     test_parser __LINE__ "a!+b" "Plus[Factorial[a],b]";
     test_parser __LINE__ "a! b" "Times[Factorial[a],b]";
     test_parser __LINE__ "! a + b ! c" "Not[Plus[a,Times[Factorial[b],c]]]";
+    test_parser __LINE__ "a/; b" "Condition[a,b]";
+    test_parser __LINE__ "f[a_]/; b" "Condition[f[Pattern[a,Blank[]]],b]";
+    test_parser __LINE__ "a_/; b :> a+1" "RuleDelayed[Condition[Pattern[a,Blank[]],b],Plus[a,1]]";
+    test_parser __LINE__
+      "a_[_|__]/; b===1 :> a+1"
+      "RuleDelayed[Condition[Pattern[a,Blank[]][Alternatives[Blank[],BlankSequence[]]]\
+       ,SameQ[b,1]],Plus[a,1]]";
+    test_parser __LINE__
+      "t:f[_,_]/;t==1 :> g[t]"
+      "RuleDelayed[Condition[Pattern[t,f[Blank[],Blank[]]],Inequality[t,Equal,1]],g[t]]";
+    test_parser __LINE__
+      "t:f[x___] :> g[t,x]"
+      "RuleDelayed[Pattern[t,f[Pattern[x,BlankNullSequence[]]]],g[t,x]]";
+    test_parser __LINE__ "f[a] /. {x,y,z}" "ReplaceAll[f[a],List[x,y,z]]";
+    test_parser __LINE__ "f[a] //. {x,y,z} d" "ReplaceRepeated[f[a],Times[List[x,y,z],d]]";
   ]
 
 (** {2 Eval} *)

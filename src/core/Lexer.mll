@@ -61,6 +61,10 @@ rule token = parse
   | space* '!'          { cntspace lexbuf; O_BANG }
   | space* "||" space*  { cntspace lexbuf; O_OR }
   | space* "&&" space*  { cntspace lexbuf; O_AND }
+  | space* "/." space*  { cntspace lexbuf; O_REPLACE_ALL }
+  | space* "//." space* { cntspace lexbuf; O_REPLACE_REPEATED }
+  | space* "/;" space*  { cntspace lexbuf; O_CONDITION }
+  |        ':'          {                  O_PATTERN }
   | space* '+' space*   { cntspace lexbuf; O_PLUS }
   | space* "=="  space* { cntspace lexbuf; O_EQUAL }
   | space* "<"  space*  { cntspace lexbuf; O_LESS }

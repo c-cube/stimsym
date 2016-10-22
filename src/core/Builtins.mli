@@ -18,7 +18,8 @@ val set : t
 val set_delayed : t
 val rule : t
 val rule_delayed : t
-val replace : t
+val condition : t
+val replace_all : t
 val replace_repeated : t
 val alternatives : t
 
@@ -39,5 +40,8 @@ val greater : t
 val less_equal : t
 val greater_equal : t
 val inequality : t
+
+val print : t
+val null : t
 
 val all_builtins : unit -> t list
