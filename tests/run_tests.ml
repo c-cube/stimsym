@@ -121,6 +121,10 @@ let suite_parser =
       "RuleDelayed[Pattern[t,f[Pattern[x,BlankNullSequence[]]]],g[t,x]]";
     test_parser __LINE__ "f[a] /. {x,y,z}" "ReplaceAll[f[a],List[x,y,z]]";
     test_parser __LINE__ "f[a] //. {x,y,z} d" "ReplaceRepeated[f[a],Times[List[x,y,z],d]]";
+    test_parser __LINE__
+      "f[a,b+c d!] //. {f[x,y,z___] :> f[x y,z]}"
+        "ReplaceRepeated[f[a,Plus[b,Times[c,Factorial[d]]]],\
+         List[RuleDelayed[f[x,y,Pattern[z,BlankNullSequence[]]],f[Times[x,y],z]]]]";
   ]
 
 (** {2 Eval} *)
