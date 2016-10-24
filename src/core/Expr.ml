@@ -108,7 +108,40 @@ let const_of_string name =
     Str_tbl.add bank.by_name name c;
     c
 
-let app head args = App (head, args)
+let true_ = const_of_string "True"
+let false_ = const_of_string "False"
+let null = const_of_string "Null"
+
+let app hd args = App (hd, args)
+
+let app_flatten hd args =
+  (* splicing *)
+  let must_splice, res_len =
+    Array.fold_left
+      (fun (must_split,len) arg -> match arg with
+         | App (Const {name="Sequence";_}, sub) -> true, len+Array.length sub
+         | _ -> must_split, len+1)
+      (false,0) args
+  in
+  if must_splice
+  then (
+    let args_flat = Array.make res_len null in
+    (* make a flattened array *)
+    let len' =
+      Array.fold_left
+        (fun offset arg -> match arg with
+           | App (Const {name="Sequence";_}, sub) ->
+             Array.blit sub 0 args_flat offset (Array.length sub);
+             offset + Array.length sub
+           | _ ->
+             args_flat.(offset) <- arg;
+             offset + 1)
+        0 args
+    in
+    assert (len' = res_len);
+    App (hd, args_flat)
+  ) else
+    App (hd, args)
 
 let app_l head args = app head (Array.of_list args)
 
@@ -295,10 +328,6 @@ exception Eval_fail of string
 let eval_fail msg = raise (Eval_fail msg)
 let eval_failf msg = CCFormat.ksprintf msg ~f:eval_fail
 
-let true_ = const_of_string "True"
-let false_ = const_of_string "False"
-let null = const_of_string "Null"
-
 module Subst : sig
   type t
   val empty : t
@@ -333,8 +362,7 @@ end = struct
       end
     | Const _ | Z _ | Q _ | String _ -> t
     | App (hd, args) ->
-      (* TODO: splice arguments of the shape `Sequence[t1...tn]` *)
-      app (apply s hd) (Array.map (apply s) args)
+      app_flatten (apply s hd) (Array.map (apply s) args)
 end
 
 let equal_with (subst:Subst.t) a b: bool =
@@ -479,10 +507,10 @@ and eval_rec (st:eval_state) e = match e with
     begin match head hd with
       | c ->
         (* try every definition of [c] *)
-        try_rules st (app hd args) c.defs
+        try_rules st (app_flatten hd args) c.defs
       | exception No_head ->
         (* just return the new term *)
-        app hd args
+        app_flatten hd args
     end
   | Reg _ -> e (* cannot evaluate *)
 

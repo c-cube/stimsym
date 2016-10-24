@@ -22,6 +22,7 @@ val condition : t
 val replace_all : t
 val replace_repeated : t
 val alternatives : t
+val compound_expr : t
 
 val true_ : t
 val false_ : t

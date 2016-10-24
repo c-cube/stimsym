@@ -73,6 +73,10 @@ val of_float : float -> t
 
 val app : t -> t array -> t
 
+val app_flatten : t -> t array -> t
+(** Same as {!app}, but "inlines" arguments of the shape [Flatten[x1...xn]]
+    into the list of arguments *)
+
 val app_l : t -> t list -> t
 
 val equal : t -> t -> bool

@@ -211,6 +211,9 @@ let replace_repeated =
 
 let alternatives = mk_ "Alternatives"
 
+let compound_expr =
+  mk_ "CompoundExpression" ~doc:"Sequence of operations. Infix: `a; b`"
+
 (* TODO: define *)
 let if_ =
   mk_ "If" ~fields:[E.field_hold_rest] ~doc:"Test operator. `If[A,B,C]`."

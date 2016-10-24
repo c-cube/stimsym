@@ -45,6 +45,7 @@
 %token O_BLANK_SEQ
 %token O_BLANK_NULL_SEQ
 %token O_SAME_Q
+%token O_SEMI_COLON
 
 %token O_PLUS
 %token O_EQUAL
@@ -70,11 +71,16 @@ parse_expr: e=expr EOI { e }
 expr: skip_space e=expr_nospace skip_space { e }
 
 expr_nospace:
-  | e=set_expr { e }
+  | e=compound_expr { e }
   | error
     {
       let loc = L.mk_pos $startpos $endpos in
       Parse_loc.parse_error loc "expected expression" }
+
+compound_expr:
+  | e=set_expr { e }
+  | e=set_expr O_SEMI_COLON l=separated_nonempty_list(O_SEMI_COLON, set_expr)
+    { E.app_l B.compound_expr (e::l) }
 
 set_expr:
   | e=replace_expr { e }
@@ -131,10 +137,10 @@ not_expr:
 
 %inline ineq_op:
   | O_EQUAL { B.equal }
-  | O_LESS { B.less } 
-  | O_LESS_EQUAL { B.less_equal } 
-  | O_GREATER { B.greater } 
-  | O_GREATER_EQUAL { B.greater_equal } 
+  | O_LESS { B.less }
+  | O_LESS_EQUAL { B.less_equal }
+  | O_GREATER { B.greater }
+  | O_GREATER_EQUAL { B.greater_equal }
 
 ineq_expr:
   | l=ineq_expr_l
