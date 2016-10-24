@@ -120,5 +120,7 @@ val to_string_compact : t -> string
 
 (** {2 Evaluation} *)
 
+exception Eval_fail of string
+
 val eval : t -> t
 

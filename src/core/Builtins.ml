@@ -197,13 +197,11 @@ let condition =
   mk_ "Condition" ~fields:[E.field_protected; E.field_hold_all]
     ~doc:"Conditional pattern. Infix: `a /; b`"
 
-(* TODO: define *)
 let replace_all =
   mk_ "ReplaceAll"
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Replacement by rewrite rules. Infix: `a /. rules`"
 
-(* TODO: define *)
 let replace_repeated =
   mk_ "ReplaceRepeated"
     ~fields:[E.field_hold_all; E.field_protected]

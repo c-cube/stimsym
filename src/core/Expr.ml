@@ -44,6 +44,7 @@ and def =
 
 and rewrite_rule = {
   rr_pat: pattern;
+  rr_pat_as_expr: t;
   rr_rhs: t;
 }
 
@@ -60,14 +61,6 @@ and pattern =
   | P_check_same of int * pattern
     (* match, then check syntactic equality with content of register *)
   | P_alt of pattern list
-
-(* state for evaluation *)
-and eval_state = {
-  mutable st_iter_count: int;
-  (* number of iterations *)
-  st_prim: prim_fun_args;
-  (* to give to primitive functions *)
-}
 
 (* TODO? *)
 and prim_fun_args = unit
@@ -159,6 +152,34 @@ let of_int_ratio a b = Q (Q.of_ints a b)
 
 let of_float x = Q (Q.of_float x)
 
+(** {2 Undo Stack}
+
+    Used for local operations *)
+module Undo : sig
+  type t
+  type level
+  val create : unit -> t
+  val push : t -> (unit -> unit) -> unit
+  val save : t -> level
+  val restore : t -> level -> unit
+end = struct
+  type t = (unit -> unit) CCVector.vector
+  type level = int
+
+  let create() : t = CCVector.create()
+
+  let push = CCVector.push
+
+  let save v = CCVector.length v
+
+  let restore v lev =
+    assert (lev < CCVector.length v);
+    while lev < CCVector.length v do
+      let op = CCVector.pop_exn v in
+      op ();
+    done
+end
+
 (** {2 Constants} *)
 
 exception No_head
@@ -178,6 +199,11 @@ module Cst = struct
   let set_field f b c = c.properties <- Properties.set f b c.properties
 
   let add_def d c = c.defs <- d :: c.defs
+
+  let add_def_local (u:Undo.t) d c =
+    let old_defs = c.defs in
+    c.defs <- d :: c.defs;
+    Undo.push u (fun () -> c.defs <- old_defs)
 
   let set_doc d c = c.doc <- d
 end
@@ -219,6 +245,13 @@ let rec pp_pattern out (p:pattern) = match p with
   | P_bind (i,p) -> Format.fprintf out "Pattern[%d,@[%a@]]" i pp_pattern p
   | P_check_same (i,p) -> Format.fprintf out "CheckSame[%d,@[%a@]]" i pp_pattern p
 
+let pp_rule out (r:rewrite_rule): unit =
+  Format.fprintf out "@[%a @<1>→@ %a@]" pp_pattern r.rr_pat pp_full_form r.rr_rhs
+
+let pp_def out = function
+  | Rewrite r -> pp_rule out r
+  | Fun _ -> CCFormat.string out "<primi>"
+
 let to_string_compact t =
   let buf = Buffer.create 32 in
   let rec aux t = match t with
@@ -244,6 +277,18 @@ let to_string_compact t =
   Buffer.contents buf
 
 (** {2 Evaluation} *)
+
+(* state for evaluation *)
+type eval_state = {
+  mutable st_iter_count: int;
+  (* number of iterations *)
+  st_prim: prim_fun_args;
+  (* to give to primitive functions *)
+  mutable st_rules: rewrite_rule list;
+  (* other rewrite rules *)
+  st_undo: Undo.t;
+  (* undo stack, for local operations *)
+}
 
 exception Invalid_rule of string
 
@@ -312,7 +357,7 @@ let compile_rule lhs rhs: rewrite_rule =
   in
   let pat = aux_pat lhs in
   let rhs = aux_rhs rhs in
-  {rr_pat=pat; rr_rhs=rhs }
+  {rr_pat=pat; rr_pat_as_expr=lhs; rr_rhs=rhs }
 
 let def_fun f = Fun f
 
@@ -466,7 +511,7 @@ and eval_rec (st:eval_state) e = match e with
   | String _ -> e
   | Const c ->
     (* [c] might have a definition *)
-    try_rules st e c.defs
+    try_defs st e st.st_rules c.defs
   | App (Const {name="CompoundExpression";_}, ([| |] | [| _ |])) -> assert false
   | App (Const {name="CompoundExpression";_}, args) ->
     (* sequence of `a;b;c…`. Return same as last expression *)
@@ -479,6 +524,28 @@ and eval_rec (st:eval_state) e = match e with
       )
     in
     aux 0
+  | App (Const {name="ReplaceAll";_}, [| _; _ |]) ->
+    (* FIXME: how to efficiently rewrite only once?
+        maybe parametrize [eval_rec] with max num of rewrite steps? *)
+    eval_failf "not implemented: ReplaceAll"
+  | App (Const {name="ReplaceRepeated";_}, [| a; b |]) ->
+    (* rewrite [a] with rules in [b], until fixpoint *)
+    let rules = term_as_rules st b in
+    (* add rules to definitions of symbols, etc. and on [st.st_undo]
+       so the changes are reversible *)
+    let lev = Undo.save st.st_undo in
+    List.iter
+      (fun r -> match head r.rr_pat_as_expr with
+         | c ->
+           Cst.add_def_local st.st_undo (Rewrite r) c
+         | exception No_head ->
+           let old_rules = st.st_rules in
+           Undo.push st.st_undo (fun () -> st.st_rules <- old_rules);
+           st.st_rules <- r :: st.st_rules)
+      rules;
+    CCFun.finally2
+      ~h:(fun () -> Undo.restore st.st_undo lev) (* restore old state *)
+      eval_rec st a
   | App (Const {name="SetDelayed";_}, [| a; b |]) ->
     (* lazy set: add rewrite rule [a :> b] to the definitions of [head a] *)
     begin match head a with
@@ -507,12 +574,25 @@ and eval_rec (st:eval_state) e = match e with
     begin match head hd with
       | c ->
         (* try every definition of [c] *)
-        try_rules st (app_flatten hd args) c.defs
+        try_defs st (app_flatten hd args) st.st_rules c.defs
       | exception No_head ->
         (* just return the new term *)
         app_flatten hd args
     end
   | Reg _ -> e (* cannot evaluate *)
+
+and term_as_rule st e : rewrite_rule = match e with
+  | App (Const {name="Rule";_}, [| lhs; rhs |]) ->
+    let rhs = eval_rec st rhs in
+    compile_rule lhs rhs
+  | App (Const {name="DelayedRule";_}, [| lhs; rhs |]) ->
+    compile_rule lhs rhs
+  | _ -> eval_failf "cannot interpret `@[%a@]` as a rule" pp_full_form e
+
+and term_as_rules st e: rewrite_rule list = match e with
+  | App (Const {name="List";_}, args) ->
+    CCList.init (Array.length args) (fun i -> term_as_rule st args.(i))
+  | _ -> [term_as_rule st e]
 
 (* eval arguments [args], depending on whether the attributes
    of [hd] allow it *)
@@ -531,31 +611,36 @@ and eval_args_of (st:eval_state) hd args = match hd with
   | _ ->
     Array.map (eval_rec st) args
 
-(* try rules [defs] one by one, until one matches *)
-and try_rules (st:eval_state) t defs = match defs with
-  | [] -> t
-  | Rewrite rule :: tail ->
-    let subst_opt =
-      match_ Subst.empty rule.rr_pat t |> Sequence.head
-    in
-    begin match subst_opt with
-      | None -> try_rules st t tail
-      | Some subst ->
-        let t' = Subst.apply subst rule.rr_rhs in
-        st.st_iter_count <- st.st_iter_count + 1;
-        eval_rec st t'
-    end
-  | Fun f :: tail ->
+(* try rules [rules] and definitions [defs] one by one, until one matches *)
+and try_defs (st:eval_state) t rules defs = match rules, defs with
+  | [], [] -> t
+  | rule :: rules_tail, defs -> try_rule st t rule rules_tail defs
+  | [], Rewrite rule :: tail -> try_rule st t rule [] tail
+  | [], Fun f :: tail ->
     begin match f st.st_prim t with
-      | None -> try_rules st t tail
+      | None -> try_defs st t [] tail
       | Some t' ->
         st.st_iter_count <- st.st_iter_count + 1;
         eval_rec st t'
     end
 
+and try_rule st t rule rules defs =
+  let subst_opt =
+    match_ Subst.empty rule.rr_pat t |> Sequence.head
+  in
+  begin match subst_opt with
+    | None -> try_defs st t rules defs
+    | Some subst ->
+      let t' = Subst.apply subst rule.rr_rhs in
+      st.st_iter_count <- st.st_iter_count + 1;
+      eval_rec st t'
+  end
+
 let create_eval_state() : eval_state = {
   st_iter_count=0;
   st_prim=();
+  st_rules=[];
+  st_undo=Undo.create();
 }
 
 let eval e =

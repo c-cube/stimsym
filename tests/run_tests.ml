@@ -156,8 +156,8 @@ let suite_eval =
     mk_eval __LINE__ "0!" "1";
     mk_eval __LINE__ "5!" "120";
     mk_eval __LINE__ "10!" "3628800";
-    mk_eval __LINE__ "(f[x_] := g[x]); f[a]" "g[a]";
-    mk_eval __LINE__ "(f[x_] := Sequence[x,x]); g[f[a]]" "g[a,a]";
+    mk_eval __LINE__ "(foo[x_] := g[x]); foo[a]" "g[a]";
+    mk_eval __LINE__ "(foo[x_] := Sequence[x,x]); g[foo[a]]" "g[a,a]";
     mk_eval __LINE__
       "(Plus[S[x_],y_] := S[Plus[x,y]]); (Plus[0,y_] := y); Plus[S[S[0]],a]"
       "S[S[a]]";
@@ -166,6 +166,9 @@ let suite_eval =
       "(Mult[S[x_],y_] := Plus[Mult[x,y],y]); (Mult[0,y_] := 0); Mult[S[0],a]"
       "a";
     mk_eval __LINE__ "Mult[Nest[S,0,10],Nest[S,0,10]] === Nest[S,0,100]" "True";
+    mk_eval __LINE__ "(test1 = 1); f[test1]" "f[1]";
+    mk_eval __LINE__ "f[a] //. {a->b}" "f[b]";
+    mk_eval __LINE__ "f[a] //. {a->b,b->c}" "f[c]";
   ]
 
 (** {2 Main} *)

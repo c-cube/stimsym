@@ -26,8 +26,11 @@ let rec main_loop ~config () =
             try
               let e' = Expr.eval e in
               Format.printf "@[%a@]@." Expr.pp_full_form e'; (* TODO: use nice printer instead *)
-            with Stack_overflow ->
-              Format.printf "stack overflow.@.";
+            with
+              | Stack_overflow ->
+                Format.printf "stack overflow.@.";
+              | Expr.Eval_fail msg ->
+                Format.printf "evaluation failed: %s@." msg;
           end
         | exception e ->
           Format.printf "error: %s@." (Printexc.to_string e);
