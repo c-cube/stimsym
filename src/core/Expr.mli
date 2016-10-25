@@ -21,15 +21,9 @@ type def_style =
   | Def_eager
   | Def_lazy
 
-type const = private {
-  name: string;
-  id: int; (* unique ID *)
-  mutable properties: Properties.t;
-  mutable defs: def list;
-  mutable doc: string;
-}
+type const
 
-and t = private
+type t = private
   | Const of const
   | App of t * t array
   | Z of Z.t
@@ -38,16 +32,16 @@ and t = private
   | Reg of int
 
 (* (partial) definition of a symbol *)
-and def
+type def
 
-and prim_fun_args
+type prim_fun_args
 
-and pattern
+type pattern
 
-and eval_state
+type eval_state
 (** Evaluation state *)
 
-and prim_fun = prim_fun_args -> t -> t option
+type prim_fun = prim_fun_args -> t -> t option
 (** takes a context for loading variables, a term [t], return [Some t']
     if it reduces [t] to [t'] *)
 

@@ -22,11 +22,11 @@ type def_style =
 (** {2 Basics} *)
 
 type const = {
-  name: string;
-  id: int;
-  mutable properties: Properties.t;
-  mutable defs: def list;
-  mutable doc: string;
+  cst_name: string;
+  cst_id: int;
+  mutable cst_properties: Properties.t;
+  mutable cst_defs: def list;
+  mutable cst_doc: string;
 }
 
 and t =
@@ -91,11 +91,11 @@ let const_of_string name =
   try Str_tbl.find bank.by_name name
   with Not_found ->
     let c = Const {
-        name;
-        properties=Properties.empty;
-        id= bank.const_id;
-        defs=[];
-        doc="";
+        cst_name=name;
+        cst_properties=Properties.empty;
+        cst_id= bank.const_id;
+        cst_defs=[];
+        cst_doc="";
       } in
     bank.const_id <- bank.const_id + 1;
     Str_tbl.add bank.by_name name c;
@@ -112,7 +112,7 @@ let app_flatten hd args =
   let must_splice, res_len =
     Array.fold_left
       (fun (must_split,len) arg -> match arg with
-         | App (Const {name="Sequence";_}, sub) -> true, len+Array.length sub
+         | App (Const {cst_name="Sequence";_}, sub) -> true, len+Array.length sub
          | _ -> must_split, len+1)
       (false,0) args
   in
@@ -123,7 +123,7 @@ let app_flatten hd args =
     let len' =
       Array.fold_left
         (fun offset arg -> match arg with
-           | App (Const {name="Sequence";_}, sub) ->
+           | App (Const {cst_name="Sequence";_}, sub) ->
              Array.blit sub 0 args_flat offset (Array.length sub);
              offset + Array.length sub
            | _ ->
@@ -192,20 +192,20 @@ let rec head = function
 module Cst = struct
   type t = const
 
-  let equal a b = a.id = b.id
+  let equal a b = a.cst_id = b.cst_id
 
-  let get_field f c = Properties.get f c.properties
+  let get_field f c = Properties.get f c.cst_properties
 
-  let set_field f b c = c.properties <- Properties.set f b c.properties
+  let set_field f b c = c.cst_properties <- Properties.set f b c.cst_properties
 
-  let add_def d c = c.defs <- d :: c.defs
+  let add_def d c = c.cst_defs <- d :: c.cst_defs
 
   let add_def_local (u:Undo.t) d c =
-    let old_defs = c.defs in
-    c.defs <- d :: c.defs;
-    Undo.push u (fun () -> c.defs <- old_defs)
+    let old_defs = c.cst_defs in
+    c.cst_defs <- d :: c.cst_defs;
+    Undo.push u (fun () -> c.cst_defs <- old_defs)
 
-  let set_doc d c = c.doc <- d
+  let set_doc d c = c.cst_doc <- d
 end
 
 let const_of_string_with ~f name =
@@ -219,7 +219,7 @@ let const_of_string_with ~f name =
 (** {2 IO} *)
 
 let rec pp_full_form out (t:t) = match t with
-  | Const {name; _} -> Format.pp_print_string out name
+  | Const {cst_name; _} -> Format.pp_print_string out cst_name
   | App (head, args) ->
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
       pp_full_form head (CCFormat.array ~start:"" ~stop:"" ~sep:"," pp_full_form) args
@@ -229,7 +229,7 @@ let rec pp_full_form out (t:t) = match t with
   | Reg i -> Format.fprintf out "Slot[%d]" i
 
 let rec pp_pattern out (p:pattern) = match p with
-  | P_const {name; _} -> Format.pp_print_string out name
+  | P_const {cst_name; _} -> Format.pp_print_string out cst_name
   | P_app (head, args) ->
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
       pp_pattern head (CCFormat.array ~start:"" ~stop:"" ~sep:"," pp_pattern) args
@@ -255,7 +255,7 @@ let pp_def out = function
 let to_string_compact t =
   let buf = Buffer.create 32 in
   let rec aux t = match t with
-    | Const {name; _} -> Buffer.add_string buf name
+    | Const {cst_name; _} -> Buffer.add_string buf cst_name
     | App (head, args) ->
       aux head;
       Buffer.add_char buf '[';
@@ -307,16 +307,16 @@ let compile_rule lhs rhs: rewrite_rule =
     | String s -> P_string s
     | Z n -> P_z n
     | Q n -> P_q n
-    | App (Const {name="Blank";_},[||]) -> P_blank
-    | App (Const {name="Pattern";_},
-        [| Const {name=x;_}; sub |]) ->
+    | App (Const {cst_name="Blank";_},[||]) -> P_blank
+    | App (Const {cst_name="Pattern";_},
+        [| Const {cst_name=x;_}; sub |]) ->
       (* [x] on the stack -> failure, would lead to cyclical subst *)
       if Sequence.of_stack surrounding |> Sequence.mem x then (
         invalid_rulef "variable `%s` cannot appear in its own pattern" x
       );
       (* compute pattern itself *)
       let sub_p = match sub with
-        | App (Const {name="Blank";_}, [||]) -> P_blank (* trivial case *)
+        | App (Const {cst_name="Blank";_}, [||]) -> P_blank (* trivial case *)
         | _ ->
           Stack.push x surrounding;
           CCFun.finally1 ~h:(fun () -> ignore (Stack.pop surrounding))
@@ -332,9 +332,9 @@ let compile_rule lhs rhs: rewrite_rule =
           (* already bound, check SameQ *)
           P_check_same (i, sub_p)
       end
-    | App (Const {name="Alternatives";_}, [| |]) -> P_fail
-    | App (Const {name="Alternatives";_}, [| p |]) -> aux_pat p
-    | App (Const {name="Alternatives";_}, a) ->
+    | App (Const {cst_name="Alternatives";_}, [| |]) -> P_fail
+    | App (Const {cst_name="Alternatives";_}, [| p |]) -> aux_pat p
+    | App (Const {cst_name="Alternatives";_}, a) ->
       let l = CCList.init (Array.length a) (fun i -> aux_pat a.(i)) in
       P_alt l
     | App (hd, args) ->
@@ -349,8 +349,8 @@ let compile_rule lhs rhs: rewrite_rule =
       let args = Array.map aux_rhs args in
       app hd args
     | Reg _ -> assert false
-    | Const {name;_} ->
-      begin match CCHashtbl.get tbl name with
+    | Const {cst_name;_} ->
+      begin match CCHashtbl.get tbl cst_name with
         | None -> t
         | Some i -> reg i (* lookup *)
       end
@@ -417,7 +417,7 @@ let equal_with (subst:Subst.t) a b: bool =
     | Q q, Z z -> Q.equal q (Q.of_bigint z)
     | Q n1, Q n2 -> Q.equal n1 n2
     | String s1, String s2 -> s1=s2
-    | Const c1, Const c2 -> c1.id = c2.id
+    | Const c1, Const c2 -> c1.cst_id = c2.cst_id
     | App (f1,a1), App (f2,a2) ->
       Array.length a1=Array.length a2 &&
       eq_aux f1 f2 &&
@@ -511,9 +511,9 @@ and eval_rec (st:eval_state) e = match e with
   | String _ -> e
   | Const c ->
     (* [c] might have a definition *)
-    try_defs st e st.st_rules c.defs
-  | App (Const {name="CompoundExpression";_}, ([| |] | [| _ |])) -> assert false
-  | App (Const {name="CompoundExpression";_}, args) ->
+    try_defs st e st.st_rules c.cst_defs
+  | App (Const {cst_name="CompoundExpression";_}, ([| |] | [| _ |])) -> assert false
+  | App (Const {cst_name="CompoundExpression";_}, args) ->
     (* sequence of `a;b;c…`. Return same as last expression *)
     let rec aux i =
       if i+1 = Array.length args
@@ -524,11 +524,11 @@ and eval_rec (st:eval_state) e = match e with
       )
     in
     aux 0
-  | App (Const {name="ReplaceAll";_}, [| _; _ |]) ->
+  | App (Const {cst_name="ReplaceAll";_}, [| _; _ |]) ->
     (* FIXME: how to efficiently rewrite only once?
         maybe parametrize [eval_rec] with max num of rewrite steps? *)
     eval_failf "not implemented: ReplaceAll"
-  | App (Const {name="ReplaceRepeated";_}, [| a; b |]) ->
+  | App (Const {cst_name="ReplaceRepeated";_}, [| a; b |]) ->
     (* rewrite [a] with rules in [b], until fixpoint *)
     let rules = term_as_rules st b in
     (* add rules to definitions of symbols, etc. and on [st.st_undo]
@@ -546,23 +546,23 @@ and eval_rec (st:eval_state) e = match e with
     CCFun.finally2
       ~h:(fun () -> Undo.restore st.st_undo lev) (* restore old state *)
       eval_rec st a
-  | App (Const {name="SetDelayed";_}, [| a; b |]) ->
+  | App (Const {cst_name="SetDelayed";_}, [| a; b |]) ->
     (* lazy set: add rewrite rule [a :> b] to the definitions of [head a] *)
     begin match head a with
       | c ->
         let rule = compile_rule a b in
-        c.defs <- Rewrite rule :: c.defs;
+        c.cst_defs <- Rewrite rule :: c.cst_defs;
       | exception No_head ->
         eval_failf "cannot assign to %a" pp_full_form a
     end;
     null
-  | App (Const {name="Set";_}, [| a; b |]) ->
+  | App (Const {cst_name="Set";_}, [| a; b |]) ->
     (* eager set: eval [b], then add [a :> b] to the defs of [head a] *)
     let b = eval_rec st b in
     begin match head a with
       | c ->
         let rule = compile_rule a b in
-        c.defs <- Rewrite rule :: c.defs;
+        c.cst_defs <- Rewrite rule :: c.cst_defs;
       | exception No_head ->
         eval_failf "cannot assign to %a" pp_full_form a
     end;
@@ -571,26 +571,27 @@ and eval_rec (st:eval_state) e = match e with
     let hd = eval_rec st hd in
     (* evaluate arguments, but only if [hd] allows it *)
     let args = eval_args_of st hd args in
+    let t' = app_flatten hd args in
     begin match head hd with
       | c ->
         (* try every definition of [c] *)
-        try_defs st (app_flatten hd args) st.st_rules c.defs
+        try_defs st t' st.st_rules c.cst_defs
       | exception No_head ->
         (* just return the new term *)
-        app_flatten hd args
+        try_defs st t' st.st_rules []
     end
   | Reg _ -> e (* cannot evaluate *)
 
 and term_as_rule st e : rewrite_rule = match e with
-  | App (Const {name="Rule";_}, [| lhs; rhs |]) ->
+  | App (Const {cst_name="Rule";_}, [| lhs; rhs |]) ->
     let rhs = eval_rec st rhs in
     compile_rule lhs rhs
-  | App (Const {name="DelayedRule";_}, [| lhs; rhs |]) ->
+  | App (Const {cst_name="DelayedRule";_}, [| lhs; rhs |]) ->
     compile_rule lhs rhs
   | _ -> eval_failf "cannot interpret `@[%a@]` as a rule" pp_full_form e
 
 and term_as_rules st e: rewrite_rule list = match e with
-  | App (Const {name="List";_}, args) ->
+  | App (Const {cst_name="List";_}, args) ->
     CCList.init (Array.length args) (fun i -> term_as_rule st args.(i))
   | _ -> [term_as_rule st e]
 
