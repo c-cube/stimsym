@@ -25,7 +25,8 @@ type const = {
   cst_name: string;
   cst_id: int;
   mutable cst_properties: Properties.t;
-  mutable cst_defs: def list;
+  mutable cst_rules: def list;
+  mutable cst_local_rules: rewrite_rule list;
   mutable cst_doc: string;
 }
 
@@ -94,7 +95,8 @@ let const_of_string name =
         cst_name=name;
         cst_properties=Properties.empty;
         cst_id= bank.const_id;
-        cst_defs=[];
+        cst_rules=[];
+        cst_local_rules=[];
         cst_doc="";
       } in
     bank.const_id <- bank.const_id + 1;
@@ -198,12 +200,20 @@ module Cst = struct
 
   let set_field f b c = c.cst_properties <- Properties.set f b c.cst_properties
 
-  let add_def d c = c.cst_defs <- d :: c.cst_defs
+  let add_def d c = match d with
+    | Rewrite {rr_pat=P_const c'; _} when equal c c' ->
+      c.cst_rules <- [d] (* shadowing *)
+    | _ -> c.cst_rules <- d :: c.cst_rules
 
-  let add_def_local (u:Undo.t) d c =
-    let old_defs = c.cst_defs in
-    c.cst_defs <- d :: c.cst_defs;
-    Undo.push u (fun () -> c.cst_defs <- old_defs)
+  let add_local_rule (u:Undo.t) rule c = match rule with
+    | {rr_pat=P_const c'; _} when equal c c' ->
+      let old_local_rules = c.cst_local_rules in
+      c.cst_local_rules <- [rule];
+      Undo.push u (fun () -> c.cst_local_rules <- old_local_rules)
+    | _ ->
+      let old_local_rules = c.cst_local_rules in
+      c.cst_local_rules <- rule :: c.cst_local_rules;
+      Undo.push u (fun () -> c.cst_local_rules <- old_local_rules)
 
   let set_doc d c = c.cst_doc <- d
 end
@@ -285,7 +295,8 @@ type eval_state = {
   st_prim: prim_fun_args;
   (* to give to primitive functions *)
   mutable st_rules: rewrite_rule list;
-  (* other rewrite rules *)
+  (* permanent list of rules *)
+  mutable st_local_rules: rewrite_rule list;
   st_undo: Undo.t;
   (* undo stack, for local operations *)
 }
@@ -442,6 +453,19 @@ let equal_with (subst:Subst.t) a b: bool =
 
 let equal = equal_with Subst.empty
 
+(* set of definitions and rules we can use for rewriting *)
+type rewrite_set =
+  | RS_empty
+  | RS_add_rules of rewrite_rule list * rewrite_set
+  | RS_add_defs of def list * rewrite_set
+
+let rs_of_st st: rewrite_set =
+  RS_add_rules (st.st_local_rules, RS_add_rules (st.st_rules, RS_empty))
+
+let rs_of_cst st c: rewrite_set =
+  RS_add_rules (c.cst_local_rules,
+    RS_add_defs (c.cst_rules, rs_of_st st))
+
 (* return all the matches of [pat] against [e], modifying [st]
    every time in a backtracking way *)
 let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
@@ -506,12 +530,6 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
   match_pair subst pat e
 
 and eval_rec (st:eval_state) e = match e with
-  | Z _
-  | Q _
-  | String _ -> e
-  | Const c ->
-    (* [c] might have a definition *)
-    try_defs st e st.st_rules c.cst_defs
   | App (Const {cst_name="CompoundExpression";_}, ([| |] | [| _ |])) -> assert false
   | App (Const {cst_name="CompoundExpression";_}, args) ->
     (* sequence of `a;b;c…`. Return same as last expression *)
@@ -537,11 +555,11 @@ and eval_rec (st:eval_state) e = match e with
     List.iter
       (fun r -> match head r.rr_pat_as_expr with
          | c ->
-           Cst.add_def_local st.st_undo (Rewrite r) c
+           Cst.add_local_rule st.st_undo r c
          | exception No_head ->
            let old_rules = st.st_rules in
            Undo.push st.st_undo (fun () -> st.st_rules <- old_rules);
-           st.st_rules <- r :: st.st_rules)
+           st.st_local_rules <- r :: st.st_local_rules)
       rules;
     CCFun.finally2
       ~h:(fun () -> Undo.restore st.st_undo lev) (* restore old state *)
@@ -551,7 +569,7 @@ and eval_rec (st:eval_state) e = match e with
     begin match head a with
       | c ->
         let rule = compile_rule a b in
-        c.cst_defs <- Rewrite rule :: c.cst_defs;
+        Cst.add_def (Rewrite rule) c
       | exception No_head ->
         eval_failf "cannot assign to %a" pp_full_form a
     end;
@@ -562,7 +580,7 @@ and eval_rec (st:eval_state) e = match e with
     begin match head a with
       | c ->
         let rule = compile_rule a b in
-        c.cst_defs <- Rewrite rule :: c.cst_defs;
+        Cst.add_def (Rewrite rule) c;
       | exception No_head ->
         eval_failf "cannot assign to %a" pp_full_form a
     end;
@@ -575,12 +593,20 @@ and eval_rec (st:eval_state) e = match e with
     begin match head hd with
       | c ->
         (* try every definition of [c] *)
-        try_defs st t' st.st_rules c.cst_defs
+        try_defs st t' (rs_of_cst st c)
       | exception No_head ->
         (* just return the new term *)
-        try_defs st t' st.st_rules []
+        try_defs st t' (rs_of_st st)
     end
   | Reg _ -> e (* cannot evaluate *)
+  | Z _
+  | Q _
+  | String _ ->
+    (* try global rules *)
+    try_defs st e (rs_of_st st)
+  | Const c ->
+    (* [c] might have a definition *)
+    try_defs st e (rs_of_cst st c)
 
 and term_as_rule st e : rewrite_rule = match e with
   | App (Const {cst_name="Rule";_}, [| lhs; rhs |]) ->
@@ -613,24 +639,28 @@ and eval_args_of (st:eval_state) hd args = match hd with
     Array.map (eval_rec st) args
 
 (* try rules [rules] and definitions [defs] one by one, until one matches *)
-and try_defs (st:eval_state) t rules defs = match rules, defs with
-  | [], [] -> t
-  | rule :: rules_tail, defs -> try_rule st t rule rules_tail defs
-  | [], Rewrite rule :: tail -> try_rule st t rule [] tail
-  | [], Fun f :: tail ->
+and try_defs (st:eval_state) t (rs:rewrite_set) = match rs with
+  | RS_empty -> t
+  | RS_add_defs ([], rs')
+  | RS_add_rules ([], rs') -> try_defs st t rs'
+  | RS_add_rules (r :: rules_trail, rs') ->
+    try_rule st t r (RS_add_rules (rules_trail, rs'))
+  | RS_add_defs (Rewrite r :: trail, rs') ->
+    try_rule st t r (RS_add_defs (trail, rs'))
+  | RS_add_defs (Fun f :: trail, rs') ->
     begin match f st.st_prim t with
-      | None -> try_defs st t [] tail
+      | None -> try_defs st t (RS_add_defs (trail, rs'))
       | Some t' ->
         st.st_iter_count <- st.st_iter_count + 1;
         eval_rec st t'
     end
 
-and try_rule st t rule rules defs =
+and try_rule st t rule (rs:rewrite_set) =
   let subst_opt =
     match_ Subst.empty rule.rr_pat t |> Sequence.head
   in
   begin match subst_opt with
-    | None -> try_defs st t rules defs
+    | None -> try_defs st t rs
     | Some subst ->
       let t' = Subst.apply subst rule.rr_rhs in
       st.st_iter_count <- st.st_iter_count + 1;
@@ -641,6 +671,7 @@ let create_eval_state() : eval_state = {
   st_iter_count=0;
   st_prim=();
   st_rules=[];
+  st_local_rules=[];
   st_undo=Undo.create();
 }
 

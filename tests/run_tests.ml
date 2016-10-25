@@ -169,6 +169,8 @@ let suite_eval =
     mk_eval __LINE__ "(test1 = 1); f[test1]" "f[1]";
     mk_eval __LINE__ "f[a] //. {a->b}" "f[b]";
     mk_eval __LINE__ "f[a] //. {a->b,b->c}" "f[c]";
+    mk_eval __LINE__ "{a,b,c} //. {b->2}" "List[a,2,c]";
+    mk_eval __LINE__ "{1,2,3} //. {2->a}" "List[1,a,3]";
   ]
 
 (** {2 Main} *)
