@@ -54,14 +54,29 @@ and pattern =
   | P_z of Z.t
   | P_q of Q.t
   | P_string of string
-  | P_app of pattern * pattern array (* TODO: actually a list/tree for A/AC match *)
+  | P_app of pattern * pattern array
   | P_blank
+  | P_blank_sequence (* >= 1 elements *)
+  | P_blank_sequence_null (* >= 0 elements *)
   | P_fail
   | P_bind of int * pattern
     (* match, then bind register *)
   | P_check_same of int * pattern
     (* match, then check syntactic equality with content of register *)
   | P_alt of pattern list
+  | P_app_assoc of pattern * assoc_pattern (* for slices *)
+
+and assoc_pattern =
+  | AP_vantage of assoc_pattern_vantage
+  | AP_pure of pattern list * int (* only sequence/sequencenull; min size *)
+
+(* a subtree used for associative pattern matching *)
+and assoc_pattern_vantage = {
+  ap_min_size: int; (* minimum length of matched slice *)
+  ap_left: assoc_pattern; (* matches left slice *)
+  ap_vantage: pattern; (* match this unary pattern first *)
+  ap_right: assoc_pattern; (* matches right slice *)
+}
 
 (* TODO? *)
 and prim_fun_args = unit
@@ -106,8 +121,12 @@ let const_of_string name =
 let true_ = const_of_string "True"
 let false_ = const_of_string "False"
 let null = const_of_string "Null"
+let sequence = const_of_string "Sequence"
 
 let app hd args = App (hd, args)
+
+let sequence_of_array (a:t array) = app sequence a
+let sequence_of_slice (a:t Slice.t) = sequence_of_array (Slice.copy a)
 
 let app_flatten hd args =
   (* splicing *)
@@ -243,10 +262,15 @@ let rec pp_pattern out (p:pattern) = match p with
   | P_app (head, args) ->
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
       pp_pattern head (CCFormat.array ~start:"" ~stop:"" ~sep:"," pp_pattern) args
+  | P_app_assoc (head, arg) ->
+    Format.fprintf out "@[<2>%a[@[%a@]]@]"
+      pp_pattern head pp_assoc_pattern arg
   | P_z n -> Z.pp_print out n
   | P_q n -> Q.pp_print out n
   | P_string s -> Format.fprintf out "%S" s
   | P_blank -> CCFormat.string out "Blank[]"
+  | P_blank_sequence -> CCFormat.string out "BlankSequence[]"
+  | P_blank_sequence_null -> CCFormat.string out "BlankNullSequence[]"
   | P_fail -> CCFormat.string out "Fail[]"
   | P_alt ([] | [_]) -> assert false
   | P_alt l ->
@@ -254,6 +278,15 @@ let rec pp_pattern out (p:pattern) = match p with
       (CCFormat.list ~start:"" ~stop:"" ~sep:"|" pp_pattern) l
   | P_bind (i,p) -> Format.fprintf out "Pattern[%d,@[%a@]]" i pp_pattern p
   | P_check_same (i,p) -> Format.fprintf out "CheckSame[%d,@[%a@]]" i pp_pattern p
+
+and pp_assoc_pattern out = function
+  | AP_vantage apv ->
+    Format.fprintf out "[@[<2>%a,@,vantage(@[%a@]),@,%a@]]"
+      pp_assoc_pattern apv.ap_left
+      pp_pattern apv.ap_vantage pp_assoc_pattern apv.ap_right
+  | AP_pure (l,_) ->
+    Format.fprintf out "[@[<hv>%a@]]"
+      (CCFormat.list ~start:"" ~stop:"" pp_pattern) l
 
 let pp_rule out (r:rewrite_rule): unit =
   Format.fprintf out "@[%a @<1>→@ %a@]" pp_pattern r.rr_pat pp_full_form r.rr_rhs
@@ -306,6 +339,32 @@ exception Invalid_rule of string
 let invalid_rule msg = raise (Invalid_rule msg)
 let invalid_rulef msg = CCFormat.ksprintf msg ~f:invalid_rule
 
+let rec matches_slice (p:pattern): bool = match p with
+  | P_blank_sequence | P_blank_sequence_null -> true
+  | P_alt l -> List.exists matches_slice l
+  | P_bind (_, sub_p)
+  | P_check_same (_, sub_p) -> matches_slice sub_p
+  | P_blank -> false
+  | P_q _ | P_z _ | P_string _ | P_app _ | P_const _ | P_fail | P_app_assoc _
+    -> false
+
+(* 0 or 1, depending on whether the pattern can be Null *)
+let rec pat_assoc_min_size (p:pattern): int = match p with
+  | P_blank_sequence -> 1
+  | P_blank_sequence_null -> 0
+  | P_alt [] -> assert false
+  | P_alt (x::l) ->
+    List.fold_left (fun n p -> min n (pat_assoc_min_size p)) (pat_assoc_min_size x) l
+  | P_bind (_, sub_p)
+  | P_check_same (_, sub_p) -> pat_assoc_min_size sub_p
+  | P_blank | P_q _ | P_z _ | P_string _ | P_app _ | P_const _
+  | P_fail | P_app_assoc _
+    -> 1
+
+let ap_assoc_min_size (ap:assoc_pattern): int = match ap with
+  | AP_vantage apv -> apv.ap_min_size
+  | AP_pure (_,i) -> i
+
 (* raise Invalid_rule if cannot compile *)
 let compile_rule lhs rhs: rewrite_rule =
   (* variable name -> register *)
@@ -319,6 +378,8 @@ let compile_rule lhs rhs: rewrite_rule =
     | Z n -> P_z n
     | Q n -> P_q n
     | App (Const {cst_name="Blank";_},[||]) -> P_blank
+    | App (Const {cst_name="BlankSequence";_},[||]) -> P_blank_sequence
+    | App (Const {cst_name="BlankNullSequence";_},[||]) -> P_blank_sequence_null
     | App (Const {cst_name="Pattern";_},
         [| Const {cst_name=x;_}; sub |]) ->
       (* [x] on the stack -> failure, would lead to cyclical subst *)
@@ -349,8 +410,17 @@ let compile_rule lhs rhs: rewrite_rule =
       let l = CCList.init (Array.length a) (fun i -> aux_pat a.(i)) in
       P_alt l
     | App (hd, args) ->
-      (* otherwise, match structurally *)
-      P_app (aux_pat hd, Array.map aux_pat args)
+      let hd = aux_pat hd in
+      let args = Array.map aux_pat args in
+      if CCArray.exists matches_slice args
+      then (
+        (* associative match *)
+        let ap = ap_of_pats (Slice.full args) in
+        P_app_assoc (hd, ap)
+      ) else (
+        (* otherwise, match structurally *)
+        P_app (hd, args)
+      )
     | Reg _ -> assert false
   (* convert variables in RHS *)
   and aux_rhs t = match t with
@@ -365,6 +435,43 @@ let compile_rule lhs rhs: rewrite_rule =
         | None -> t
         | Some i -> reg i (* lookup *)
       end
+  (* build an associative pattern tree out of this list of patterns *)
+  and ap_of_pats (a:pattern Slice.t): assoc_pattern =
+    let n = Slice.length a in
+    if n=0 then AP_pure ([],0)
+    else (
+      (* TODO: refine this, e.g. with a "specificity" score that
+         is higher when the pattern is more specific (low for Blank, high
+         for constant applications, literals, etc.) and pick the most
+         specific non-slice pattern as vantage point *)
+      let matches_single p = not (matches_slice p) in
+      (* try to find a vantage point *)
+      begin match Slice.find_idx matches_single a with
+        | Some (i, vantage) ->
+          (* recurse in left and right parts of the pattern *)
+          let left = ap_of_pats (Slice.sub a 0 i) in
+          let right = ap_of_pats (Slice.sub a (i+1) (n-i-1)) in
+          let ap_min_size =
+            pat_assoc_min_size vantage +
+              ap_assoc_min_size left +
+              ap_assoc_min_size right
+          in
+          AP_vantage {
+            ap_vantage=vantage;
+            ap_left=left;
+            ap_right=right;
+            ap_min_size;
+          }
+        | None ->
+          (* pure pattern: only slice-matching patterns *)
+          let l = Slice.copy a |> Array.to_list in
+          let min_size =
+            List.fold_left
+              (fun acc p -> acc+pat_assoc_min_size p) 0 l
+          in
+          AP_pure (l, min_size)
+      end
+    )
   in
   let pat = aux_pat lhs in
   let rhs = aux_rhs rhs in
@@ -380,6 +487,12 @@ let def_rule ~lhs ~rhs =
     Result.Error str
 
 exception Eval_fail of string
+
+let () = Printexc.register_printer
+    (function
+      | Eval_fail s ->
+        Some ("evaluation failed:\n" ^ s)
+      | _ -> None)
 
 let eval_fail msg = raise (Eval_fail msg)
 let eval_failf msg = CCFormat.ksprintf msg ~f:eval_fail
@@ -466,14 +579,30 @@ let rs_of_cst st c: rewrite_set =
   RS_add_rules (c.cst_local_rules,
     RS_add_defs (c.cst_rules, rs_of_st st))
 
+let pp_slice out s =
+  Format.fprintf out "[@[%a@]]"
+    (Slice.print pp_full_form) s
+
+let trace_on_ : bool ref = ref false
+
+(* tracing evaluation *)
+let trace_eval_ k =
+  if !trace_on_
+  then (
+    k (fun msg ->
+      Format.kfprintf (fun out -> Format.fprintf out "@.") Format.std_formatter msg)
+  )
+
+let set_eval_trace b = trace_on_ := b
+
 (* return all the matches of [pat] against [e], modifying [st]
    every time in a backtracking way *)
 let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
   (* TODO: Condition *)
-  (* TODO: BlankSequence *)
-  (* TODO: BlankSequenceNull *)
   (* TODO: AC matching… *)
   let rec match_pair (subst:Subst.t) (pat:pattern) (e:t) yield: unit =
+    trace_eval_ (fun k->k "@[<2>match @[%a@]@ with: @[%a@]@ subst: @[%a@]@]"
+      pp_pattern pat pp_full_form e Subst.pp subst);
     begin match pat, e with
       | P_z a, Z b -> if Z.equal a b then yield subst
       | P_q a, Q b -> if Q.equal a b then yield subst
@@ -504,13 +633,20 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
         when Array.length args = Array.length args' ->
         match_pair subst hd hd'
           (fun subst -> match_arrays subst args args' 0 yield)
+      | P_app_assoc (hd, tree), App (hd', args) ->
+        (* associative matching *)
+        match_pair subst hd hd'
+          (fun subst -> match_assoc subst tree (Slice.full args) yield)
       | P_fail, _ -> ()
       | P_alt l, _ -> match_alt subst l e yield
       | P_z _, _
       | P_q _, _
       | P_const _, _
       | P_string _, _
+      | P_app_assoc _, _
       | P_app _, _
+      | P_blank_sequence, _
+      | P_blank_sequence_null, _
         -> () (* fail *)
     end
   (* match arrays pairwise *)
@@ -526,10 +662,94 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
   (* try alternatives *)
   and match_alt subst (l:pattern list) e yield: unit =
     List.iter (fun pat -> match_pair subst pat e yield) l
+  (* match tree [ap] to slice [slice] *)
+  and match_assoc subst (ap:assoc_pattern) (slice:t Slice.t) yield: unit =
+    match ap with
+      | AP_vantage apv -> match_ap_vantage subst apv slice yield
+      | AP_pure (l,_) -> match_ap_pure subst l slice yield
+  and match_ap_vantage subst (apv:assoc_pattern_vantage) slice yield =
+    trace_eval_ (fun k->k "@[<2>match_ap_vantage @[%a@]@ slice @[%a@]@]"
+      pp_pattern apv.ap_vantage pp_slice slice);
+    (* check that there are enough elements *)
+    let n = Slice.length slice in
+    if apv.ap_min_size > n then ()
+    else (
+      (* the range in which we can match [ap.ap_vantage] safely *)
+      let min, max =
+        ap_assoc_min_size apv.ap_left,
+        n - ap_assoc_min_size apv.ap_right
+      in
+      for vantage_idx = min to max-1 do
+        (* try with this index *)
+        trace_eval_ (fun k->k
+            "@[match_ap_vantage@ at idx %d,@ pat @[%a@]@ \
+             (min %d, max %d, slice @[%a@])@]"
+          vantage_idx pp_pattern apv.ap_vantage min max pp_slice slice);
+        match_pair subst apv.ap_vantage (Slice.get slice vantage_idx)
+          (fun subst ->
+             let slice_left = Slice.sub slice 0 vantage_idx in
+             match_assoc subst apv.ap_left slice_left
+               (fun subst ->
+                  let slice_right =
+                    Slice.sub slice (vantage_idx+1) (n-vantage_idx-1)
+                  in
+                  match_assoc subst apv.ap_right slice_right yield))
+      done
+    )
+  and match_ap_pure subst (l:pattern list) slice yield =
+    let n = Slice.length slice in
+    begin match l, n with
+      | [], 0 -> yield subst
+      | [], _ -> () (* fail to match some elements *)
+      | [p], _ ->
+        (* match [p] with the whole slice *)
+        match_pat_slice subst p slice yield
+      | p1 :: tail, _ ->
+        (* cut [slice] into two parts, one to be matched with [p1],
+           the rest with [tail]
+           TODO a bit too naive, use info about min length *)
+        for i=0 to n-1 do
+          let slice1 = Slice.sub slice 0 i in
+          match_pat_slice subst p1 slice1
+            (fun subst ->
+               let slice2 = Slice.sub slice i (n-i) in
+               match_ap_pure subst tail slice2 yield)
+        done
+    end
+
+  (* match [p] with the whole slice, if possible *)
+  and match_pat_slice subst (p:pattern) slice yield =
+    let n = Slice.length slice in
+    begin match p with
+      | P_blank_sequence ->
+        if n>0 then yield subst (* yield if non empty slice *)
+      | P_blank_sequence_null -> yield subst (* always matches *)
+      | P_alt [] -> ()
+      | P_alt (p1::tail) ->
+        (* try alternatives *)
+        match_pat_slice subst p1 slice yield;
+        match_pat_slice subst (P_alt tail) slice yield
+      | P_bind (i, p') ->
+        (* bind [i] to [Sequence[slice]] *)
+        match_pat_slice subst p' slice
+          (fun subst ->
+             let subst = Subst.add i (sequence_of_slice slice) subst in
+             yield subst)
+      | P_fail -> ()
+      | P_check_same _ | P_blank | P_q _ | P_z _ | P_string _ | P_app _
+      | P_const _ | P_app_assoc _
+        ->
+        if n=1 then (
+          (* non-sequence pattern, match against the only element *)
+          match_pair subst p (Slice.get slice 0) yield
+        )
+    end
   in
   match_pair subst pat e
 
-and eval_rec (st:eval_state) e = match e with
+and eval_rec (st:eval_state) e =
+  (* trace_eval_ (fun k->k "@[<2>eval_rec @[%a@]@]" pp_full_form e); *)
+  match e with
   | App (Const {cst_name="CompoundExpression";_}, ([| |] | [| _ |])) -> assert false
   | App (Const {cst_name="CompoundExpression";_}, args) ->
     (* sequence of `a;b;c…`. Return same as last expression *)
@@ -612,7 +832,7 @@ and term_as_rule st e : rewrite_rule = match e with
   | App (Const {cst_name="Rule";_}, [| lhs; rhs |]) ->
     let rhs = eval_rec st rhs in
     compile_rule lhs rhs
-  | App (Const {cst_name="DelayedRule";_}, [| lhs; rhs |]) ->
+  | App (Const {cst_name="RuleDelayed";_}, [| lhs; rhs |]) ->
     compile_rule lhs rhs
   | _ -> eval_failf "cannot interpret `@[%a@]` as a rule" pp_full_form e
 

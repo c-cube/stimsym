@@ -118,3 +118,7 @@ exception Eval_fail of string
 
 val eval : t -> t
 
+
+(**/**)
+val set_eval_trace: bool -> unit
+(**/**)
