@@ -17,7 +17,7 @@ Synopsis:  A rewrite system designed for maximal expressiveness
 Library rewrite
   Pack:             true
   Path:             src/core
-  Modules:          Expr, Builtins, Parser, Lexer, Parse_loc
+  Modules:          Expr, Builtins, Parser, Lexer, Parse_loc, Slice, Bit_set
   BuildDepends:     bytes, result, containers, sequence, zarith
 
 Executable cli
