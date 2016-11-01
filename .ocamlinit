@@ -1,0 +1,15 @@
+#use "topfind";;
+#require "containers";;
+#require "sequence";;
+#require "zarith";;
+#directory "_build/src/core";;
+#load "rewrite.cma";;
+
+open Rewrite;;
+
+#install_printer Expr.pp_full_form;;
+
+print_endline "define expr_of_string";;
+let expr_of_string s =
+  let buf = Lexing.from_string s in
+  Parser.parse_expr Lexer.token buf;;
