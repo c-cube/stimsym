@@ -179,6 +179,12 @@ let suite_eval =
     mk_eval __LINE__
       "f[1,2,2,g[2],2,2,g[3],4,5] //. f[l1___,l2__,g[x_],r__] :> h[r,x,l2,last[l1]]"
       "h[2,2,g[3],4,5,2,1,2,2,last[]]";
+    mk_eval __LINE__
+      "f[g[a1,b,c1],h[a2,b,c2]] //. f[g[___,x_,___],h[___,x_,___]] :> {x}"
+      "List[b]";
+    mk_eval __LINE__
+      "f[g[a1,b,c1],h[a2,b,c2]] //. f[g[___,x__,___],h[___,x__,___]] :> {x}"
+      "List[b]";
   ]
 
 (** {2 Main} *)
