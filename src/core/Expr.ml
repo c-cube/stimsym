@@ -79,9 +79,23 @@ and assoc_pattern_vantage = {
 }
 
 (* TODO? *)
-and prim_fun_args = unit
+and prim_fun_args = eval_state
 
 and prim_fun = prim_fun_args -> t -> t option
+
+(* state for evaluation *)
+and eval_state = {
+  mutable st_iter_count: int;
+  (* number of iterations *)
+  mutable st_rules: rewrite_rule list;
+  (* permanent list of rules *)
+  mutable st_local_rules: rewrite_rule list;
+  (* backtrackable list of rules *)
+  st_undo: undo_state;
+  (* undo stack, for local operations *)
+}
+
+and undo_state = (unit -> unit) CCVector.vector
 
 type expr = t
 
@@ -177,14 +191,14 @@ let of_float x = Q (Q.of_float x)
 
     Used for local operations *)
 module Undo : sig
-  type t
+  type t = undo_state
   type level
   val create : unit -> t
   val push : t -> (unit -> unit) -> unit
   val save : t -> level
   val restore : t -> level -> unit
 end = struct
-  type t = (unit -> unit) CCVector.vector
+  type t = undo_state
   type level = int
 
   let create() : t = CCVector.create()
@@ -320,19 +334,6 @@ let to_string_compact t =
   Buffer.contents buf
 
 (** {2 Evaluation} *)
-
-(* state for evaluation *)
-type eval_state = {
-  mutable st_iter_count: int;
-  (* number of iterations *)
-  st_prim: prim_fun_args;
-  (* to give to primitive functions *)
-  mutable st_rules: rewrite_rule list;
-  (* permanent list of rules *)
-  mutable st_local_rules: rewrite_rule list;
-  st_undo: Undo.t;
-  (* undo stack, for local operations *)
-}
 
 exception Invalid_rule of string
 
@@ -902,7 +903,6 @@ and try_rule st t rule (rs:rewrite_set) =
 
 let create_eval_state() : eval_state = {
   st_iter_count=0;
-  st_prim=();
   st_rules=[];
   st_local_rules=[];
   st_undo=Undo.create();
@@ -911,3 +911,9 @@ let create_eval_state() : eval_state = {
 let eval e =
   let st = create_eval_state () in
   eval_rec st e
+
+(* primitive API *)
+
+let prim_eval = eval_rec
+let prim_fail _ = eval_fail
+let prim_failf _ msg = eval_failf msg

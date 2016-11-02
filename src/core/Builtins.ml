@@ -38,7 +38,6 @@ let hold = mk_ "Hold" ~fields:[E.field_hold_all]
 
 let full_form = mk_ "FullForm" ~fields:[E.field_hold_all]
 
-(* TODO: auto-flatten inside anything else: `F[Sequence[a,b],c] --> F[a,b,c]` *)
 let sequence = mk_ "Sequence" ~fields:[E.field_flatten]
 
 type arith_res =
@@ -212,25 +211,103 @@ let alternatives = mk_ "Alternatives"
 let compound_expr =
   mk_ "CompoundExpression" ~doc:"Sequence of operations. Infix: `a; b`"
 
-(* TODO: define *)
 let if_ =
-  mk_ "If" ~fields:[E.field_hold_rest] ~doc:"Test operator. `If[A,B,C]`."
+  let eval _ eval_st t = match t with
+    | E.App (E.Const _, [| a; b; c |]) ->
+      begin match Expr.prim_eval eval_st a with
+        | Expr.Const {Expr.cst_name="True";_} -> Some b
+        | Expr.Const {Expr.cst_name="False";_} -> Some c
+        | _ -> None
+      end
+    | _ -> None
+  in
+  mk_ "If" ~funs:[eval]
+    ~fields:[E.field_hold_rest] ~doc:"Test operator. `If[A,B,C]`."
+
+type changed = bool
+
+type and_res =
+  | And_lst of Expr.t list * changed
+  | And_false
 
 let and_ =
-  (* TODO eval rule *)
-  mk_ "And" ~fields:[E.field_flatten; E.field_orderless]
+  let eval self eval_st t = match t with
+    | E.App (E.Const _, arr) ->
+      let res =
+        Array.fold_left
+          (fun acc e -> match acc with
+             | And_false -> acc
+             | And_lst (l_acc, changed) ->
+               begin match Expr.prim_eval eval_st e with
+                 | Expr.Const {Expr.cst_name="True";_} -> And_lst (l_acc,true)
+                 | Expr.Const {Expr.cst_name="False";_} -> And_false
+                 | e' ->
+                   let changed = changed || not (Expr.equal e e') in
+                   And_lst (e' :: l_acc, changed)
+               end)
+          (And_lst ([], false)) arr
+      in
+      begin match res with
+        | And_false -> Some false_
+        | And_lst ([], _) -> Some true_
+        | And_lst (_, false) -> None
+        | And_lst (l, true) ->
+          Some (E.app_l (E.const self) (List.rev l))
+      end
+    | _ -> None
+  in
+  mk_ "And" ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
     ~doc:"Logical conjunction. Infix: `a && b`"
 
+type or_res =
+  | Or_lst of Expr.t list * changed
+  | Or_true
+
 let or_ =
-  (* TODO eval rule *)
+  let eval self eval_st t = match t with
+    | E.App (E.Const _, arr) ->
+      let res =
+        Array.fold_left
+          (fun acc e -> match acc with
+             | Or_true -> acc
+             | Or_lst (l_acc, changed) ->
+               begin match E.prim_eval eval_st e with
+                 | E.Const {E.cst_name="True";_} -> Or_true
+                 | E.Const {E.cst_name="False";_} -> Or_lst (l_acc, true)
+                 | e' ->
+                   let changed = changed || not (Expr.equal e e') in
+                   Or_lst (e' :: l_acc, changed)
+               end)
+          (Or_lst ([], false)) arr
+      in
+      begin match res with
+        | Or_true -> Some true_
+        | Or_lst ([], _) -> Some false_
+        | Or_lst (_, false) -> None
+        | Or_lst (l, true) ->
+          Some (E.app_l (E.const self) (List.rev l))
+      end
+    | _ -> None
+  in
   mk_ "Or"
-    ~fields:[E.field_flatten; E.field_orderless]
+    ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
     ~doc:"Logical disjunction. Infix: `a || b`"
 
 let not_ =
-  (* TODO eval rule *)
+  let eval self eval_st t = match t with
+    | E.App (E.Const self', [| a |]) ->
+      assert (Expr.Cst.equal self self');
+      begin match Expr.prim_eval eval_st a with
+        | Expr.Const {Expr.cst_name="True";_} -> Some false_
+        | Expr.Const {Expr.cst_name="False";_} -> Some true_
+        | a' ->
+          if Expr.equal a a' then None
+          else Some (E.app (E.const self) [| a' |])
+      end
+    | _ -> None
+  in
   mk_ "Not"
-    ~fields:[E.field_flatten; E.field_orderless]
+    ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
     ~doc:"Logical negation. Prefix: `!a`"
 
 let nest =

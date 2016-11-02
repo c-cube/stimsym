@@ -21,7 +21,19 @@ type def_style =
   | Def_eager
   | Def_lazy
 
-type const
+(* (partial) definition of a symbol *)
+type def
+
+type rewrite_rule
+
+type const = private {
+  cst_name: string;
+  cst_id: int;
+  mutable cst_properties: Properties.t;
+  mutable cst_rules: def list;
+  mutable cst_local_rules: rewrite_rule list;
+  mutable cst_doc: string;
+}
 
 type t = private
   | Const of const
@@ -30,9 +42,6 @@ type t = private
   | Q of Q.t
   | String of string
   | Reg of int
-
-(* (partial) definition of a symbol *)
-type def
 
 type prim_fun_args
 
@@ -118,7 +127,15 @@ exception Eval_fail of string
 
 val eval : t -> t
 
-
 (**/**)
 val set_eval_trace: bool -> unit
+
+val prim_eval : prim_fun_args -> t -> t
+(** Evaluation function to be called by primitives *)
+
+val prim_fail : prim_fun_args -> string -> 'a
+(** To be called by primitives on failure *)
+
+val prim_failf : prim_fun_args -> ('a, Format.formatter, unit, 'b) format4 -> 'a
+
 (**/**)
