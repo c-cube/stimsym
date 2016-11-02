@@ -628,6 +628,8 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
           (fun subst ->
              (* get current binding for [i] *)
              let other = Subst.get_exn i subst in
+             trace_eval_ 
+               (fun k->k "(@[<2>check_same@ %a@ %a@])" pp_full_form e pp_full_form other);
              if equal e other then yield subst)
       | P_app (hd, args), App (hd', args')
         when Array.length args = Array.length args' ->
@@ -729,6 +731,17 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
         (* try alternatives *)
         match_pat_slice subst p1 slice yield;
         match_pat_slice subst (P_alt tail) slice yield
+      | P_check_same (i, p') ->
+        (* check that [i] corresponds to [Sequence[slice]] *)
+        let e_slice = lazy (sequence_of_slice slice) in
+        match_pat_slice subst p' slice
+          (fun subst ->
+             (* get current binding for [i] *)
+             let other = Subst.get_exn i subst in
+             trace_eval_ 
+               (fun k->k "(@[<2>check_same@ %a@ %a@])"
+                   pp_full_form (Lazy.force e_slice) pp_full_form other);
+             if equal (Lazy.force e_slice) other then yield subst)
       | P_bind (i, p') ->
         (* bind [i] to [Sequence[slice]] *)
         match_pat_slice subst p' slice
@@ -736,7 +749,7 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
              let subst = Subst.add i (sequence_of_slice slice) subst in
              yield subst)
       | P_fail -> ()
-      | P_check_same _ | P_blank | P_q _ | P_z _ | P_string _ | P_app _
+      | P_blank | P_q _ | P_z _ | P_string _ | P_app _
       | P_const _ | P_app_assoc _
         ->
         if n=1 then (
