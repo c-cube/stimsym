@@ -65,6 +65,7 @@ and pattern =
     (* match, then check syntactic equality with content of register *)
   | P_alt of pattern list
   | P_app_assoc of pattern * assoc_pattern (* for slices *)
+  | P_conditional of pattern * t (* pattern if condition *)
 
 and assoc_pattern =
   | AP_vantage of assoc_pattern_vantage
@@ -292,6 +293,8 @@ let rec pp_pattern out (p:pattern) = match p with
       (CCFormat.list ~start:"" ~stop:"" ~sep:"|" pp_pattern) l
   | P_bind (i,p) -> Format.fprintf out "Pattern[%d,@[%a@]]" i pp_pattern p
   | P_check_same (i,p) -> Format.fprintf out "CheckSame[%d,@[%a@]]" i pp_pattern p
+  | P_conditional (p,cond) ->
+    Format.fprintf out "Condition[%a,%a]" pp_pattern p pp_full_form cond
 
 and pp_assoc_pattern out = function
   | AP_vantage apv ->
@@ -344,6 +347,7 @@ let rec matches_slice (p:pattern): bool = match p with
   | P_blank_sequence | P_blank_sequence_null -> true
   | P_alt l -> List.exists matches_slice l
   | P_bind (_, sub_p)
+  | P_conditional (sub_p, _)
   | P_check_same (_, sub_p) -> matches_slice sub_p
   | P_blank -> false
   | P_q _ | P_z _ | P_string _ | P_app _ | P_const _ | P_fail | P_app_assoc _
@@ -357,6 +361,7 @@ let rec pat_assoc_min_size (p:pattern): int = match p with
   | P_alt (x::l) ->
     List.fold_left (fun n p -> min n (pat_assoc_min_size p)) (pat_assoc_min_size x) l
   | P_bind (_, sub_p)
+  | P_conditional (sub_p, _)
   | P_check_same (_, sub_p) -> pat_assoc_min_size sub_p
   | P_blank | P_q _ | P_z _ | P_string _ | P_app _ | P_const _
   | P_fail | P_app_assoc _
@@ -410,6 +415,11 @@ let compile_rule lhs rhs: rewrite_rule =
     | App (Const {cst_name="Alternatives";_}, a) ->
       let l = CCList.init (Array.length a) (fun i -> aux_pat a.(i)) in
       P_alt l
+    | App (Const {cst_name="Condition";_}, [| p; cond |]) ->
+      let p = aux_pat p in
+      let cond = aux_rhs cond in (* replace variables, etc. in condition *)
+      (* TODO: check vars(cond) ⊆ vars(p) *)
+      P_conditional (p, cond)
     | App (hd, args) ->
       let hd = aux_pat hd in
       let args = Array.map aux_pat args in
@@ -596,10 +606,27 @@ let trace_eval_ k =
 
 let set_eval_trace b = trace_on_ := b
 
+(* @raise No_head if there is no head *)
+let rec pattern_head (p:pattern): const = match p with
+  | P_const c -> c
+  | P_z _ | P_q _ | P_string _
+  | P_blank | P_blank_sequence | P_blank_sequence_null | P_fail
+    -> raise No_head
+  | P_app_assoc (f,_) | P_app (f,_)
+    -> pattern_head f
+  | P_bind (_,p')
+  | P_conditional (p',_)
+  | P_check_same (_,p') -> pattern_head p'
+  | P_alt [] -> raise No_head
+  | P_alt (x::tail) ->
+    begin match pattern_head x with
+      | c -> c
+      | exception No_head -> pattern_head (P_alt tail)
+    end
+
 (* return all the matches of [pat] against [e], modifying [st]
    every time in a backtracking way *)
-let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
-  (* TODO: Condition *)
+let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
   (* TODO: AC matching… *)
   let rec match_pair (subst:Subst.t) (pat:pattern) (e:t) yield: unit =
     trace_eval_ (fun k->k "@[<2>match @[%a@]@ with: @[%a@]@ subst: @[%a@]@]"
@@ -629,7 +656,7 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
           (fun subst ->
              (* get current binding for [i] *)
              let other = Subst.get_exn i subst in
-             trace_eval_ 
+             trace_eval_
                (fun k->k "(@[<2>check_same@ %a@ %a@])" pp_full_form e pp_full_form other);
              if equal e other then yield subst)
       | P_app (hd, args), App (hd', args')
@@ -640,6 +667,10 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
         (* associative matching *)
         match_pair subst hd hd'
           (fun subst -> match_assoc subst tree (Slice.full args) yield)
+      | P_conditional (p', cond), _ ->
+        match_pair subst p' e
+          (fun subst ->
+             if check_cond subst cond then yield subst)
       | P_fail, _ -> ()
       | P_alt l, _ -> match_alt subst l e yield
       | P_z _, _
@@ -665,6 +696,18 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
   (* try alternatives *)
   and match_alt subst (l:pattern list) e yield: unit =
     List.iter (fun pat -> match_pair subst pat e yield) l
+  (* check if [cond --> true] *)
+  and check_cond (subst:Subst.t)(cond:t): bool =
+    let cond' = Subst.apply subst cond in
+    begin match eval_rec st cond' with
+      | Const {cst_name="True";_} -> true
+      | Const {cst_name="False";_} -> false
+      | cond' ->
+        eval_failf
+          "@[<2>expected True/False,@ but condition `@[%a@]`@ \
+           reduces to `@[%a@]`@ in subst %a@]"
+          pp_full_form cond pp_full_form cond' Subst.pp subst
+    end
   (* match tree [ap] to slice [slice] *)
   and match_assoc subst (ap:assoc_pattern) (slice:t Slice.t) yield: unit =
     match ap with
@@ -739,7 +782,7 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
           (fun subst ->
              (* get current binding for [i] *)
              let other = Subst.get_exn i subst in
-             trace_eval_ 
+             trace_eval_
                (fun k->k "(@[<2>check_same@ %a@ %a@])"
                    pp_full_form (Lazy.force e_slice) pp_full_form other);
              if equal (Lazy.force e_slice) other then yield subst)
@@ -749,6 +792,10 @@ let rec match_ (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
           (fun subst ->
              let subst = Subst.add i (sequence_of_slice slice) subst in
              yield subst)
+      | P_conditional (p', cond) ->
+        match_pat_slice subst p' slice
+          (fun subst ->
+             if check_cond subst cond then yield subst)
       | P_fail -> ()
       | P_blank | P_q _ | P_z _ | P_string _ | P_app _
       | P_const _ | P_app_assoc _
@@ -783,11 +830,14 @@ and eval_rec (st:eval_state) e =
   | App (Const {cst_name="ReplaceRepeated";_}, [| a; b |]) ->
     (* rewrite [a] with rules in [b], until fixpoint *)
     let rules = term_as_rules st b in
+    trace_eval_
+      (fun k->k "(@[replace_repeated@ %a@ rules: (@[%a@])@])"
+          pp_full_form a (CCFormat.list ~start:"" ~stop:"" pp_rule) rules);
     (* add rules to definitions of symbols, etc. and on [st.st_undo]
        so the changes are reversible *)
     let lev = Undo.save st.st_undo in
     List.iter
-      (fun r -> match head r.rr_pat_as_expr with
+      (fun r -> match pattern_head r.rr_pat with
          | c ->
            Cst.add_local_rule st.st_undo r c
          | exception No_head ->
@@ -882,7 +932,7 @@ and try_defs (st:eval_state) t (rs:rewrite_set) = match rs with
   | RS_add_defs (Rewrite r :: trail, rs') ->
     try_rule st t r (RS_add_defs (trail, rs'))
   | RS_add_defs (Fun f :: trail, rs') ->
-    begin match f st.st_prim t with
+    begin match f st t with
       | None -> try_defs st t (RS_add_defs (trail, rs'))
       | Some t' ->
         st.st_iter_count <- st.st_iter_count + 1;
@@ -891,7 +941,7 @@ and try_defs (st:eval_state) t (rs:rewrite_set) = match rs with
 
 and try_rule st t rule (rs:rewrite_set) =
   let subst_opt =
-    match_ Subst.empty rule.rr_pat t |> Sequence.head
+    match_ st Subst.empty rule.rr_pat t |> Sequence.head
   in
   begin match subst_opt with
     | None -> try_defs st t rs
