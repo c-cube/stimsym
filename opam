@@ -7,6 +7,7 @@ build: [
     ["./configure"
         "--prefix" prefix
         "--enable-docs"
+        "--%{zmq+yojson+uuidm+atdgen:enable}%-notebook"
     ]
     [make "build"]
 ]
@@ -28,6 +29,10 @@ depends: [
     "ocamlbuild" {build}
 ]
 depopts: [
+    "zmq"
+    "atdgen"
+    "yojson"
+    "uuidm"
 ]
 tags: [ "rewrite" "cas" "logic" ]
 homepage: "https://github.com/c-cube/ocaml-rewrite/"
