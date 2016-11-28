@@ -1,0 +1,9 @@
+{
+  "argv":
+    ["ipython_server",
+      "--connection-file",
+      "{connection_file}"
+    ],
+  "display_name": "rewrite",
+  "language": "rewrite"
+}
