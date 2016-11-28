@@ -17,7 +17,7 @@ install: [
 build-doc: [ make "doc" ]
 build-test: [ make "test" ]
 remove: [
-    ["ocamlfind" "remove" "rewrite"]
+    ["make" "uninstall"]
 ]
 depends: [
     "ocamlfind" {build}
