@@ -7,3 +7,13 @@ Rewrite system designed for symbolic manipulations and maximal expressiveness.
 == License
 
 BSD license, you can modify as you like. Contributions are welcome.
+
+== Jupyter Interface
+
+Very experimental interface. You should copy 'data/kernel.json' into
+the directory '~/.local/share/jupyter/kernels/rewrite'.
+
+----
+mkdir -p ~/.local/share/jupyter/kernels/rewrite
+cp data/kernel.json ~/.local/share/jupyter/kernels/rewrite/
+----

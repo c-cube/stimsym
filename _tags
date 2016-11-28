@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 27e7d98eba9dedd051142ada687f3566)
+# DO NOT EDIT (digest: 7f8bf8f2af3e76bfe4aacef0fdac66af)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -43,6 +43,51 @@ true: annot, bin_annot
 <src/cli/*.ml{,i,y}>: package(sequence)
 <src/cli/*.ml{,i,y}>: package(zarith)
 <src/cli/*.ml{,i,y}>: use_rewrite
+# Library ipython
+"src/ipython/ipython.cmxs": use_ipython
+"src/ipython/base64.cmx": for-pack(Ipython)
+"src/ipython/Ipython_json_j.cmx": for-pack(Ipython)
+"src/ipython/Ipython_json_t.cmx": for-pack(Ipython)
+"src/ipython/log.cmx": for-pack(Ipython)
+"src/ipython/message.cmx": for-pack(Ipython)
+"src/ipython/sockets.cmx": for-pack(Ipython)
+<src/ipython/*.ml{,i,y}>: package(ZMQ)
+<src/ipython/*.ml{,i,y}>: package(atdgen)
+<src/ipython/*.ml{,i,y}>: package(bytes)
+<src/ipython/*.ml{,i,y}>: package(containers)
+<src/ipython/*.ml{,i,y}>: package(result)
+<src/ipython/*.ml{,i,y}>: package(sequence)
+<src/ipython/*.ml{,i,y}>: package(uuidm)
+<src/ipython/*.ml{,i,y}>: package(yojson)
+<src/ipython/*.ml{,i,y}>: package(zarith)
+<src/ipython/*.ml{,i,y}>: use_rewrite
+# Executable ipython_server
+"src/server/ipython_server.native": package(ZMQ)
+"src/server/ipython_server.native": package(atdgen)
+"src/server/ipython_server.native": package(bytes)
+"src/server/ipython_server.native": package(containers)
+"src/server/ipython_server.native": package(result)
+"src/server/ipython_server.native": package(sequence)
+"src/server/ipython_server.native": package(threads)
+"src/server/ipython_server.native": package(unix)
+"src/server/ipython_server.native": package(uuidm)
+"src/server/ipython_server.native": package(yojson)
+"src/server/ipython_server.native": package(zarith)
+"src/server/ipython_server.native": use_ipython
+"src/server/ipython_server.native": use_rewrite
+<src/server/*.ml{,i,y}>: package(ZMQ)
+<src/server/*.ml{,i,y}>: package(atdgen)
+<src/server/*.ml{,i,y}>: package(bytes)
+<src/server/*.ml{,i,y}>: package(containers)
+<src/server/*.ml{,i,y}>: package(result)
+<src/server/*.ml{,i,y}>: package(sequence)
+<src/server/*.ml{,i,y}>: package(threads)
+<src/server/*.ml{,i,y}>: package(unix)
+<src/server/*.ml{,i,y}>: package(uuidm)
+<src/server/*.ml{,i,y}>: package(yojson)
+<src/server/*.ml{,i,y}>: package(zarith)
+<src/server/*.ml{,i,y}>: use_ipython
+<src/server/*.ml{,i,y}>: use_rewrite
 # Executable run_tests
 "tests/run_tests.native": package(bytes)
 "tests/run_tests.native": package(containers)

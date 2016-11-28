@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: e3f998b0cf161970d40d476690ea5d57) *)
+(* DO NOT EDIT (digest: 53f4abe95edc99b0ee461ef9d6a4d39b) *)
 module OASISGettext = struct
 (* # 22 "src/oasis/OASISGettext.ml" *)
 
@@ -882,10 +882,17 @@ end
 open Ocamlbuild_plugin;;
 let package_default =
   {
-     MyOCamlbuildBase.lib_ocaml = [("rewrite", ["src/core"], [])];
+     MyOCamlbuildBase.lib_ocaml =
+       [("rewrite", ["src/core"], []); ("ipython", ["src/ipython"], [])];
      lib_c = [];
      flags = [];
-     includes = [("tests", ["src/core"]); ("src/cli", ["src/core"])]
+     includes =
+       [
+          ("tests", ["src/core"]);
+          ("src/server", ["src/core"; "src/ipython"]);
+          ("src/ipython", ["src/core"]);
+          ("src/cli", ["src/core"])
+       ]
   }
   ;;
 
@@ -893,7 +900,7 @@ let conf = {MyOCamlbuildFindlib.no_automatic_syntax = false}
 
 let dispatch_default = MyOCamlbuildBase.dispatch_default conf package_default;;
 
-# 897 "myocamlbuild.ml"
+# 904 "myocamlbuild.ml"
 (* OASIS_STOP *)
 
 let tag_atdgen env patterns =
