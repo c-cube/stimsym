@@ -34,7 +34,7 @@ Executable cli
 Library ipython
   Path:             src/ipython/
   Pack:             true
-  Install$:         flag(notebook)
+  Install:          false
   Build$:           flag(notebook)
   Modules:          Base64, Ipython_json_j, Ipython_json_t, Log,
                     Message, Sockets
