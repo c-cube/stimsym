@@ -54,8 +54,8 @@ type message =
 
 val log : message -> unit
 
-val recv : [`Router] ZMQ.Socket.t -> message
-val send : [<`Router|`Pub] ZMQ.Socket.t -> message -> unit
+val recv : [`Router] Lwt_zmq.Socket.t -> message Lwt.t
+val send : [<`Router|`Pub] Lwt_zmq.Socket.t -> message -> unit Lwt.t
 val make_header : message -> message
-val send_h : [<`Router|`Pub] ZMQ.Socket.t -> message -> message_content -> unit
+val send_h : [<`Router|`Pub] Lwt_zmq.Socket.t -> message -> message_content -> unit Lwt.t
 

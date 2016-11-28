@@ -20,41 +20,42 @@ let addr conn port =
   Ipython_json_j.(conn.transport ^ "://" ^ conn.ip ^ ":" ^ string_of_int port)
 
 let open_socket typ conn port =
-  let socket = ZMQ.Socket.(create context typ) in
+  let socket = ZMQ.Socket.create context typ in
   let addr = addr conn port in
   let () = ZMQ.Socket.bind socket addr in
   Log.log ("open and bind socket " ^ addr ^ "\n");
-  socket
+  Lwt_zmq.Socket.of_socket socket
 
 let heartbeat conn =
   let socket = open_socket ZMQ.Socket.rep conn conn.Ipython_json_j.hb_port in
-  while true do
-    let data = ZMQ.Socket.recv socket in
-    Log.log("Heartbeat\n");
-    ZMQ.Socket.send socket data;
-  done;
+  let%lwt () = 
+    while%lwt true do
+      let%lwt data = Lwt_zmq.Socket.recv socket in
+      Log.log("Heartbeat\n");
+      Lwt_zmq.Socket.send socket data
+    done
+  in
   (* XXX close down properly...we never get here *)
-  ZMQ.Socket.close socket
+  ZMQ.Socket.close (Lwt_zmq.Socket.to_socket socket);
+  Lwt.return ()
 
-type sockets =
-  {
-    shell : [`Router] ZMQ.Socket.t;
-    control : [`Router] ZMQ.Socket.t;
-    stdin : [`Router] ZMQ.Socket.t;
-    iopub : [`Pub] ZMQ.Socket.t;
-  }
+type sockets = {
+  shell : [`Router] Lwt_zmq.Socket.t;
+  control : [`Router] Lwt_zmq.Socket.t;
+  stdin : [`Router] Lwt_zmq.Socket.t;
+  iopub : [`Pub] Lwt_zmq.Socket.t;
+}
 
 let open_sockets conn =
-  {
-    shell = open_socket ZMQ.Socket.router conn conn.Ipython_json_j.shell_port;
+  { shell = open_socket ZMQ.Socket.router conn conn.Ipython_json_j.shell_port;
     control = open_socket ZMQ.Socket.router conn conn.Ipython_json_j.control_port;
     stdin = open_socket ZMQ.Socket.router conn conn.Ipython_json_j.stdin_port;
     iopub = open_socket ZMQ.Socket.pub conn conn.Ipython_json_j.iopub_port;
   }
 
 let dump _name socket =
-  while true do
-    let msg = Message.recv socket in
+  while%lwt true do
+    let%lwt msg = Message.recv socket in
     let () = Message.log msg in
-    ()
+    Lwt.return ()
   done

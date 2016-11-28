@@ -145,8 +145,8 @@ let dec_utf8 = Netconversion.convert ~in_enc:`Enc_utf8 ~out_enc:`Enc_iso88591
 let enc_utf8 x = x
 let dec_utf8 x = x
 
-let recv socket = 
-  let msg = ZMQ.Socket.recv_all socket in
+let recv socket : message Lwt.t = 
+  let%lwt msg = Lwt_zmq.Socket.recv_all socket in
   (*let () = 
       Log.log (Printf.sprintf "recv: %i frame(s)\n" (List.length msg));
       List.iter (fun s -> Log.log (s ^ "\n")) msg
@@ -162,25 +162,23 @@ let recv socket =
   let header = header_info_of_string data.(1) in
   assert (len >= 5);
   (*let () = Log.log ("RECV:\n" ^ data.(4) ^ "\n") in*)
-  let msg = 
-    {
-      ids = ids;
-      hmac = data.(0);
-      header = header;
-      parent = header_info_of_string data.(2);
-      meta = data.(3);
-      content = content_of_json header data.(4);
-      raw = Array.init (len-5) (fun i -> data.(i+5))
-    }
-  in
+  let msg = {
+    ids = ids;
+    hmac = data.(0);
+    header = header;
+    parent = header_info_of_string data.(2);
+    meta = data.(3);
+    content = content_of_json header data.(4);
+    raw = Array.init (len-5) (fun i -> data.(i+5))
+  } in
   let () = log msg in
-  msg
+  Lwt.return msg
 
-let send socket msg =
+let send socket msg : unit Lwt.t =
   let () = Log.log ("SEND\n") in
   let () = log msg in
   let content = json_of_content msg.content in
-  ZMQ.Socket.send_all socket (List.concat [
+  Lwt_zmq.Socket.send_all socket (List.concat [
       Array.to_list (Array.map enc_utf8 msg.ids);
       [enc_utf8 "<IDS|MSG>"];
       [enc_utf8 msg.hmac];

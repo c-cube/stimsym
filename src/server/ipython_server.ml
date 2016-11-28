@@ -6,9 +6,6 @@
 open Ipython
 open Rewrite
 
-let suppress_stdout = ref false
-let suppress_stderr = ref false
-let suppress_compiler = ref false
 let output_cell_max_height = ref "100px"
 
 (*******************************************************************************)
@@ -51,7 +48,10 @@ let () =
 (** {2 Execution of queries} *)
 
 module Exec = struct
-  let run_cell count str =
+  type status = (string,string) Result.result list
+
+  (* blocking function *)
+  let run_ count str () =
     let buf = Lexing.from_string str in
     Parse_loc.set_file buf ("cell_" ^ string_of_int count);
     begin match Parser.parse_expr Lexer.token buf with
@@ -80,78 +80,12 @@ module Exec = struct
         ]
     end
 
+  let run_cell count str : status Lwt.t =
+    Lwt_preemptive.detach (run_ count str) ()
+
   let html_of_status r _ = match r with
     | Result.Ok msg -> "<p>" ^ msg ^ "</p>"
     | Result.Error msg -> "<style=\"color:red\"><p>" ^ msg ^ " </p></style>"
-end
-
-(*******************************************************************************)
-(* stdio hacks *)
-
-module Stdio = struct
-  type o_file = 
-    {
-      o_perv : Pervasives.out_channel;
-      o_unix : Unix.file_descr;
-      o_name : string;
-    }
-  type i_file = 
-    {
-      i_perv : Pervasives.in_channel;
-      i_unix : Unix.file_descr;
-      i_name : string;
-    }
-
-  let redirect () = 
-    (* convert channels to binary mode. *)
-    let () = 
-      set_binary_mode_in stdin true;
-      set_binary_mode_out stdout true;
-      set_binary_mode_out stdout true
-    in
-    let stdin_p, stdin = Unix.pipe() in
-    let stdout, stdout_p = Unix.pipe() in
-    let stderr, stderr_p = Unix.pipe() in
-    let mime_r, mime_w = Unix.pipe() in
-    let () = Unix.dup2 stdin_p Unix.stdin in
-    let () = Unix.dup2 stdout_p Unix.stdout in
-    let () = Unix.dup2 stderr_p Unix.stderr in
-    let () = at_exit 
-        (fun () ->
-           Unix.close stdin;
-           Unix.close stdin_p;
-           Unix.close stdout;
-           Unix.close stdout_p;
-           Unix.close stderr;
-           Unix.close stderr_p;
-           Unix.close mime_r;
-           Unix.close mime_w)
-    in
-    {
-      i_perv = Pervasives.stdin;
-      i_unix = stdin;
-      i_name = "stdin";
-    },
-    {
-      o_perv = Pervasives.stdout;
-      o_unix = stdout;
-      o_name = "stdout";
-    },
-    {
-      o_perv = Pervasives.stderr;
-      o_unix = stderr;
-      o_name = "stderr";
-    },
-    {
-      i_perv = Unix.in_channel_of_descr mime_r;
-      i_unix = mime_r;
-      i_name = "mime";
-    },
-    {
-      o_perv = Unix.out_channel_of_descr mime_w;
-      o_unix = mime_w;
-      o_name = "mime";
-    }
 end
 
 (*******************************************************************************)
@@ -161,7 +95,6 @@ module Shell = struct
   open Ipython_json_t 
   open Message
   open Sockets
-  open Stdio
 
   type iopub_message = 
     | Iopub_set_current of message

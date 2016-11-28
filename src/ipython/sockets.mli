@@ -8,17 +8,16 @@
  *
  *)
 
-type sockets = 
-  {
-    shell : [`Router] ZMQ.Socket.t;
-    control : [`Router] ZMQ.Socket.t;
-    stdin : [`Router] ZMQ.Socket.t;
-    iopub : [`Pub] ZMQ.Socket.t;
-  }
+type sockets = {
+  shell : [`Router] Lwt_zmq.Socket.t;
+  control : [`Router] Lwt_zmq.Socket.t;
+  stdin : [`Router] Lwt_zmq.Socket.t;
+  iopub : [`Pub] Lwt_zmq.Socket.t;
+}
 
-val heartbeat : Ipython_json_t.connection_info -> unit
+val heartbeat : Ipython_json_t.connection_info -> unit Lwt.t
 
 val open_sockets : Ipython_json_t.connection_info -> sockets
 
-val dump : string -> [`Router] ZMQ.Socket.t -> unit
+val dump : string -> [`Router] Lwt_zmq.Socket.t -> unit Lwt.t
 

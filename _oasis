@@ -38,7 +38,8 @@ Library ipython
   Build$:           flag(notebook)
   Modules:          Base64, Ipython_json_j, Ipython_json_t, Log,
                     Message, Sockets
-  BuildDepends:     rewrite, atdgen, yojson, uuidm, ZMQ, bytes
+  BuildDepends:     rewrite, atdgen, yojson, uuidm, ZMQ, lwt-zmq,
+                    lwt, lwt.ppx, bytes
 
 Executable ipython_server
   Path:             src/server/
