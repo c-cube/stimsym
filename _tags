@@ -1,4 +1,66 @@
 # OASIS_START
+# DO NOT EDIT (digest: 27e7d98eba9dedd051142ada687f3566)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
+# useless stuff for the build process
+true: annot, bin_annot
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Library rewrite
+"src/core/rewrite.cmxs": use_rewrite
+"src/core/Expr.cmx": for-pack(Rewrite)
+"src/core/Builtins.cmx": for-pack(Rewrite)
+"src/core/Parser.cmx": for-pack(Rewrite)
+"src/core/Lexer.cmx": for-pack(Rewrite)
+"src/core/Parse_loc.cmx": for-pack(Rewrite)
+"src/core/Slice.cmx": for-pack(Rewrite)
+"src/core/Bit_set.cmx": for-pack(Rewrite)
+<src/core/*.ml{,i,y}>: package(bytes)
+<src/core/*.ml{,i,y}>: package(containers)
+<src/core/*.ml{,i,y}>: package(result)
+<src/core/*.ml{,i,y}>: package(sequence)
+<src/core/*.ml{,i,y}>: package(zarith)
+# Executable cli
+"src/cli/cli.native": package(bytes)
+"src/cli/cli.native": package(containers)
+"src/cli/cli.native": package(linenoise)
+"src/cli/cli.native": package(result)
+"src/cli/cli.native": package(sequence)
+"src/cli/cli.native": package(zarith)
+"src/cli/cli.native": use_rewrite
+<src/cli/*.ml{,i,y}>: package(bytes)
+<src/cli/*.ml{,i,y}>: package(containers)
+<src/cli/*.ml{,i,y}>: package(linenoise)
+<src/cli/*.ml{,i,y}>: package(result)
+<src/cli/*.ml{,i,y}>: package(sequence)
+<src/cli/*.ml{,i,y}>: package(zarith)
+<src/cli/*.ml{,i,y}>: use_rewrite
+# Executable run_tests
+"tests/run_tests.native": package(bytes)
+"tests/run_tests.native": package(containers)
+"tests/run_tests.native": package(oUnit)
+"tests/run_tests.native": package(result)
+"tests/run_tests.native": package(sequence)
+"tests/run_tests.native": package(zarith)
+"tests/run_tests.native": use_rewrite
+<tests/*.ml{,i,y}>: package(bytes)
+<tests/*.ml{,i,y}>: package(containers)
+<tests/*.ml{,i,y}>: package(oUnit)
+<tests/*.ml{,i,y}>: package(result)
+<tests/*.ml{,i,y}>: package(sequence)
+<tests/*.ml{,i,y}>: package(zarith)
+<tests/*.ml{,i,y}>: use_rewrite
 # OASIS_STOP
 <src/**/*.cmx>: inline(100)
 <src/**/*.ml>: warn(+a-4-44-29@8)
+
+true: color(always)
+true: use_ocamlfind

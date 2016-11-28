@@ -2,6 +2,10 @@ S src/core
 B _build/src/core
 S src/cli
 B _build/src/cli
+S src/ipython/
+B _build/src/ipython/
+S src/server/
+B _build/src/server/
 S tests
 B _build/tests/
 PKG result
@@ -11,4 +15,12 @@ PKG sequence
 PKG linenoise
 PKG zarith
 PKG oUnit
-FLG -w +a-4-44@8
+PKG ctypes
+PKG ctypes.foreign
+PKG atdgen
+PKG lwt
+PKG lwt.unix
+PKG uuidm
+PKG yojson
+PKG ZMQ
+FLG -w +a-4-44@8 -safe-string

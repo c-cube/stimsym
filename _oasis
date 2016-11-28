@@ -14,18 +14,39 @@ XOCamlbuildExtraArgs: "-j 0 -use-menhir -menhir 'menhir --dump --explain --infer
 
 Synopsis:  A rewrite system designed for maximal expressiveness
 
+Flag notebook
+  Description:      Jupyter notebook
+  Default:          true
+
 Library rewrite
   Pack:             true
-  Path:             src/core
+  Path:             src/core/
   Modules:          Expr, Builtins, Parser, Lexer, Parse_loc, Slice, Bit_set
   BuildDepends:     bytes, result, containers, sequence, zarith
 
 Executable cli
-  Path:             src/cli
+  Path:             src/cli/
   Install:          true
-  CompiledObject:   best
+  CompiledObject:   native
   MainIs:           cli.ml
   BuildDepends:     rewrite, linenoise
+
+Library ipython
+  Path:             src/ipython/
+  Pack:             true
+  Install$:         flag(notebook)
+  Build$:           flag(notebook)
+  Modules:          Base64, Ipython_json_j, Ipython_json_t, Log,
+                    Message, Sockets
+  BuildDepends:     rewrite, atdgen, yojson, uuidm, ZMQ, bytes
+
+Executable ipython_server
+  Path:             src/server/
+  Install$:         flag(notebook)
+  Build$:           flag(notebook)
+  CompiledObject:   native
+  MainIs:           ipython_server.ml
+  BuildDepends:     ipython, rewrite, unix, threads
 
 Executable run_tests
   Path:             tests/
