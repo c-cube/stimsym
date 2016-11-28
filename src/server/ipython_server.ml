@@ -4,8 +4,7 @@
 (** {1 Notebook interface} *)
 
 open Ipython
-
-module E = Rewrite.Expr
+open Rewrite
 
 let suppress_stdout = ref false
 let suppress_stderr = ref false
@@ -52,9 +51,38 @@ let () =
 (** {2 Execution of queries} *)
 
 module Exec = struct
-  let run_cell count str = ["TODO"] (* TODO *)
+  let run_cell count str =
+    let buf = Lexing.from_string str in
+    Parse_loc.set_file buf ("cell_" ^ string_of_int count);
+    begin match Parser.parse_expr Lexer.token buf with
+      | e ->
+        Log.log (CCFormat.sprintf "parsed: @[%a@]@." Expr.pp_full_form e);
+        begin
+          try
+            let e' = Expr.eval e in
+            [
+              Result.Ok 
+                (CCFormat.sprintf "@[%a@]@." Expr.pp_full_form e')
+            ]
+          with
+            | Stack_overflow ->
+              [ Result.Error "stack overflow."]
+            | Expr.Eval_fail msg ->
+              [
+                Result.Error
+                  (CCFormat.sprintf "evaluation failed: %s@." msg);
+              ]
+        end
+      | exception e ->
+        [
+          Result.Error
+            (CCFormat.sprintf "error: %s@." (Printexc.to_string e));
+        ]
+    end
 
-  let html_of_status _ _ = "<bold>TODO</bold>"
+  let html_of_status r _ = match r with
+    | Result.Ok msg -> "<p>" ^ msg ^ "</p>"
+    | Result.Error msg -> "<style=\"color:red\"><p>" ^ msg ^ " </p></style>"
 end
 
 (*******************************************************************************)
