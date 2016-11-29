@@ -10,7 +10,7 @@
 
 open Ipython_json_t
 
-type message_content =
+type content =
   (* messages received from front end *)
   | Connect_request
   | Kernel_info_request
@@ -37,25 +37,25 @@ type message_content =
   (* custom messages *)
   | Comm_open
 
-val content_of_json : header_info -> string -> message_content
-val json_of_content : message_content -> string
-val msg_type_of_content : message_content -> string
+val content_of_json : header_info -> string -> content
+val json_of_content : content -> string
+val msg_type_of_content : content -> string
 
-type message =
+type t =
   {
     ids : string array;
     hmac : string;
     header : header_info;
     parent : header_info;
     meta : string; (* XXX dict => assoc list I think *)
-    content : message_content;
+    content : content;
     raw : string array;
   }
 
-val log : message -> unit
+val log : t -> unit
 
-val recv : [`Router] Lwt_zmq.Socket.t -> message Lwt.t
-val send : [<`Router|`Pub] Lwt_zmq.Socket.t -> message -> unit Lwt.t
-val make_header : message -> message
-val send_h : [<`Router|`Pub] Lwt_zmq.Socket.t -> message -> message_content -> unit Lwt.t
+val recv : [`Router] Lwt_zmq.Socket.t -> t Lwt.t
+val send : [<`Router|`Pub] Lwt_zmq.Socket.t -> t -> unit Lwt.t
+val make_header : t -> t
+val send_h : [<`Router|`Pub] Lwt_zmq.Socket.t -> t -> content -> unit Lwt.t
 

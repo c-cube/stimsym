@@ -25,3 +25,4 @@ let open_log_file s =
 
 let log s = !log' s
 
+let logf s = Format.ksprintf log s

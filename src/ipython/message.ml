@@ -1,4 +1,4 @@
-(* 
+(*
  * iocaml - an OCaml kernel for IPython
  *
  *   (c) 2014 MicroJamJar Ltd
@@ -10,7 +10,7 @@
 
 open Ipython_json_j
 
-type message_content =
+type content =
   (* messages received from front end *)
   | Connect_request
   | Kernel_info_request
@@ -118,18 +118,18 @@ let msg_type_of_content = function
 
   | Comm_open -> "comm_open"
 
-type message =
+type t =
   {
     ids : string array;
     hmac : string;
     header : header_info;
     parent : header_info;
     meta : string; (* XXX dict => assoc list I think *)
-    content : message_content; 
+    content : content;
     raw : string array;
   }
 
-let log msg = 
+let log msg =
   let open Printf in
   Array.iter (fun id -> Log.log(id ^ "\n")) msg.ids;
   Log.log ("<IDS|MSG>\n");
@@ -145,9 +145,9 @@ let dec_utf8 = Netconversion.convert ~in_enc:`Enc_utf8 ~out_enc:`Enc_iso88591
 let enc_utf8 x = x
 let dec_utf8 x = x
 
-let recv socket : message Lwt.t = 
+let recv socket : t Lwt.t =
   let%lwt msg = Lwt_zmq.Socket.recv_all socket in
-  (*let () = 
+  (*let () =
       Log.log (Printf.sprintf "recv: %i frame(s)\n" (List.length msg));
       List.iter (fun s -> Log.log (s ^ "\n")) msg
     in*)
@@ -189,7 +189,7 @@ let send socket msg : unit Lwt.t =
       Array.to_list (Array.map enc_utf8 msg.raw);
     ])
 
-let make_header msg = 
+let make_header msg =
   { msg with
       header =
         { msg.header with
@@ -198,7 +198,7 @@ let make_header msg =
       parent = msg.header
   }
 
-let send_h socket msg content = 
+let send_h socket msg content =
   send socket (make_header { msg with content = content })
 
 

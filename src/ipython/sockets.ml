@@ -28,7 +28,7 @@ let open_socket typ conn port =
 
 let heartbeat conn =
   let socket = open_socket ZMQ.Socket.rep conn conn.Ipython_json_j.hb_port in
-  let%lwt () = 
+  let%lwt () =
     while%lwt true do
       let%lwt data = Lwt_zmq.Socket.recv socket in
       Log.log("Heartbeat\n");
@@ -39,7 +39,7 @@ let heartbeat conn =
   ZMQ.Socket.close (Lwt_zmq.Socket.to_socket socket);
   Lwt.return ()
 
-type sockets = {
+type t = {
   shell : [`Router] Lwt_zmq.Socket.t;
   control : [`Router] Lwt_zmq.Socket.t;
   stdin : [`Router] Lwt_zmq.Socket.t;
@@ -47,6 +47,7 @@ type sockets = {
 }
 
 let open_sockets conn =
+  Log.logf "open sockets %s" (Ipython_json_j.string_of_connection_info conn);
   { shell = open_socket ZMQ.Socket.router conn conn.Ipython_json_j.shell_port;
     control = open_socket ZMQ.Socket.router conn conn.Ipython_json_j.control_port;
     stdin = open_socket ZMQ.Socket.router conn conn.Ipython_json_j.stdin_port;

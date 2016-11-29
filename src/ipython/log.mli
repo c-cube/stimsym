@@ -14,3 +14,5 @@ val open_log_file : string -> unit
 (* write string to log file *)
 val log : string -> unit
 
+val logf : ('a, unit, string, unit) format4 -> 'a
+
