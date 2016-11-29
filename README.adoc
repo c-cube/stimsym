@@ -17,3 +17,6 @@ the directory '~/.local/share/jupyter/kernels/rewrite'.
 mkdir -p ~/.local/share/jupyter/kernels/rewrite
 cp data/kernel.json ~/.local/share/jupyter/kernels/rewrite/
 ----
+
+Start the jupyter notebook with `jupyter-notebook --Session.key='b""'`;
+you can find a sample notebook in 'data/notebook1.ipynb'.
