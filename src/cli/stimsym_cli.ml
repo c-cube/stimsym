@@ -3,7 +3,7 @@
 
 (** {1 CLI entry point} *)
 
-open Rewrite
+open Stimsym
 
 type config = {
   verbose: bool;

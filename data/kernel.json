@@ -1,9 +1,9 @@
 {
   "argv":
-    ["ipython_server",
+    ["stimsym_server",
       "--connection-file",
       "{connection_file}"
     ],
-  "display_name": "rewrite",
-  "language": "rewrite"
+  "display_name": "Stimsym",
+  "language": "stimsym"
 }

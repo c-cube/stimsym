@@ -1,7 +1,7 @@
 OASISFormat: 0.4
-Name:        rewrite
+Name:        stimsym
 Version:     0.20
-Homepage:    https://github.com/c-cube/rewrite # FIXME
+Homepage:    https://github.com/c-cube/stimsym
 Authors:     Simon Cruanes
 License:     BSD-2-clause
 LicenseFile: LICENSE
@@ -18,36 +18,38 @@ Flag notebook
   Description:      Jupyter notebook
   Default:          true
 
-Library rewrite
+Library stimsym
   Pack:             true
   Path:             src/core/
   Modules:          Expr, Builtins, Parser, Lexer, Parse_loc, Slice, Bit_set
   BuildDepends:     bytes, result, containers, sequence, zarith
 
-Executable cli
+Executable stimsym_cli
   Path:             src/cli/
   Install:          true
   CompiledObject:   native
-  MainIs:           cli.ml
-  BuildDepends:     rewrite, linenoise
+  MainIs:           stimsym_cli.ml
+  BuildDepends:     stimsym, linenoise
 
 Library ipython
   Path:             src/ipython/
   Pack:             true
+  FindlibName:      ipython
+  FindlibParent:    stimsym
   Install:          false
   Build$:           flag(notebook)
   Modules:          Base64, Ipython_json_j, Ipython_json_t, Log,
                     Message, Sockets
-  BuildDepends:     rewrite, atdgen, yojson, uuidm, ZMQ, lwt-zmq,
+  BuildDepends:     stimsym, atdgen, yojson, uuidm, ZMQ, lwt-zmq,
                     lwt, lwt.unix, lwt.preemptive, threads, lwt.ppx, bytes
 
-Executable ipython_server
+Executable stimsym_server
   Path:             src/server/
   Install$:         flag(notebook)
   Build$:           flag(notebook)
   CompiledObject:   native
-  MainIs:           ipython_server.ml
-  BuildDepends:     ipython, rewrite, unix, threads
+  MainIs:           stimsym_server.ml
+  BuildDepends:     stimsym.ipython, stimsym, unix, threads
 
 Executable run_tests
   Path:             tests/
@@ -55,7 +57,7 @@ Executable run_tests
   MainIs:           run_tests.ml
   CompiledObject:   native
   Build$:           flag(tests)
-  BuildDepends:     rewrite, oUnit
+  BuildDepends:     stimsym, oUnit
 
 Test all
   Command:          ./run_tests.native

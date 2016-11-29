@@ -3,7 +3,7 @@
 
 (** {1 Test Suite} *)
 
-open Rewrite
+open Stimsym
 open OUnit
 
 let mk_name prefix line = Printf.sprintf "%s_line_%d" prefix line

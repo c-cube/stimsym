@@ -4,7 +4,7 @@
 (** {1 Notebook interface} *)
 
 open Ipython
-open Rewrite
+open Stimsym
 open Lwt.Infix
 
 module M = Message

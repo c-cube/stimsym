@@ -1,5 +1,5 @@
 opam-version: "1.2"
-name: "rewrite"
+name: "stimsym"
 version: "dev"
 author: "Simon Cruanes"
 maintainer: "simon.cruanes.2007@m4x.org"
@@ -17,8 +17,7 @@ install: [
 build-doc: [ make "doc" ]
 build-test: [ make "test" ]
 remove: [
-    ["ocamlfind" "remove" "rewrite"]
-    [make "uninstall"]
+    ["make" "uninstall"]
 ]
 depends: [
     "ocamlfind" {build}
@@ -35,8 +34,8 @@ depopts: [
     "yojson"
     "uuidm"
 ]
-tags: [ "rewrite" "cas" "logic" ]
-homepage: "https://github.com/c-cube/ocaml-rewrite/"
+tags: [ "rewriting" "cas" "logic" "mathematica" "jupyter" ]
+homepage: "https://github.com/c-cube/stimsym/"
 available: [ocaml-version >= "4.02.0"]
-dev-repo: "https://github.com/c-cube/ocaml-rewrite.git"
-bug-reports: "https://github.com/c-cube/ocaml-rewrite/issues/"
+dev-repo: "https://github.com/c-cube/stimsym.git"
+bug-reports: "https://github.com/c-cube/stimsym/issues/"
