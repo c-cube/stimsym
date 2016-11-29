@@ -171,12 +171,11 @@ let recv socket : t Lwt.t =
     content = content_of_json header data.(4);
     raw = Array.init (len-5) (fun i -> data.(i+5))
   } in
-  let () = log msg in
+  (* let () = log msg in *)
   Lwt.return msg
 
 let send socket msg : unit Lwt.t =
-  let () = Log.log ("SEND\n") in
-  let () = log msg in
+  (* let () = log msg in *)
   let content = json_of_content msg.content in
   Lwt_zmq.Socket.send_all socket (List.concat [
       Array.to_list (Array.map enc_utf8 msg.ids);

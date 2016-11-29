@@ -17,12 +17,11 @@ let time() =
     tm.tm_mday (tm.tm_mon+1) (tm.tm_year+1900) tm.tm_hour tm.tm_min tm.tm_sec
 
 let open_log_file s = 
-  (*let flog = open_out_gen [Open_text;Open_creat;Open_append] 0o666 s in*)
-  let flog = open_out s in
+  let flog = open_out_gen [Open_text;Open_creat;Open_append] 0o666 s in
   let () = at_exit (fun () -> close_out flog) in
   log' := (fun s -> output_string flog s; flush flog);
   !log' (Printf.sprintf "iocaml log file: %s\n" (time()))
 
 let log s = !log' s
 
-let logf s = Format.ksprintf log s
+let logf s = Printf.ksprintf log s

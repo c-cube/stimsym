@@ -39,7 +39,7 @@ Library ipython
   Modules:          Base64, Ipython_json_j, Ipython_json_t, Log,
                     Message, Sockets
   BuildDepends:     rewrite, atdgen, yojson, uuidm, ZMQ, lwt-zmq,
-                    lwt, lwt.ppx, bytes
+                    lwt, lwt.unix, lwt.preemptive, threads, lwt.ppx, bytes
 
 Executable ipython_server
   Path:             src/server/
