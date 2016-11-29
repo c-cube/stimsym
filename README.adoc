@@ -19,4 +19,5 @@ cp data/kernel.json ~/.local/share/jupyter/kernels/rewrite/
 ----
 
 Start the jupyter notebook with `jupyter-notebook --Session.key='b""'`;
-you can find a sample notebook in 'data/notebook1.ipynb'.
+you can find a sample notebook in 'data/notebook1.ipynb'. The `make jupyter`
+target will do the same.

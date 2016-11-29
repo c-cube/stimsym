@@ -51,3 +51,6 @@ watch:
 		echo "============ at `date` ==========" ; \
 		make all; \
 	done
+
+jupyter:
+	jupyter-notebook --Session.key='b""'
