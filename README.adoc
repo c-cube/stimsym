@@ -15,7 +15,11 @@ I drew a lot of inspiration from https://github.com/jyh1/mmaclone/, which
 was also my reference for operator priorities for the expression parser.
 Stimsym is not yet feature complete (it lacks AC matching, among others,
 for now), but it has a Jupyter interface and I believe the architecture might
-scale a bit better if lots of primitives were added.
+scale a bit better if lots of primitives were added. Most of the code
+for the Jupyter frontend is adapted from
+https://github.com/andrewray/iocaml[IOcaml]
+so as to use `lwt-zmq` and work with Jupyter 4.
+
 
 == Build
 
