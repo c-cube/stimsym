@@ -97,6 +97,13 @@ end
 module Shell = struct
   open Ipython_json_t
 
+  type t = {
+    sockets: Sockets.t;
+    key: string option;
+  }
+
+  let make ?key sockets : t = {key; sockets}
+
   type iopub_message =
     | Iopub_set_current of Message.t
     | Iopub_send_message of Message.content
@@ -142,14 +149,14 @@ module Shell = struct
   let msg : M.t option ref = ref None
 
   (* send a message on the Iopub socket *)
-  let send_iopub (sockets:Sockets.t) (m:iopub_message): iopub_resp Lwt.t =
+  let send_iopub (t:t) (m:iopub_message): iopub_resp Lwt.t =
     Log.logf "send_iopub `%s`\n" (string_of_iopub_message m);
-    let socket = sockets.Sockets.iopub in
+    let socket = t.sockets.Sockets.iopub in
     let send_message content = match !msg with
-      | Some msg -> M.send_h socket msg content >|= fun () -> Iopub_ok
+      | Some msg -> M.send_h ?key:t.key socket msg content >|= fun () -> Iopub_ok
       | None -> Lwt.return Iopub_ok
     and send_raw_message msg =
-      M.send socket msg >|= fun () -> Iopub_ok
+      M.send ?key:t.key socket msg >|= fun () -> Iopub_ok
     in
     let send_mime context mime_type data base64 =
       (* send mime message *)
@@ -172,8 +179,8 @@ module Shell = struct
   (* execute code *)
   let execute_request =
     let execution_count = ref 0 in
-    fun sockets msg e : unit Lwt.t ->
-      let send_iopub_u m = Lwt.async (fun () -> send_iopub sockets m) in
+    fun (t:t) msg e : unit Lwt.t ->
+      let send_iopub_u m = Lwt.async (fun () -> send_iopub t m) in
 
       (* if we are not silent increment execution count *)
       if not e.silent then incr execution_count;
@@ -204,7 +211,7 @@ module Shell = struct
       in
 
       let%lwt () =
-        M.send_h sockets.Sockets.shell msg
+        M.send_h ?key:t.key t.sockets.Sockets.shell msg
           (M.Execute_reply {
               status = "ok";
               execution_count = !execution_count;
@@ -216,8 +223,8 @@ module Shell = struct
       send_iopub_u (Iopub_send_message (M.Status { execution_state = "idle" }));
       Lwt.return_unit
 
-  let kernel_info_request socket msg =
-    M.send socket
+  let kernel_info_request (t:t) msg =
+    M.send ?key:t.key t.sockets.Sockets.shell
       (M.make_header
          { msg with M.
              content = M.Kernel_info_reply {
@@ -227,8 +234,11 @@ module Shell = struct
                }
          })
 
-  let shutdown_request socket msg _ : 'a Lwt.t =
-    let%lwt () = M.send_h socket msg (M.Shutdown_reply { restart = false }) in
+  let shutdown_request (t:t) msg _ : 'a Lwt.t =
+    let%lwt () =
+      M.send_h ?key:t.key t.sockets.Sockets.shell msg
+        (M.Shutdown_reply { restart = false })
+    in
     Lwt.fail (Failure "Exiting")
 
   let handle_invalid_message () =
@@ -243,25 +253,25 @@ module Shell = struct
   let connect_request _socket _msg = ()
   let history_request _socket _msg _x = ()
 
-  let run sockets =
+  let run t =
     let () = Sys.catch_break true in
     Log.log "run on sockets...\n";
     let%lwt _ =
-      send_iopub sockets
+      send_iopub t
         (Iopub_send_message (M.Status { execution_state = "starting" }))
     in
     let handle_message () =
       let open Sockets in
-      let%lwt msg = M.recv sockets.shell in
+      let%lwt msg = M.recv t.sockets.shell in
       Log.logf "received message `%s`\n" (M.json_of_content msg.M.content);
       match msg.M.content with
-        | M.Kernel_info_request -> kernel_info_request sockets.shell msg
-        | M.Execute_request x -> execute_request sockets msg x
-        | M.Connect_request -> connect_request sockets.shell msg; Lwt.return_unit
-        | M.Object_info_request x -> object_info_request sockets.shell msg x; Lwt.return_unit
-        | M.Complete_request x -> complete_request sockets.shell msg x; Lwt.return_unit
-        | M.History_request x -> history_request sockets.shell msg x; Lwt.return_unit
-        | M.Shutdown_request x -> shutdown_request sockets.shell msg x
+        | M.Kernel_info_request -> kernel_info_request t msg
+        | M.Execute_request x -> execute_request t msg x
+        | M.Connect_request -> connect_request t msg; Lwt.return_unit
+        | M.Object_info_request x -> object_info_request t msg x; Lwt.return_unit
+        | M.Complete_request x -> complete_request t msg x; Lwt.return_unit
+        | M.History_request x -> history_request t msg x; Lwt.return_unit
+        | M.Shutdown_request x -> shutdown_request t msg x
 
         (* messages we should not be getting *)
         | M.Connect_reply(_) | M.Kernel_info_reply(_)
@@ -324,8 +334,11 @@ let () =
     begin
       try%lwt
         let sockets = Sockets.open_sockets connection_info in
+        let key = connection_info.Ipython_json_t.key in
+        let key = if key="" then None else Some key in
+        let sh = Shell.make ?key sockets in
         Lwt.join
-          [ Shell.run sockets;
+          [ Shell.run sh;
             Sockets.heartbeat connection_info;
             Sockets.dump sockets.Sockets.control;
           ]

@@ -55,7 +55,12 @@ type t =
 val log : t -> unit
 
 val recv : [`Router] Lwt_zmq.Socket.t -> t Lwt.t
-val send : [<`Router|`Pub] Lwt_zmq.Socket.t -> t -> unit Lwt.t
+
+val send : ?key:string -> [<`Router|`Pub] Lwt_zmq.Socket.t -> t -> unit Lwt.t
+(** [send sock msg] sends the message.
+    @param key the shared key for signing messages *)
+
 val make_header : t -> t
-val send_h : [<`Router|`Pub] Lwt_zmq.Socket.t -> t -> content -> unit Lwt.t
+
+val send_h : ?key:string -> [<`Router|`Pub] Lwt_zmq.Socket.t -> t -> content -> unit Lwt.t
 

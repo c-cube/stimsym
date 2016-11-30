@@ -40,7 +40,7 @@ Library ipython
   Build$:           flag(notebook)
   Modules:          Base64, Ipython_json_j, Ipython_json_t, Log,
                     Message, Sockets
-  BuildDepends:     stimsym, atdgen, yojson, uuidm, ZMQ, lwt-zmq,
+  BuildDepends:     stimsym, atdgen, yojson, uuidm, ZMQ, lwt-zmq, nocrypto, hex,
                     lwt, lwt.unix, lwt.preemptive, threads, lwt.ppx, bytes
 
 Executable stimsym_server

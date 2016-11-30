@@ -53,4 +53,4 @@ watch:
 	done
 
 jupyter:
-	jupyter-notebook --Session.key='b""'
+	jupyter-notebook

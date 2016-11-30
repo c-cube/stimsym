@@ -174,17 +174,32 @@ let recv socket : t Lwt.t =
   (* let () = log msg in *)
   Lwt.return msg
 
-let send socket msg : unit Lwt.t =
+let send ?key socket msg : unit Lwt.t =
   (* let () = log msg in *)
-  let content = json_of_content msg.content in
+  let content = enc_utf8 (json_of_content msg.content) in
+  let header  = enc_utf8 (string_of_header_info msg.header) in
+  let parent = enc_utf8 (string_of_header_info msg.parent) in
+  let meta = enc_utf8 (msg.meta) in
+  let hmac = match key with
+    | None -> msg.hmac
+    | Some k ->
+      let c =
+        Cstruct.concat
+          (List.map (fun s->Cstruct.of_string s)
+             [header; parent; meta; content])
+      in
+      let res = Nocrypto.Hash.mac ~key:(Cstruct.of_string k) `SHA256 c in
+      let `Hex s = Hex.of_cstruct res in
+      s
+  in
   Lwt_zmq.Socket.send_all socket (List.concat [
       Array.to_list (Array.map enc_utf8 msg.ids);
       [enc_utf8 "<IDS|MSG>"];
-      [enc_utf8 msg.hmac];
-      [enc_utf8 (string_of_header_info msg.header)];
-      [enc_utf8 (string_of_header_info msg.parent)];
-      [enc_utf8 (msg.meta)];
-      [enc_utf8 content];
+      [enc_utf8 hmac];
+      [header];
+      [parent];
+      [meta];
+      [content];
       Array.to_list (Array.map enc_utf8 msg.raw);
     ])
 
@@ -197,7 +212,7 @@ let make_header msg =
       parent = msg.header
   }
 
-let send_h socket msg content =
-  send socket (make_header { msg with content = content })
+let send_h ?key socket msg content =
+  send ?key socket (make_header { msg with content = content })
 
 
