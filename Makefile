@@ -53,4 +53,4 @@ watch:
 	done
 
 jupyter:
-	jupyter-notebook
+	cd data; jupyter-notebook
