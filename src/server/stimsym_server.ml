@@ -238,7 +238,7 @@ module Shell = struct
       M.send_h ?key:t.key t.sockets.Sockets.shell msg
         (M.Shutdown_reply { restart = false })
     in
-    Lwt.fail (Failure "Exiting")
+    Lwt.fail Exit
 
   let handle_invalid_message () =
     Lwt.fail (Failure "Invalid message on shell socket")
@@ -285,9 +285,13 @@ module Shell = struct
     let rec run () =
       try%lwt
         handle_message() >>= run
-      with Sys.Break ->
-        Log.log "Sys.Break\n";
-        run ()
+      with
+        | Sys.Break ->
+          Log.log "Sys.Break\n";
+          run ()
+        | Exit ->
+          Log.log "Exiting, as requested\n";
+          Lwt.return_unit
     in
     run ()
 end
