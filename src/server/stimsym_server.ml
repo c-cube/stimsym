@@ -87,7 +87,7 @@ module Exec = struct
     Lwt_preemptive.detach (run_ count str) ()
 
   let html_of_status r _ = match r with
-    | Result.Ok msg -> "<p>" ^ msg ^ "</p>"
+    | Result.Ok msg -> "<bold>" ^ msg ^ "</bold>"
     | Result.Error msg -> "<style=\"color:red\"><p>" ^ msg ^ " </p></style>"
 end
 
@@ -209,7 +209,6 @@ module Shell = struct
                            `String (Exec.html_of_status message !output_cell_max_height) ];
                 po_metadata = `Assoc []; }))
       in
-
       let%lwt () =
         M.send_h ?key:t.key t.sockets.Sockets.shell msg
           (M.Execute_reply {
