@@ -65,7 +65,7 @@ module Exec = struct
             let e' = Expr.eval e in
             [
               Result.Ok
-                (CCFormat.sprintf "@[%a@]@." Expr.pp_full_form e')
+                (CCFormat.sprintf "@[%a@]@." Expr.pp e')
             ]
           with
             | Stack_overflow ->
