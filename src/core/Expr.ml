@@ -347,6 +347,7 @@ let to_string_compact t =
 let pp out (t:t) =
   let rec pp prec out t = match t with
     | Const {cst_name; _} -> Format.pp_print_string out cst_name
+    | App (Const {cst_name="FullForm";_}, [|t|]) -> pp_full_form out t
     | App (Const ({cst_printer=Some (_, pp_special); _} as c), [||]) ->
       pp_special c pp out [||]
     | App (Const ({cst_printer=Some (prec', pp_special); _} as c), args) ->

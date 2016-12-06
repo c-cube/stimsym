@@ -129,13 +129,18 @@ let suite_parser =
 
 (** {2 Printer} *)
 
-let test_printer line a b : test =
+let test_printer ?(strip_space=false) line a b : test =
   mk_name "same" line >:: (fun _ ->
     let buf = Lexing.from_string a in
     try
       let e = Parser.parse_expr Lexer.token buf in
-      OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
-        b (Expr.to_string e)
+      let res = Expr.to_string e in
+      let res =
+        if strip_space
+        then CCString.filter (function ' '|'\n' -> false | _ -> true) res
+        else res
+      in
+      OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id b res
     with Parse_loc.Parse_error (_,s) ->
       let msg =
         CCFormat.sprintf "failed to parse `%s`:@ %s@ (expected: `%s`)" a s b
@@ -189,6 +194,10 @@ let suite_printer =
     test_printer __LINE__
       "f[a_|foo] := b[c] d+f "
       "f[a_|foo] := b[c] d+f";
+    test_printer __LINE__ ~strip_space:true
+      "FullForm[1==a>=b<d<=e b+c|d<e]"
+      "Alternatives[Inequality[1,Equal,a,GreaterEqual,b,Less,d,LessEqual,Plus[Times[e,b],c]],\
+       Inequality[d,Less,e]]";
     (* TODO
     test_printer_same __LINE__ "f[a_] = b " "Set[f[Pattern[a,Blank[]]],b]";
     test_printer_same __LINE__ "f[a_] :> g[a,a]" "RuleDelayed[f[Pattern[a,Blank[]]],g[a,a]]";
