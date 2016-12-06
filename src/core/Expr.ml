@@ -21,6 +21,8 @@ type def_style =
 
 (** {2 Basics} *)
 
+exception Print_default
+
 type const = {
   cst_name: string;
   cst_id: int;
@@ -39,7 +41,7 @@ and t =
   | String of string
   | Reg of int (* only in rules RHS *)
 
-and const_printer = const -> t CCFormat.printer -> t array CCFormat.printer
+and const_printer = const -> (int -> t CCFormat.printer) -> t array CCFormat.printer
 
 (* (partial) definition of a symbol *)
 and def =
@@ -345,19 +347,23 @@ let to_string_compact t =
 let pp out (t:t) =
   let rec pp prec out t = match t with
     | Const {cst_name; _} -> Format.pp_print_string out cst_name
-    | App (Const ({cst_printer=Some (prec', pp_special); _} as c), [||]) ->
-      pp_special c (pp prec) out [||]
+    | App (Const ({cst_printer=Some (_, pp_special); _} as c), [||]) ->
+      pp_special c pp out [||]
     | App (Const ({cst_printer=Some (prec', pp_special); _} as c), args) ->
       if prec' > prec
-      then pp_special c (pp prec) out args
-      else CCFormat.within "(" ")" (pp_special c (pp prec')) out args
-    | App (head, args) ->
-      Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
-        (pp 0) head (CCFormat.array ~start:"" ~stop:"" ~sep:"," (pp 0)) args
+      then (
+        try pp_special c pp out args
+        with Print_default ->  pp_default out (const c, args)
+      )
+      else CCFormat.within "(" ")" (pp_special c pp) out args
+    | App (head, args) -> pp_default out (head, args)
     | Z n -> Z.pp_print out n
     | Q n -> Q.pp_print out n
     | String s -> Format.fprintf out "%S" s
     | Reg i -> Format.fprintf out "#%d" i
+  and pp_default out (head, args) =
+    Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
+      (pp 0) head (CCFormat.array ~start:"" ~stop:"" ~sep:"," (pp 0)) args
   in
   pp 0 out t
 

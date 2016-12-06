@@ -151,6 +151,85 @@ let suite_printer =
     test_printer __LINE__ "1+(2 3)" "1+2 3";
     test_printer_same __LINE__ "1+f[x,y]";
     test_printer_same __LINE__ "{{1},{2+3,f[{4}]}}";
+    test_printer_same __LINE__ "f";
+    test_printer_same __LINE__ "f[]";
+    test_printer_same __LINE__ "f[a,b,c]";
+    test_printer_same __LINE__ "a+b";
+    test_printer_same __LINE__ "a+b+c+d";
+    test_printer_same __LINE__ "f[a+b+c,d]";
+    test_printer_same __LINE__ "3/2";
+    test_printer __LINE__ 
+      "f[g[h[i[j[k,l]+m],n,o+p+(q)]]]+r"
+      "f[g[h[i[j[k,l]+m],n,o+p+q]]]+r";
+    test_printer_same __LINE__ "{1,2,3}";
+    test_printer_same __LINE__ "{1,{2},{3,a+0}}";
+    test_printer_same __LINE__ "{}";
+    test_printer __LINE__ "{a, b,c,d+e+1 + 3}" "{a,b,c,d+e+1+3}";
+    test_printer __LINE__ "  {  a, b,c,d +e+1 +3 }" "{a,b,c,d+e+1+3}";
+    test_printer __LINE__ "  {  a, b,c,d +e +1  + 3 } " "{a,b,c,d+e+1+3}";
+    test_printer __LINE__ " a + (* coucou lol *) b" "a+b";
+    test_printer __LINE__ " (*foo *) 1" "1";
+    test_printer __LINE__ "2 (*why hello*) b" "2 b";
+    test_printer_same __LINE__ "_";
+    (* TODO: what to do there?
+    test_printer_same __LINE__ "_a";
+    test_printer_same __LINE__ "a_b";
+    test_printer_same __LINE__ "a__b";
+    test_printer_same __LINE__ "a___b";
+    test_printer_same __LINE__ "a ___b";
+    *)
+    test_printer_same __LINE__ "a___";
+    test_printer_same __LINE__ "___";
+    test_printer_same __LINE__ "a b c";
+    test_printer __LINE__ "a b (c+d) " "a b (c+d)";
+    test_printer __LINE__ "f[a b, c+d e + 1]" "f[a b,c+d e+1]";
+    test_printer_same __LINE__ "a_|f[b__]|c";
+    test_printer_same __LINE__ "a ___ b";
+    test_printer __LINE__ "f[a_] = b " "f[a_] = b";
+    test_printer __LINE__
+      "f[a_|foo] := b[c] d+f "
+      "f[a_|foo] := b[c] d+f";
+    (* TODO
+    test_printer_same __LINE__ "f[a_] = b " "Set[f[Pattern[a,Blank[]]],b]";
+    test_printer_same __LINE__ "f[a_] :> g[a,a]" "RuleDelayed[f[Pattern[a,Blank[]]],g[a,a]]";
+    test_printer_same __LINE__ "f[x] -> g[x,a]" "Rule[f[x],g[x,a]]";
+    test_printer_same __LINE__ "f[x]:> g[x,a]" "RuleDelayed[f[x],g[x,a]]";
+    test_printer_same __LINE__ "f[x]->g[x,a]" "Rule[f[x],g[x,a]]";
+    test_printer_same __LINE__ "f[x]:> g[x]+ h[x] 3" "RuleDelayed[f[x],Plus[g[x],Times[h[x],3]]]";
+    test_printer_same __LINE__ "f[a==b==c,1]" "f[Inequality[a,Equal,b,Equal,c],1]";
+    test_printer_same __LINE__
+      "1==a>=b<d<=e b+c|d<e"
+      "Alternatives[Inequality[1,Equal,a,GreaterEqual,b,Less,d,LessEqual,Plus[Times[e,b],c]],\
+       Inequality[d,Less,e]]";
+    test_printer_same __LINE__ "!a!" "Not[Factorial[a]]";
+    test_printer_same __LINE__ "a&&b||!c" "Or[And[a,b],Not[c]]";
+    test_printer_same __LINE__ "a||b&&!c" "Or[a,And[b,Not[c]]]";
+    test_printer_same __LINE__ "a===b" "SameQ[a,b]";
+    test_printer_same __LINE__ "f-> a===b===c" "Rule[f,SameQ[a,b,c]]";
+    test_printer_same __LINE__ "a!" "Factorial[a]";
+    test_printer_same __LINE__ "a!+b" "Plus[Factorial[a],b]";
+    test_printer_same __LINE__ "a! b" "Times[Factorial[a],b]";
+    test_printer_same __LINE__ "! a + b ! c" "Not[Plus[a,Times[Factorial[b],c]]]";
+    test_printer_same __LINE__ "a/; b" "Condition[a,b]";
+    test_printer_same __LINE__ "f[a_]/; b" "Condition[f[Pattern[a,Blank[]]],b]";
+    test_printer_same __LINE__ "a_/; b :> a+1" "RuleDelayed[Condition[Pattern[a,Blank[]],b],Plus[a,1]]";
+    test_printer_same __LINE__
+      "a_[_|__]/; b===1 :> a+1"
+      "RuleDelayed[Condition[Pattern[a,Blank[]][Alternatives[Blank[],BlankSequence[]]]\
+       ,SameQ[b,1]],Plus[a,1]]";
+    test_printer_same __LINE__
+      "t:f[_,_]/;t==1 :> g[t]"
+      "RuleDelayed[Condition[Pattern[t,f[Blank[],Blank[]]],Inequality[t,Equal,1]],g[t]]";
+    test_printer_same __LINE__
+      "t:f[x___] :> g[t,x]"
+      "RuleDelayed[Pattern[t,f[Pattern[x,BlankNullSequence[]]]],g[t,x]]";
+    test_printer_same __LINE__ "f[a] /. {x,y,z}" "ReplaceAll[f[a],List[x,y,z]]";
+    test_printer_same __LINE__ "f[a] //. {x,y,z} d" "ReplaceRepeated[f[a],Times[List[x,y,z],d]]";
+    test_printer_same __LINE__
+      "f[a,b+c d!] //. {f[x,y,z___] :> f[x y,z]}"
+        "ReplaceRepeated[f[a,Plus[b,Times[c,Factorial[d]]]],\
+         List[RuleDelayed[f[x,y,Pattern[z,BlankNullSequence[]]],f[Times[x,y],z]]]]";
+       *)
   ]
 
 (** {2 Eval} *)

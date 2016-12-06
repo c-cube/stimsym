@@ -49,11 +49,12 @@ type arith_res =
 let true_ = mk_ "True"
 let false_ = mk_ "False"
 
-let print_infix_ sep neutral _ pp_sub out args = match args with
+let print_infix_ prec sep neutral _ pp_sub out args = match args with
   | [||] -> Fmt.string out neutral
-  | [|x|] -> pp_sub out x
+  | [|x|] -> pp_sub prec out x
   | _ ->
-    Fmt.fprintf out "@[<hv>%a@]" (Fmt.array ~start:"" ~stop:"" ~sep pp_sub) args
+    Fmt.fprintf out "@[<hv>%a@]"
+      (Fmt.array ~start:"" ~stop:"" ~sep (pp_sub prec)) args
 
 let plus =
   let eval self _ (e:E.t): E.t option =
@@ -93,7 +94,7 @@ let plus =
   in
   mk_ "Plus" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
-    ~printer:(5, print_infix_ "+" "0")
+    ~printer:(40, print_infix_ 40 "+" "0")
     ~doc:"Addition operator (infix form: `a + b + c + d`)"
 
 let times =
@@ -136,7 +137,7 @@ let times =
   in
   mk_ "Times" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
-    ~printer:(6, print_infix_ " " "1")
+    ~printer:(50, print_infix_ 50 " " "1")
     ~doc:"Product operator (infix: `a b c d`)"
 
 let factorial =
@@ -151,22 +152,59 @@ let factorial =
       Some (E.z (aux n Z.one))
     | _ -> None
   in
-  mk_ "Factorial"
+  let pp _ pp_sub out = function
+    | [| a |] -> Fmt.fprintf out "%a!" (pp_sub 15) a
+    | _ -> raise E.Print_default
+  in
+  mk_ "Factorial" ~printer:(15,pp)
     ~doc:"Factorial operator (postfix: `a!`)" ~funs:[eval]
 
 let list =
   let pp_list _ pp_sub out a =
-    Fmt.fprintf out "{@[<hv>%a@]}" (Fmt.array ~start:"" ~stop:"" ~sep:"," pp_sub) a
+    Fmt.fprintf out "{@[<hv>%a@]}"
+      (Fmt.array ~start:"" ~stop:"" ~sep:"," (pp_sub 0)) a
   in
   mk_ ~printer:(100,pp_list) "List"
 
 let blank =
-  mk_ "Blank" ~fields:[E.field_hold_all; E.field_protected] ~doc:"`_`"
+  let pp _ _ out args = match args with
+    | [||] -> Fmt.string out "_"
+    | _ -> raise E.Print_default
+  in
+  mk_ "Blank"
+    ~printer:(100,pp) ~fields:[E.field_hold_all; E.field_protected] ~doc:"`_`"
+
 let blank_seq =
-  mk_ "BlankSequence" ~fields:[E.field_hold_all; E.field_protected] ~doc:"`__`"
+  let pp _ _ out args = match args with
+    | [||] -> Fmt.string out "__"
+    | _ -> raise E.Print_default
+  in
+  mk_ "BlankSequence"
+    ~printer:(100,pp)~fields:[E.field_hold_all; E.field_protected] ~doc:"`__`"
+
 let blank_null_seq =
-  mk_ "BlankNullSequence" ~fields:[E.field_hold_all; E.field_protected] ~doc:"`___`"
-let pattern = mk_ "Pattern" ~fields:[E.field_hold_all; E.field_protected]
+  let pp _ _ out args = match args with
+    | [||] -> Fmt.string out "___"
+    | _ -> raise E.Print_default
+  in
+  mk_ "BlankNullSequence"
+    ~printer:(100,pp) ~fields:[E.field_hold_all; E.field_protected] ~doc:"`___`"
+
+let pattern =
+  let pp _ pp_sub out = function
+    | [| E.Const {E.cst_name=x;_}; sub |] ->
+      begin match sub with
+        | E.App (E.Const {E.cst_name="Blank";_}, [||]) ->
+          Fmt.fprintf out "%s_" x
+        | E.App (E.Const {E.cst_name="BlankSequence";_}, [||]) ->
+          Fmt.fprintf out "%s__" x
+        | E.App (E.Const {E.cst_name="BlankNullSequence";_}, [||]) ->
+          Fmt.fprintf out "%s___" x
+        | _ -> raise E.Print_default
+      end
+    | _ -> raise E.Print_default
+  in
+  mk_ "Pattern" ~printer:(100,pp) ~fields:[E.field_hold_all; E.field_protected]
 
 let same_q =
   let eval _ _ e = match e with
@@ -187,40 +225,78 @@ let same_q =
     ~doc:"symbolic identity (infix: `a === b`)"
 
 let set =
-  mk_ "Set"
+  let pp _ pp_sub out = function
+    | [| lhs; rhs |] ->
+      Fmt.fprintf out "%a = %a" (pp_sub 3) lhs (pp_sub 3) rhs
+    | _ -> raise E.Print_default
+  in
+  mk_ "Set" ~printer:(3, pp)
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Eager assignment. Infix: `a = b`"
 
 let set_delayed =
-  mk_ "SetDelayed"
+  let pp _ pp_sub out = function
+    | [| lhs; rhs |] ->
+      Fmt.fprintf out "%a := %a" (pp_sub 3) lhs (pp_sub 3) rhs
+    | _ -> raise E.Print_default
+  in
+  mk_ "SetDelayed" ~printer:(3, pp)
     ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Lazy assignment. Infix: `a := b`"
 
 let rule =
-  mk_ "Rule"
+  let pp _ pp_sub out = function
+    | [| lhs; rhs |] ->
+      Fmt.fprintf out "%a -> %a" (pp_sub 4) lhs (pp_sub 4) rhs
+    | _ -> raise E.Print_default
+  in
+  mk_ "Rule" ~printer:(4,pp)
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Eager rewrite rule. Infix: `a -> b`"
 
 let rule_delayed =
-  mk_ "RuleDelayed"
+  let pp _ pp_sub out = function
+    | [| lhs; rhs |] ->
+      Fmt.fprintf out "%a :> %a" (pp_sub 4) lhs (pp_sub 4) rhs
+    | _ -> raise E.Print_default
+  in
+  mk_ "RuleDelayed"  ~printer:(4,pp)
     ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Lazy rewrite rule. Infix: `a :> b`"
 
 let condition =
-  mk_ "Condition" ~fields:[E.field_protected; E.field_hold_all]
+  let pp _ pp_sub out = function
+    | [| lhs; rhs |] ->
+      Fmt.fprintf out "%a /; %a" (pp_sub 5) lhs (pp_sub 5) rhs
+    | _ -> raise E.Print_default
+  in
+  mk_ "Condition"
+    ~printer:(5,pp)
+    ~fields:[E.field_protected; E.field_hold_all]
     ~doc:"Conditional pattern. Infix: `a /; b`"
 
 let replace_all =
-  mk_ "ReplaceAll"
+  let pp _ pp_sub out = function
+    | [| lhs; rhs |] ->
+      Fmt.fprintf out "%a /. %a" (pp_sub 6) lhs (pp_sub 6) rhs
+    | _ -> raise E.Print_default
+  in
+  mk_ "ReplaceAll" ~printer:(6,pp)
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Replacement by rewrite rules. Infix: `a /. rules`"
 
 let replace_repeated =
-  mk_ "ReplaceRepeated"
+  let pp _ pp_sub out = function
+    | [| lhs; rhs |] ->
+      Fmt.fprintf out "%a //. %a" (pp_sub 6) lhs (pp_sub 6) rhs
+    | _ -> raise E.Print_default
+  in
+  mk_ "ReplaceRepeated" ~printer:(6,pp)
     ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Replacement by rewrite rules until fixpoint. Infix: `a //. rules`"
 
-let alternatives = mk_ "Alternatives"
+let alternatives =
+  mk_ ~printer:(7,print_infix_ 7 "|" "") "Alternatives"
 
 let compound_expr =
   mk_ "CompoundExpression" ~doc:"Sequence of operations. Infix: `a; b`"

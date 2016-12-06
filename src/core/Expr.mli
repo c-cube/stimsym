@@ -45,7 +45,10 @@ and t = private
   | Reg of int
 
 (* custom printer for a constant *)
-and const_printer = const -> t CCFormat.printer -> t array CCFormat.printer
+and const_printer = const -> (int -> t CCFormat.printer) -> t array CCFormat.printer
+
+exception Print_default
+(** Used in {!const_printer} to indicate that default printing should be preferred *)
 
 type prim_fun_args
 
