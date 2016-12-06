@@ -33,15 +33,19 @@ type const = private {
   mutable cst_rules: def list;
   mutable cst_local_rules: rewrite_rule list;
   mutable cst_doc: string;
+  mutable cst_printer: (int * const_printer) option;
 }
 
-type t = private
+and t = private
   | Const of const
   | App of t * t array
   | Z of Z.t
   | Q of Q.t
   | String of string
   | Reg of int
+
+(* custom printer for a constant *)
+and const_printer = const -> t CCFormat.printer -> t array CCFormat.printer
 
 type prim_fun_args
 
@@ -110,6 +114,8 @@ module Cst : sig
 
   val add_def : def -> t -> unit
 
+  val set_printer : int -> const_printer -> t -> unit
+
   val set_doc : string -> t -> unit
 end
 
@@ -120,6 +126,12 @@ val pp_full_form : t CCFormat.printer
 
 val to_string_compact : t -> string
 (** Compact, easy to parser display using FullForm *)
+
+val pp : t CCFormat.printer
+(** Nice printer *)
+
+val to_string : t -> string
+(** Nice multi-line printer using {!pp} *)
 
 (** {2 Evaluation} *)
 

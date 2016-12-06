@@ -4,6 +4,7 @@
 (** {1 Builtin Functions} *)
 
 module E = Expr
+module Fmt = CCFormat
 
 type t = Expr.t
 
@@ -15,7 +16,7 @@ let all_ = ref []
    into [None] (fail) or [Some t'] *)
 type fun_def = E.const -> (E.t -> E.t) -> E.t -> E.t option
 
-let mk_ ?(doc="") ?(fields=[]) ?(funs=[]) name =
+let mk_ ?(doc="") ?printer ?(fields=[]) ?(funs=[]) name =
   let c =
     E.const_of_string_with name
       ~f:(fun c ->
@@ -29,6 +30,7 @@ let mk_ ?(doc="") ?(fields=[]) ?(funs=[]) name =
              in
              E.Cst.add_def (E.def_fun d_protected) c)
           funs;
+        CCOpt.iter (fun (i,p) -> E.Cst.set_printer i p c) printer;
         E.Cst.set_doc doc c)
   in
   all_ := c :: !all_;
@@ -46,6 +48,12 @@ type arith_res =
 
 let true_ = mk_ "True"
 let false_ = mk_ "False"
+
+let print_infix_ sep neutral _ pp_sub out args = match args with
+  | [||] -> Fmt.string out neutral
+  | [|x|] -> pp_sub out x
+  | _ ->
+    Fmt.fprintf out "@[<hv>%a@]" (Fmt.array ~start:"" ~stop:"" ~sep pp_sub) args
 
 let plus =
   let eval self _ (e:E.t): E.t option =
@@ -85,6 +93,7 @@ let plus =
   in
   mk_ "Plus" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
+    ~printer:(5, print_infix_ "+" "0")
     ~doc:"Addition operator (infix form: `a + b + c + d`)"
 
 let times =
@@ -127,6 +136,7 @@ let times =
   in
   mk_ "Times" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
+    ~printer:(6, print_infix_ " " "1")
     ~doc:"Product operator (infix: `a b c d`)"
 
 let factorial =
@@ -144,7 +154,11 @@ let factorial =
   mk_ "Factorial"
     ~doc:"Factorial operator (postfix: `a!`)" ~funs:[eval]
 
-let list = mk_ "List"
+let list =
+  let pp_list _ pp_sub out a =
+    Fmt.fprintf out "{@[<hv>%a@]}" (Fmt.array ~start:"" ~stop:"" ~sep:"," pp_sub) a
+  in
+  mk_ ~printer:(100,pp_list) "List"
 
 let blank =
   mk_ "Blank" ~fields:[E.field_hold_all; E.field_protected] ~doc:"`_`"

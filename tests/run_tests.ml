@@ -127,6 +127,32 @@ let suite_parser =
          List[RuleDelayed[f[x,y,Pattern[z,BlankNullSequence[]]],f[Times[x,y],z]]]]";
   ]
 
+(** {2 Printer} *)
+
+let test_printer line a b : test =
+  mk_name "same" line >:: (fun _ ->
+    let buf = Lexing.from_string a in
+    try
+      let e = Parser.parse_expr Lexer.token buf in
+      OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
+        b (Expr.to_string e)
+    with Parse_loc.Parse_error (_,s) ->
+      let msg =
+        CCFormat.sprintf "failed to parse `%s`:@ %s@ (expected: `%s`)" a s b
+      in
+      raise (Parse_test_fail msg)
+  )
+
+let test_printer_same line a = test_printer line a a
+
+let suite_printer =
+  "printer" >::: [
+    test_printer_same __LINE__ "1+2";
+    test_printer __LINE__ "1+(2 3)" "1+2 3";
+    test_printer_same __LINE__ "1+f[x,y]";
+    test_printer_same __LINE__ "{{1},{2+3,f[{4}]}}";
+  ]
+
 (** {2 Eval} *)
 
 let mk_eval line a b : test =
@@ -199,6 +225,7 @@ let suite =
   "rewrite" >::: [
     suite_parser;
     suite_eval;
+    suite_printer;
   ]
 
 let () =

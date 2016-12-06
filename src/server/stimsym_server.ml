@@ -87,7 +87,7 @@ module Exec = struct
     Lwt_preemptive.detach (run_ count str) ()
 
   let html_of_status r _ = match r with
-    | Result.Ok msg -> "<bold>" ^ msg ^ "</bold>"
+    | Result.Ok msg -> "<p>" ^ msg ^ "</p>"
     | Result.Error msg -> "<style=\"color:red\"><p>" ^ msg ^ " </p></style>"
 end
 

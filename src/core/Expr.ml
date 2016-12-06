@@ -28,6 +28,7 @@ type const = {
   mutable cst_rules: def list;
   mutable cst_local_rules: rewrite_rule list;
   mutable cst_doc: string;
+  mutable cst_printer: (int * const_printer) option;
 }
 
 and t =
@@ -37,6 +38,8 @@ and t =
   | Q of Q.t
   | String of string
   | Reg of int (* only in rules RHS *)
+
+and const_printer = const -> t CCFormat.printer -> t array CCFormat.printer
 
 (* (partial) definition of a symbol *)
 and def =
@@ -128,6 +131,7 @@ let const_of_string name =
         cst_rules=[];
         cst_local_rules=[];
         cst_doc="";
+        cst_printer=None;
       } in
     bank.const_id <- bank.const_id + 1;
     Str_tbl.add bank.by_name name c;
@@ -250,6 +254,8 @@ module Cst = struct
       Undo.push u (fun () -> c.cst_local_rules <- old_local_rules)
 
   let set_doc d c = c.cst_doc <- d
+
+  let set_printer i f c = c.cst_printer <- Some (i,f)
 end
 
 let const_of_string_with ~f name =
@@ -335,6 +341,27 @@ let to_string_compact t =
   in
   aux t;
   Buffer.contents buf
+
+let pp out (t:t) =
+  let rec pp prec out t = match t with
+    | Const {cst_name; _} -> Format.pp_print_string out cst_name
+    | App (Const ({cst_printer=Some (prec', pp_special); _} as c), [||]) ->
+      pp_special c (pp prec) out [||]
+    | App (Const ({cst_printer=Some (prec', pp_special); _} as c), args) ->
+      if prec' > prec
+      then pp_special c (pp prec) out args
+      else CCFormat.within "(" ")" (pp_special c (pp prec')) out args
+    | App (head, args) ->
+      Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
+        (pp 0) head (CCFormat.array ~start:"" ~stop:"" ~sep:"," (pp 0)) args
+    | Z n -> Z.pp_print out n
+    | Q n -> Q.pp_print out n
+    | String s -> Format.fprintf out "%S" s
+    | Reg i -> Format.fprintf out "#%d" i
+  in
+  pp 0 out t
+
+let to_string t = CCFormat.to_string pp t
 
 (** {2 Evaluation} *)
 
