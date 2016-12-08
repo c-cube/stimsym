@@ -65,3 +65,9 @@ val null : t
 val nest : t
 
 val all_builtins : unit -> t list
+
+(**/**)
+val log_: (string->unit) ref
+val log : string -> unit
+val logf : ('a, unit, string, unit) format4 -> 'a
+(**/**)

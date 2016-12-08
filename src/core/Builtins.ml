@@ -11,6 +11,9 @@ type t = Expr.t
 exception Eval_does_not_apply
 
 let all_ = ref []
+let log_ : (string -> unit) ref = ref (fun _ -> ())
+let log s = !log_ s
+let logf s = Printf.ksprintf log s
 
 (* a function definition. Takes [self_cst, eval_fun, t] and evaluates [t]
    into [None] (fail) or [Some t'] *)

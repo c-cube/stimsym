@@ -75,6 +75,9 @@ let run_ count str : C.Kernel.exec_status =
         (CCFormat.sprintf "error: %s@." (Printexc.to_string e))
   end
 
+let () =
+  Builtins.log_ := Log.log
+
 let kernel : C.Kernel.t = {
   C.Kernel.
   exec = (fun ~count msg -> Lwt.return (run_ count msg));
