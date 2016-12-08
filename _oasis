@@ -39,7 +39,7 @@ Library ipython
   Install:          false
   Build$:           flag(notebook)
   Modules:          Base64, Ipython_json_j, Ipython_json_t, Log,
-                    Message, Sockets
+                    Message, Sockets, Client
   BuildDepends:     stimsym, atdgen, yojson, uuidm, ZMQ, lwt-zmq, nocrypto, hex,
                     lwt, lwt.unix, lwt.preemptive, threads, lwt.ppx, bytes
 
