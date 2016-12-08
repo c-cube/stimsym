@@ -27,4 +27,6 @@ PKG ZMQ
 PKG lwt-zmq
 PKG nocrypto
 PKG hex
+PKG containers.unix
+PKG unix
 FLG -w +a-4-44@8 -safe-string

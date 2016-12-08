@@ -30,7 +30,7 @@ let rec main_loop ~config () =
               | Stack_overflow ->
                 Format.printf "stack overflow.@.";
               | Expr.Eval_fail msg ->
-                Format.printf "evaluation failed: %s@." msg;
+                Format.printf "evaluation failed:@ %s@." msg;
           end
         | exception e ->
           Format.printf "error: %s@." (Printexc.to_string e);

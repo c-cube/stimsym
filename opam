@@ -27,6 +27,7 @@ depends: [
     "result"
     "containers"
     "sequence"
+    "unix"
     "ocamlbuild" {build}
 ]
 depopts: [

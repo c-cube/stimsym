@@ -21,8 +21,10 @@ Flag notebook
 Library stimsym
   Pack:             true
   Path:             src/core/
-  Modules:          Expr, Builtins, Parser, Lexer, Parse_loc, Slice, Bit_set
-  BuildDepends:     bytes, result, containers, sequence, zarith
+  Modules:          Expr, Builtins, Parser, Lexer, Parse_loc,
+                    Hash, Slice, Bit_set, Builtins_advanced
+  BuildDepends:     bytes, result, containers, sequence, zarith,
+                    unix, containers.unix
 
 Executable stimsym_cli
   Path:             src/cli/

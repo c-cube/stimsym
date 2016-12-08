@@ -1,0 +1,9 @@
+
+(* This file is free software. See file "license" for more details. *)
+
+(** {1 More Advanced Builtins} *)
+
+type t = Builtins.t
+
+val sat_solve : t
+(** Call a sat solver on the given arguments *)
