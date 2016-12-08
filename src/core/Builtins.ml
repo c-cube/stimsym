@@ -36,6 +36,26 @@ let mk_ ?(doc="") ?printer ?(fields=[]) ?(funs=[]) name =
   all_ := c :: !all_;
   c
 
+let prec_semicolon = 2
+let prec_set = 3
+let prec_rule = 5
+let prec_condition = 6
+let prec_replace = 7
+let prec_alternatives = 8
+let prec_same = 10
+
+let prec_or = 21
+let prec_and = 22
+let prec_not = 23
+
+let prec_plus = 40
+let prec_times = 41
+let prec_factorial = 45
+
+let prec_pattern = 90
+let prec_blank = 95
+let prec_list = 100
+
 let hold = mk_ "Hold" ~fields:[E.field_hold_all]
 
 let full_form = mk_ "FullForm" ~fields:[E.field_hold_all]
@@ -55,6 +75,11 @@ let print_infix_ prec sep neutral _ pp_sub out args = match args with
   | _ ->
     Fmt.fprintf out "@[<hv>%a@]"
       (Fmt.array ~start:"" ~stop:"" ~sep (pp_sub prec)) args
+
+let print_infix_bin_ prec op _ pp_sub out args = match args with
+  | [|x;y|] ->
+    Fmt.fprintf out "@[<hv>%a%s@,%a@]" (pp_sub prec) x op (pp_sub prec) y
+  | _ -> raise E.Print_default
 
 let plus =
   let eval self _ (e:E.t): E.t option =
@@ -94,7 +119,7 @@ let plus =
   in
   mk_ "Plus" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
-    ~printer:(40, print_infix_ 40 "+" "0")
+    ~printer:(prec_plus, print_infix_ prec_plus "+" "0")
     ~doc:"Addition operator (infix form: `a + b + c + d`)"
 
 let times =
@@ -137,7 +162,7 @@ let times =
   in
   mk_ "Times" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
-    ~printer:(50, print_infix_ 50 " " "1")
+    ~printer:(prec_times, print_infix_ prec_times " " "1")
     ~doc:"Product operator (infix: `a b c d`)"
 
 let factorial =
@@ -153,10 +178,10 @@ let factorial =
     | _ -> None
   in
   let pp _ pp_sub out = function
-    | [| a |] -> Fmt.fprintf out "%a!" (pp_sub 15) a
+    | [| a |] -> Fmt.fprintf out "%a!" (pp_sub prec_factorial) a
     | _ -> raise E.Print_default
   in
-  mk_ "Factorial" ~printer:(15,pp)
+  mk_ "Factorial" ~printer:(prec_factorial,pp)
     ~doc:"Factorial operator (postfix: `a!`)" ~funs:[eval]
 
 let list =
@@ -164,7 +189,7 @@ let list =
     Fmt.fprintf out "{@[<hv>%a@]}"
       (Fmt.array ~start:"" ~stop:"" ~sep:"," (pp_sub 0)) a
   in
-  mk_ ~printer:(100,pp_list) "List"
+  mk_ ~printer:(prec_list,pp_list) "List"
 
 let blank =
   let pp _ _ out args = match args with
@@ -172,7 +197,7 @@ let blank =
     | _ -> raise E.Print_default
   in
   mk_ "Blank"
-    ~printer:(100,pp) ~fields:[E.field_hold_all; E.field_protected] ~doc:"`_`"
+    ~printer:(prec_blank,pp) ~fields:[E.field_hold_all; E.field_protected] ~doc:"`_`"
 
 let blank_seq =
   let pp _ _ out args = match args with
@@ -180,7 +205,7 @@ let blank_seq =
     | _ -> raise E.Print_default
   in
   mk_ "BlankSequence"
-    ~printer:(100,pp)~fields:[E.field_hold_all; E.field_protected] ~doc:"`__`"
+    ~printer:(prec_blank,pp)~fields:[E.field_hold_all; E.field_protected] ~doc:"`__`"
 
 let blank_null_seq =
   let pp _ _ out args = match args with
@@ -188,10 +213,10 @@ let blank_null_seq =
     | _ -> raise E.Print_default
   in
   mk_ "BlankNullSequence"
-    ~printer:(100,pp) ~fields:[E.field_hold_all; E.field_protected] ~doc:"`___`"
+    ~printer:(prec_blank,pp) ~fields:[E.field_hold_all; E.field_protected] ~doc:"`___`"
 
 let pattern =
-  let pp _ pp_sub out = function
+  let pp _ _pp_sub out = function
     | [| E.Const {E.cst_name=x;_}; sub |] ->
       begin match sub with
         | E.App (E.Const {E.cst_name="Blank";_}, [||]) ->
@@ -204,7 +229,7 @@ let pattern =
       end
     | _ -> raise E.Print_default
   in
-  mk_ "Pattern" ~printer:(100,pp) ~fields:[E.field_hold_all; E.field_protected]
+  mk_ "Pattern" ~printer:(prec_pattern,pp) ~fields:[E.field_hold_all; E.field_protected]
 
 let same_q =
   let eval _ _ e = match e with
@@ -222,84 +247,89 @@ let same_q =
   in
   mk_ "SameQ" ~funs:[eval]
     ~fields:[E.field_protected]
+    ~printer:(prec_same, print_infix_bin_ prec_same "===")
     ~doc:"symbolic identity (infix: `a === b`)"
 
 let set =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a = %a" (pp_sub 3) lhs (pp_sub 3) rhs
+      Fmt.fprintf out "%a = %a" (pp_sub prec_set) lhs (pp_sub prec_set) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "Set" ~printer:(3, pp)
+  mk_ "Set" ~printer:(prec_set, pp)
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Eager assignment. Infix: `a = b`"
 
 let set_delayed =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a := %a" (pp_sub 3) lhs (pp_sub 3) rhs
+      Fmt.fprintf out "%a := %a" (pp_sub prec_set) lhs (pp_sub prec_set) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "SetDelayed" ~printer:(3, pp)
+  mk_ "SetDelayed" ~printer:(prec_set, pp)
     ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Lazy assignment. Infix: `a := b`"
 
 let rule =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a -> %a" (pp_sub 4) lhs (pp_sub 4) rhs
+      Fmt.fprintf out "%a -> %a" (pp_sub prec_rule) lhs (pp_sub prec_rule) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "Rule" ~printer:(4,pp)
+  mk_ "Rule" ~printer:(prec_rule,pp)
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Eager rewrite rule. Infix: `a -> b`"
 
 let rule_delayed =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a :> %a" (pp_sub 4) lhs (pp_sub 4) rhs
+      Fmt.fprintf out "%a :> %a" (pp_sub prec_rule) lhs (pp_sub prec_rule) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "RuleDelayed"  ~printer:(4,pp)
+  mk_ "RuleDelayed"  ~printer:(prec_rule,pp)
     ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Lazy rewrite rule. Infix: `a :> b`"
 
 let condition =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a /; %a" (pp_sub 5) lhs (pp_sub 5) rhs
+      Fmt.fprintf out "%a /; %a" (pp_sub prec_condition) lhs (pp_sub prec_condition) rhs
     | _ -> raise E.Print_default
   in
   mk_ "Condition"
-    ~printer:(5,pp)
+    ~printer:(prec_condition,pp)
     ~fields:[E.field_protected; E.field_hold_all]
     ~doc:"Conditional pattern. Infix: `a /; b`"
 
 let replace_all =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a /. %a" (pp_sub 6) lhs (pp_sub 6) rhs
+      Fmt.fprintf out "%a /. %a" (pp_sub prec_replace) lhs (pp_sub prec_replace) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "ReplaceAll" ~printer:(6,pp)
+  mk_ "ReplaceAll" ~printer:(prec_replace,pp)
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Replacement by rewrite rules. Infix: `a /. rules`"
 
 let replace_repeated =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a //. %a" (pp_sub 6) lhs (pp_sub 6) rhs
+      Fmt.fprintf out "%a //. %a" (pp_sub prec_replace) lhs (pp_sub prec_replace) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "ReplaceRepeated" ~printer:(6,pp)
+  mk_ "ReplaceRepeated" ~printer:(prec_replace,pp)
     ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Replacement by rewrite rules until fixpoint. Infix: `a //. rules`"
 
 let alternatives =
-  mk_ ~printer:(7,print_infix_ 7 "|" "") "Alternatives"
+  mk_
+    ~printer:(prec_alternatives,print_infix_ prec_alternatives "|" "")
+    "Alternatives"
 
 let compound_expr =
-  mk_ "CompoundExpression" ~doc:"Sequence of operations. Infix: `a; b`"
+  mk_ "CompoundExpression"
+    ~printer:(prec_semicolon,print_infix_ prec_semicolon ";" "")
+    ~doc:"Sequence of operations. Infix: `a; b`"
 
 let if_ =
   let eval _ eval_st t = match t with
@@ -347,6 +377,7 @@ let and_ =
     | _ -> None
   in
   mk_ "And" ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
+    ~printer:(prec_and,print_infix_ prec_and "&&" "True")
     ~doc:"Logical conjunction. Infix: `a && b`"
 
 type or_res =
@@ -381,6 +412,7 @@ let or_ =
   in
   mk_ "Or"
     ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
+    ~printer:(prec_or,print_infix_ prec_or "||" "False")
     ~doc:"Logical disjunction. Infix: `a || b`"
 
 let not_ =
@@ -395,9 +427,13 @@ let not_ =
           else Some (E.app (E.const self) [| a' |])
       end
     | _ -> None
+  and pp _ pp_sub out = function
+    | [| a |] -> Fmt.fprintf out "!%a" (pp_sub prec_not) a
+    | _ -> raise E.Print_default
   in
   mk_ "Not"
     ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
+    ~printer:(prec_not,pp)
     ~doc:"Logical negation. Prefix: `!a`"
 
 let nest =
