@@ -51,10 +51,18 @@ let () =
 (** {2 Execution of queries} *)
 
 module Exec = struct
-  type status = (string,string) Result.result list
+  type status_cell =
+    | Html of string
+    | Mime of string * string (* type, data *)
+
+  let html x = Html x
+  let mime ~ty x = Mime (ty,x)
+
+  type status = (status_cell list, string) Result.result
+  (* error, or list of things to display *)
 
   (* blocking function *)
-  let run_ count str () =
+  let run_ count str () : status =
     let buf = Lexing.from_string str in
     Parse_loc.set_file buf ("cell_" ^ string_of_int count);
     begin match Parser.parse_expr Lexer.token buf with
@@ -63,32 +71,22 @@ module Exec = struct
         begin
           try
             let e' = Expr.eval e in
-            [
-              Result.Ok
-                (CCFormat.sprintf "@[%a@]@." Expr.pp e')
+            Result.Ok [
+              CCFormat.sprintf "@[%a@]@." Expr.pp e' |> html;
             ]
           with
             | Stack_overflow ->
-              [ Result.Error "stack overflow."]
+              Result.Error "stack overflow."
             | Expr.Eval_fail msg ->
-              [
-                Result.Error
-                  (CCFormat.sprintf "evaluation failed: %s@." msg);
-              ]
+              Result.Error
+                (CCFormat.sprintf "evaluation failed: %s@." msg)
         end
       | exception e ->
-        [
-          Result.Error
-            (CCFormat.sprintf "error: %s@." (Printexc.to_string e));
-        ]
+        Result.Error
+          (CCFormat.sprintf "error: %s@." (Printexc.to_string e))
     end
 
-  let run_cell count str : status Lwt.t =
-    Lwt_preemptive.detach (run_ count str) ()
-
-  let html_of_status r _ = match r with
-    | Result.Ok msg -> "<p>" ^ msg ^ "</p>"
-    | Result.Error msg -> "<style=\"color:red\"><p>" ^ msg ^ " </p></style>"
+  let run_cell count str : status Lwt.t = Lwt.return (run_ count str ())
 end
 
 (*******************************************************************************)
@@ -180,46 +178,64 @@ module Shell = struct
   let execute_request =
     let execution_count = ref 0 in
     fun (t:t) msg e : unit Lwt.t ->
-      let send_iopub_u m = Lwt.async (fun () -> send_iopub t m) in
 
       (* if we are not silent increment execution count *)
       if not e.silent then incr execution_count;
 
       (* set state to busy *)
-      send_iopub_u (Iopub_set_current msg);
-      send_iopub_u (Iopub_send_message (M.Status { execution_state = "busy" }));
-      send_iopub_u (Iopub_send_message
+      let%lwt _ = send_iopub t (Iopub_set_current msg) in
+      let%lwt _ =
+        send_iopub t (Iopub_send_message (M.Status { execution_state = "busy" }))
+      in
+      let%lwt _ = send_iopub t (Iopub_send_message
           (M.Pyin {
               pi_code = e.code;
               pi_execution_count = !execution_count;
-            }));
+           }))
+      in
 
       (* eval code *)
       let%lwt status = Exec.run_cell !execution_count e.code in
       Pervasives.flush stdout;
       Pervasives.flush stderr;
-      send_iopub_u Iopub_flush;
+      let%lwt _ = send_iopub t Iopub_flush in
 
-      let pyout message =
-        send_iopub_u (Iopub_send_message
+      (* in case of success, how to print *)
+      let pyout (s:Exec.status_cell) =
+        send_iopub t (Iopub_send_message
             (M.Pyout {
                 po_execution_count = !execution_count;
-                po_data =
-                  `Assoc [ "text/html",
-                           `String (Exec.html_of_status message !output_cell_max_height) ];
+                po_data = begin match s with
+                  | Exec.Html s -> `Assoc [ "text/html", `String s]
+                  | Exec.Mime (ty,s) -> `Assoc [ ty, `String s ]
+                end;
                 po_metadata = `Assoc []; }))
       in
-      let%lwt () =
-        M.send_h ?key:t.key t.sockets.Sockets.shell msg
-          (M.Execute_reply {
-              status = "ok";
-              execution_count = !execution_count;
-              ename = None; evalue = None; traceback = None; payload = None;
-              er_user_expressions = None;
-            })
+      let%lwt () = match status with
+        | Result.Ok l ->
+          let%lwt () =
+            M.send_h ?key:t.key t.sockets.Sockets.shell msg
+              (M.Execute_reply {
+                  status = "ok";
+                  execution_count = !execution_count;
+                  ename = None; evalue = None; traceback = None; payload = None;
+                  er_user_expressions = None;
+                })
+          in
+          Lwt_list.iter_s (fun m -> pyout m >|= fun _ -> ()) l
+        | Result.Error err_msg ->
+          M.send_h ?key:t.key t.sockets.Sockets.shell msg
+            (M.Execute_reply {
+                status = "error";
+                execution_count = !execution_count;
+                ename = Some "error"; evalue = Some err_msg;
+                traceback = Some []; payload = None;
+                er_user_expressions = None;
+              })
       in
-      List.iter (fun m -> pyout m) status;
-      send_iopub_u (Iopub_send_message (M.Status { execution_state = "idle" }));
+      let%lwt _ =
+        send_iopub t (Iopub_send_message (M.Status { execution_state = "idle" }))
+      in
       Lwt.return_unit
 
   let kernel_info_request (t:t) msg =
