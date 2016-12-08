@@ -44,6 +44,9 @@ module Sat_solve = struct
       And (Array.map as_form a)
     | E.App (E.Const {E.cst_name="Or";_}, a)->
       Or (Array.map as_form a)
+    | E.App (E.Const {E.cst_name="Rule";_}, [| a; b |])->
+      (* implication *)
+      Or [| not_ (as_form a); as_form b |]
     | E.App (E.Const {E.cst_name="Not";_}, [| f |])->
       not_ (as_form f)
     | E.App (E.Const {E.cst_name="Not";_}, _)->
@@ -214,7 +217,7 @@ let sat_solve =
     as parameters.
     Returns either Sat[a->True,b->False,…]
     or Unsat[].
-    
+
     Example: `SatSolve[A || B,!A || !B,!B]`
     "
 
