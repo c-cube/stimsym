@@ -472,6 +472,18 @@ let inequality =
     ~doc:"conjunction of comparisons"
 
 let null = make "Null"
-let print = make "Print" ~doc:"Print the expression and return Null"
+let print =
+  let eval _ arg e = match e with
+    | E.App (_, [| t |]) ->
+      E.prim_printf arg "%a@." E.pp t;
+      Some null
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Print" ~funs:[eval]
+    ~doc:"Print the expression and return Null"
+
+(* TODO *)
+let doc =
+  make "Doc"
 
 let all_builtins () = !all_

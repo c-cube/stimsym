@@ -59,10 +59,13 @@ let run_ count str : C.Kernel.exec_status =
       Log.log (CCFormat.sprintf "parsed: @[%a@]@." Expr.pp_full_form e);
       begin
         try
-          let e' = Expr.eval e in
-          Result.Ok [
-            CCFormat.sprintf "@[%a@]@." Expr.pp e' |> C.Kernel.html;
-          ]
+          let e', str = Expr.eval_full e in
+          let l =
+            (CCFormat.sprintf "@[%a@]@." Expr.pp e' |> C.Kernel.html)
+            ::
+            (if str="" then [] else [C.Kernel.html str])
+          in
+          Result.Ok l
         with
           | Stack_overflow ->
             Result.Error "stack overflow."

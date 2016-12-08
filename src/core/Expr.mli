@@ -147,6 +147,9 @@ exception Eval_fail of string
 
 val eval : t -> t
 
+val eval_full : t -> t * string
+(** @returns the normal form, and messages printed in the mean time *)
+
 (**/**)
 val set_eval_trace: bool -> unit
 
@@ -157,5 +160,9 @@ val prim_fail : prim_fun_args -> string -> 'a
 (** To be called by primitives on failure *)
 
 val prim_failf : prim_fun_args -> ('a, Format.formatter, unit, 'b) format4 -> 'a
+
+val prim_print : prim_fun_args -> string -> unit
+
+val prim_printf : prim_fun_args -> ('a, Format.formatter, unit, unit) format4 -> 'a
 
 (**/**)
