@@ -484,6 +484,16 @@ let print =
 
 (* TODO *)
 let doc =
-  make "Doc"
+  let eval _ arg e = match e with
+    | E.App (_, [| E.Const ({E.cst_doc=doc;_} as c) |]) ->
+      E.prim_printf arg
+        "@[<hv>Doc for `%s`:@ %s@]@." c.E.cst_name doc;
+      None
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Doc" ~funs:[eval]
+    ~doc:"Print the documentation for a symbol.
+      Example: `Doc[Doc]`, `Doc[Nest]`
+      "
 
 let all_builtins () = !all_

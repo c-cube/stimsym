@@ -61,6 +61,7 @@ val inequality : t
 
 val print : t
 val null : t
+val doc : t
 
 val nest : t
 
