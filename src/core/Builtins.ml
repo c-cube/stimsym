@@ -59,9 +59,19 @@ let prec_pattern = 90
 let prec_blank = 95
 let prec_list = 100
 
-let hold = make "Hold" ~fields:[E.field_hold_all]
+let hold =
+  make "Hold" ~fields:[E.field_hold_all]
+    ~doc:"`Hold[e]` holds `e` as is, blocking evaluation.
+    It does not do anything else.
+    "
 
-let full_form = make "FullForm" ~fields:[E.field_hold_all]
+let full_form =
+  make "FullForm" ~fields:[E.field_hold_all]
+    ~doc:"`FullForm[e]` prints `e` in the unsugared syntax,
+    as a S-expression. It is useful to see how exactly
+    an expression is parsed.
+    `FullForm[e]` blocks the evaluation of `e`.
+    "
 
 let sequence = make "Sequence" ~fields:[E.field_flatten]
 
