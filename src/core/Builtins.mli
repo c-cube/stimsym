@@ -6,6 +6,22 @@
 type t = Expr.t
 (** A builtin is just a constant expression *)
 
+exception Eval_does_not_apply
+(** Raised internally when an evaluation function does not apply to
+    the arguments *)
+
+(** a function definition. Takes [self_cst, eval_fun, t] and evaluates [t]
+    into [None] (fail) or [Some t'] *)
+type fun_def = Expr.const -> Expr.prim_fun_args -> Expr.t -> Expr.t option
+
+val make :
+  ?doc:string ->
+  ?printer:int * Expr.const_printer ->
+  ?fields:Expr.Properties.field list ->
+  ?funs:fun_def list ->
+  string -> t
+(** [make s] makes a new constant and sets some options/handlers on it *)
+
 val hold : t
 val full_form : t
 val blank : t

@@ -14,9 +14,9 @@ let all_ = ref []
 
 (* a function definition. Takes [self_cst, eval_fun, t] and evaluates [t]
    into [None] (fail) or [Some t'] *)
-type fun_def = E.const -> (E.t -> E.t) -> E.t -> E.t option
+type fun_def = E.const -> E.prim_fun_args -> E.t -> E.t option
 
-let mk_ ?(doc="") ?printer ?(fields=[]) ?(funs=[]) name =
+let make ?(doc="") ?printer ?(fields=[]) ?(funs:fun_def list =[]) name =
   let c =
     E.const_of_string_with name
       ~f:(fun c ->
@@ -56,18 +56,18 @@ let prec_pattern = 90
 let prec_blank = 95
 let prec_list = 100
 
-let hold = mk_ "Hold" ~fields:[E.field_hold_all]
+let hold = make "Hold" ~fields:[E.field_hold_all]
 
-let full_form = mk_ "FullForm" ~fields:[E.field_hold_all]
+let full_form = make "FullForm" ~fields:[E.field_hold_all]
 
-let sequence = mk_ "Sequence" ~fields:[E.field_flatten]
+let sequence = make "Sequence" ~fields:[E.field_flatten]
 
 type arith_res =
   | Arith_q of Q.t * E.t list
   | Arith_z of Z.t * E.t list
 
-let true_ = mk_ "True"
-let false_ = mk_ "False"
+let true_ = make "True"
+let false_ = make "False"
 
 let print_infix_ prec sep neutral _ pp_sub out args = match args with
   | [||] -> Fmt.string out neutral
@@ -117,7 +117,7 @@ let plus =
         end
       | _ -> None
   in
-  mk_ "Plus" ~funs:[eval]
+  make "Plus" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
     ~printer:(prec_plus, print_infix_ prec_plus "+" "0")
     ~doc:"Addition operator (infix form: `a + b + c + d`)"
@@ -160,7 +160,7 @@ let times =
         end
       | _ -> None
   in
-  mk_ "Times" ~funs:[eval]
+  make "Times" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
     ~printer:(prec_times, print_infix_ prec_times " " "1")
     ~doc:"Product operator (infix: `a b c d`)"
@@ -181,7 +181,7 @@ let factorial =
     | [| a |] -> Fmt.fprintf out "%a!" (pp_sub prec_factorial) a
     | _ -> raise E.Print_default
   in
-  mk_ "Factorial" ~printer:(prec_factorial,pp)
+  make "Factorial" ~printer:(prec_factorial,pp)
     ~doc:"Factorial operator (postfix: `a!`)" ~funs:[eval]
 
 let list =
@@ -189,14 +189,14 @@ let list =
     Fmt.fprintf out "{@[<hv>%a@]}"
       (Fmt.array ~start:"" ~stop:"" ~sep:"," (pp_sub 0)) a
   in
-  mk_ ~printer:(prec_list,pp_list) "List"
+  make ~printer:(prec_list,pp_list) "List"
 
 let blank =
   let pp _ _ out args = match args with
     | [||] -> Fmt.string out "_"
     | _ -> raise E.Print_default
   in
-  mk_ "Blank"
+  make "Blank"
     ~printer:(prec_blank,pp) ~fields:[E.field_hold_all; E.field_protected] ~doc:"`_`"
 
 let blank_seq =
@@ -204,7 +204,7 @@ let blank_seq =
     | [||] -> Fmt.string out "__"
     | _ -> raise E.Print_default
   in
-  mk_ "BlankSequence"
+  make "BlankSequence"
     ~printer:(prec_blank,pp)~fields:[E.field_hold_all; E.field_protected] ~doc:"`__`"
 
 let blank_null_seq =
@@ -212,7 +212,7 @@ let blank_null_seq =
     | [||] -> Fmt.string out "___"
     | _ -> raise E.Print_default
   in
-  mk_ "BlankNullSequence"
+  make "BlankNullSequence"
     ~printer:(prec_blank,pp) ~fields:[E.field_hold_all; E.field_protected] ~doc:"`___`"
 
 let pattern =
@@ -229,7 +229,7 @@ let pattern =
       end
     | _ -> raise E.Print_default
   in
-  mk_ "Pattern" ~printer:(prec_pattern,pp) ~fields:[E.field_hold_all; E.field_protected]
+  make "Pattern" ~printer:(prec_pattern,pp) ~fields:[E.field_hold_all; E.field_protected]
 
 let same_q =
   let eval _ _ e = match e with
@@ -245,7 +245,7 @@ let same_q =
       aux 0
     | _ -> None
   in
-  mk_ "SameQ" ~funs:[eval]
+  make "SameQ" ~funs:[eval]
     ~fields:[E.field_protected]
     ~printer:(prec_same, print_infix_bin_ prec_same "===")
     ~doc:"symbolic identity (infix: `a === b`)"
@@ -256,7 +256,7 @@ let set =
       Fmt.fprintf out "%a = %a" (pp_sub prec_set) lhs (pp_sub prec_set) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "Set" ~printer:(prec_set, pp)
+  make "Set" ~printer:(prec_set, pp)
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Eager assignment. Infix: `a = b`"
 
@@ -266,7 +266,7 @@ let set_delayed =
       Fmt.fprintf out "%a := %a" (pp_sub prec_set) lhs (pp_sub prec_set) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "SetDelayed" ~printer:(prec_set, pp)
+  make "SetDelayed" ~printer:(prec_set, pp)
     ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Lazy assignment. Infix: `a := b`"
 
@@ -276,7 +276,7 @@ let rule =
       Fmt.fprintf out "%a -> %a" (pp_sub prec_rule) lhs (pp_sub prec_rule) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "Rule" ~printer:(prec_rule,pp)
+  make "Rule" ~printer:(prec_rule,pp)
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Eager rewrite rule. Infix: `a -> b`"
 
@@ -286,7 +286,7 @@ let rule_delayed =
       Fmt.fprintf out "%a :> %a" (pp_sub prec_rule) lhs (pp_sub prec_rule) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "RuleDelayed"  ~printer:(prec_rule,pp)
+  make "RuleDelayed"  ~printer:(prec_rule,pp)
     ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Lazy rewrite rule. Infix: `a :> b`"
 
@@ -296,7 +296,7 @@ let condition =
       Fmt.fprintf out "%a /; %a" (pp_sub prec_condition) lhs (pp_sub prec_condition) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "Condition"
+  make "Condition"
     ~printer:(prec_condition,pp)
     ~fields:[E.field_protected; E.field_hold_all]
     ~doc:"Conditional pattern. Infix: `a /; b`"
@@ -307,7 +307,7 @@ let replace_all =
       Fmt.fprintf out "%a /. %a" (pp_sub prec_replace) lhs (pp_sub prec_replace) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "ReplaceAll" ~printer:(prec_replace,pp)
+  make "ReplaceAll" ~printer:(prec_replace,pp)
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:"Replacement by rewrite rules. Infix: `a /. rules`"
 
@@ -317,17 +317,17 @@ let replace_repeated =
       Fmt.fprintf out "%a //. %a" (pp_sub prec_replace) lhs (pp_sub prec_replace) rhs
     | _ -> raise E.Print_default
   in
-  mk_ "ReplaceRepeated" ~printer:(prec_replace,pp)
+  make "ReplaceRepeated" ~printer:(prec_replace,pp)
     ~fields:[E.field_hold_all; E.field_protected]
     ~doc:"Replacement by rewrite rules until fixpoint. Infix: `a //. rules`"
 
 let alternatives =
-  mk_
+  make
     ~printer:(prec_alternatives,print_infix_ prec_alternatives "|" "")
     "Alternatives"
 
 let compound_expr =
-  mk_ "CompoundExpression"
+  make "CompoundExpression"
     ~printer:(prec_semicolon,print_infix_ prec_semicolon ";" "")
     ~doc:"Sequence of operations. Infix: `a; b`"
 
@@ -341,7 +341,7 @@ let if_ =
       end
     | _ -> None
   in
-  mk_ "If" ~funs:[eval]
+  make "If" ~funs:[eval]
     ~fields:[E.field_hold_rest] ~doc:"Test operator. `If[A,B,C]`."
 
 type changed = bool
@@ -376,7 +376,7 @@ let and_ =
       end
     | _ -> None
   in
-  mk_ "And" ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
+  make "And" ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
     ~printer:(prec_and,print_infix_ prec_and "&&" "True")
     ~doc:"Logical conjunction. Infix: `a && b`"
 
@@ -410,7 +410,7 @@ let or_ =
       end
     | _ -> None
   in
-  mk_ "Or"
+  make "Or"
     ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
     ~printer:(prec_or,print_infix_ prec_or "||" "False")
     ~doc:"Logical disjunction. Infix: `a || b`"
@@ -431,7 +431,7 @@ let not_ =
     | [| a |] -> Fmt.fprintf out "!%a" (pp_sub prec_not) a
     | _ -> raise E.Print_default
   in
-  mk_ "Not"
+  make "Not"
     ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
     ~printer:(prec_not,pp)
     ~doc:"Logical negation. Prefix: `!a`"
@@ -453,22 +453,22 @@ let nest =
       )
     | _ -> None
   in
-  mk_ "Nest"
+  make "Nest"
     ~doc:"`Nest[f,e,n]` returns `f[f[…[f[e]]]]` nested `n` times"
     ~funs:[eval]
 
 (* TODO: define them all (on constants) *)
-let equal = mk_ "Equal" ~doc:"value identity (infix: `a == b`)"
-let less = mk_ "Less" ~doc:"value comparison (infix: `a < b`)"
-let less_equal = mk_ "LessEqual" ~doc:"value comparison (infix: `a <= b`)"
-let greater = mk_ "Greater" ~doc:"value comparison (infix: `a > b`)"
-let greater_equal = mk_ "GreaterEqual" ~doc:"value comparison (infix: `a >= b`)"
+let equal = make "Equal" ~doc:"value identity (infix: `a == b`)"
+let less = make "Less" ~doc:"value comparison (infix: `a < b`)"
+let less_equal = make "LessEqual" ~doc:"value comparison (infix: `a <= b`)"
+let greater = make "Greater" ~doc:"value comparison (infix: `a > b`)"
+let greater_equal = make "GreaterEqual" ~doc:"value comparison (infix: `a >= b`)"
 let inequality =
-  mk_ "Inequality"
+  make "Inequality"
     ~fields:[E.field_flatten; E.field_protected]
     ~doc:"conjunction of comparisons"
 
-let null = mk_ "Null"
-let print = mk_ "Print" ~doc:"Print the expression and return Null"
+let null = make "Null"
+let print = make "Print" ~doc:"Print the expression and return Null"
 
 let all_builtins () = !all_
