@@ -45,7 +45,9 @@ let () =
   let verbose = ref false in
   Arg.parse
     [ "-v", Arg.Set verbose, " enable verbose output";
-    ] (fun _ -> ())
+      "--verbose", Arg.Set verbose, " enable verbose output";
+    ]
+    (fun _ -> ())
     "./cli [options]
 
     A simple command-line REPL for rewriting expressions.
@@ -55,6 +57,9 @@ let () =
   } in
   ignore (LNoise.history_set ~max_length:1000);
   CCOpt.iter (fun f -> ignore (LNoise.history_load ~filename:f)) history_file;
+  if config.verbose then (
+    Builtins.log_ := (fun s -> print_endline ("log: " ^ s));
+  );
   main_loop ~config ();
   CCOpt.iter (fun f -> ignore (LNoise.history_save ~filename:f)) history_file;
   ()
