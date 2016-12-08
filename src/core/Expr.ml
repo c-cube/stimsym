@@ -235,6 +235,7 @@ module Cst = struct
   type t = const
 
   let equal a b = a.cst_id = b.cst_id
+  let hash a = Hash.int a.cst_id
 
   let get_field f c = Properties.get f c.cst_properties
 
@@ -610,6 +611,28 @@ let equal_with (subst:Subst.t) a b: bool =
   eq_aux a b
 
 let equal = equal_with Subst.empty
+
+(* hash up to a given depth *)
+let rec hash_limit n t =
+  if n=0 then 0x42
+  else match t with
+    | Reg i -> Hash.int i
+    | Z n -> Z.hash n
+    | Q n -> Q.to_string n |> Hash.string
+    | String s -> Hash.string s
+    | Const c -> Cst.hash c
+    | App (f, a) ->
+      Hash.combine3 0x11
+        (hash_limit (n-1) f)
+        (Hash.array (hash_limit (n-1)) a)
+
+let hash t = hash_limit 5 t
+
+module Tbl = CCHashtbl.Make(struct
+    type t = expr
+    let equal = equal
+    let hash = hash
+  end)
 
 (* set of definitions and rules we can use for rewriting *)
 type rewrite_set =

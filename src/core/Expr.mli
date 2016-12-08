@@ -92,11 +92,16 @@ val app_l : t -> t list -> t
 val equal : t -> t -> bool
 (** Syntactic deep equality ("SameQ") *)
 
+val hash : t -> int
+(** Hash *)
+
 val def_rule : lhs:t -> rhs:t -> (def,string) Result.result
 (** [def_rule lhs rhs] makes a proper rewrite rule *)
 
 val def_fun : prim_fun -> def
 (** Make a definition from a primitive function *)
+
+module Tbl : CCHashtbl.S with type key = t
 
 (** {2 Constants} *)
 
