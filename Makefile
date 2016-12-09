@@ -54,3 +54,6 @@ watch:
 
 jupyter:
 	cd data; jupyter-notebook notebook1.ipynb
+
+install_kernel:
+	cp data/kernel.json ~/.local/share/jupyter/kernels/stimsym
