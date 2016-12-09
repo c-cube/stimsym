@@ -32,7 +32,7 @@ type const = private {
   mutable cst_properties: Properties.t;
   mutable cst_rules: def list;
   mutable cst_local_rules: rewrite_rule list;
-  mutable cst_doc: string;
+  mutable cst_doc: Document.t;
   mutable cst_printer: (int * const_printer) option;
 }
 
@@ -124,7 +124,7 @@ module Cst : sig
 
   val set_printer : int -> const_printer -> t -> unit
 
-  val set_doc : string -> t -> unit
+  val set_doc : Document.t -> t -> unit
 end
 
 (** {2 IO} *)
@@ -147,7 +147,7 @@ exception Eval_fail of string
 
 val eval : t -> t
 
-val eval_full : t -> t * string
+val eval_full : t -> t * Document.t list
 (** @returns the normal form, and messages printed in the mean time *)
 
 (**/**)
@@ -160,6 +160,8 @@ val prim_fail : prim_fun_args -> string -> 'a
 (** To be called by primitives on failure *)
 
 val prim_failf : prim_fun_args -> ('a, Format.formatter, unit, 'b) format4 -> 'a
+
+val prim_write_doc : prim_fun_args -> Document.t lazy_t -> unit
 
 val prim_print : prim_fun_args -> string -> unit
 

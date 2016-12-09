@@ -19,7 +19,7 @@ let logf s = Printf.ksprintf log s
    into [None] (fail) or [Some t'] *)
 type fun_def = E.const -> E.prim_fun_args -> E.t -> E.t option
 
-let make ?(doc="") ?printer ?(fields=[]) ?(funs:fun_def list =[]) name =
+let make ?(doc:Document.t=[]) ?printer ?(fields=[]) ?(funs:fun_def list =[]) name =
   let c =
     E.const_of_string_with name
       ~f:(fun c ->
@@ -61,17 +61,22 @@ let prec_list = 100
 
 let hold =
   make "Hold" ~fields:[E.field_hold_all]
-    ~doc:"`Hold[e]` holds `e` as is, blocking evaluation.
-    It does not do anything else.
-    "
+    ~doc:[
+      `S "Hold";
+      `P "`Hold[e]` holds `e` as is, blocking evaluation. \
+          It does not do anything else."
+    ]
 
 let full_form =
   make "FullForm" ~fields:[E.field_hold_all]
-    ~doc:"`FullForm[e]` prints `e` in the unsugared syntax,
-    as a S-expression. It is useful to see how exactly
-    an expression is parsed.
-    `FullForm[e]` blocks the evaluation of `e`.
-    "
+    ~doc:[
+      `S "FullForm";
+      `P "`FullForm[e]` prints `e` in the unsugared syntax, \
+          as a S-expression. It is useful to see how exactly \
+          an expression is parsed.";
+      `P "`FullForm[e]` blocks the evaluation of `e`.";
+      `I ("example", [`P "`FullForm[1+1]` prints `Plus[1,1]`"]);
+    ]
 
 let sequence = make "Sequence" ~fields:[E.field_flatten]
 
@@ -133,7 +138,13 @@ let plus =
   make "Plus" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
     ~printer:(prec_plus, print_infix_ prec_plus "+" "0")
-    ~doc:"Addition operator (infix form: `a + b + c + d`)"
+    ~doc:[
+      `S "Plus";
+      `P "Addition operator. Associative, Commutative, with \
+         regular evaluation on numbers.";
+      `I ("neutral element", [`P "0"]);
+      `I ("infix form", [`P "`a + b + c + d`"]);
+    ]
 
 let times =
   let eval self _ (e:E.t): E.t option =
@@ -176,7 +187,13 @@ let times =
   make "Times" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
     ~printer:(prec_times, print_infix_ prec_times " " "1")
-    ~doc:"Product operator (infix: `a b c d`)"
+    ~doc:[
+      `S "Times";
+      `P "Product operator, associative commutative.\
+          Interpreted on numbers.";
+      `I ("neutral element", [`P "1"]);
+      `I ("infix", [`P "`a b c d`"]);
+    ]
 
 let factorial =
   let eval self _eval t = match t with
@@ -195,7 +212,13 @@ let factorial =
     | _ -> raise E.Print_default
   in
   make "Factorial" ~printer:(prec_factorial,pp)
-    ~doc:"Factorial operator (postfix: `a!`)" ~funs:[eval]
+    ~funs:[eval]
+    ~doc:[
+      `S "Factorial";
+      `P "The factorial function";
+      `I ("example", [`P "`5! == 120"]);
+      `I ("postfix", [`P "`a!`"]);
+    ]
 
 let list =
   let pp_list _ pp_sub out a =
@@ -210,7 +233,12 @@ let blank =
     | _ -> raise E.Print_default
   in
   make "Blank"
-    ~printer:(prec_blank,pp) ~fields:[E.field_hold_all; E.field_protected] ~doc:"`_`"
+    ~printer:(prec_blank,pp) ~fields:[E.field_hold_all; E.field_protected]
+    ~doc:[
+      `S "Blank";
+      `P "Blank pattern, `_`. Matches anything.\
+          Can also be used with a name: `a_` binds `a` to anything."
+    ]
 
 let blank_seq =
   let pp _ _ out args = match args with
@@ -218,7 +246,13 @@ let blank_seq =
     | _ -> raise E.Print_default
   in
   make "BlankSequence"
-    ~printer:(prec_blank,pp)~fields:[E.field_hold_all; E.field_protected] ~doc:"`__`"
+    ~printer:(prec_blank,pp)~fields:[E.field_hold_all; E.field_protected]
+    ~doc:[
+      `S "BlankSequence";
+      `P "Pattern that matches a non-empty sequence.\
+          For instance, `a__` will match Sequence[1,2] but not Sequence[].";
+      `I ("infix", [`P "`__`"]);
+      ]
 
 let blank_null_seq =
   let pp _ _ out args = match args with
@@ -226,7 +260,12 @@ let blank_null_seq =
     | _ -> raise E.Print_default
   in
   make "BlankNullSequence"
-    ~printer:(prec_blank,pp) ~fields:[E.field_hold_all; E.field_protected] ~doc:"`___`"
+    ~printer:(prec_blank,pp) ~fields:[E.field_hold_all; E.field_protected]
+    ~doc:[
+      `S "BlankNullSequence";
+      `P "Pattern that matches any sequence.";
+      `I ("infix", [`P "`___`"]);
+      ]
 
 let pattern =
   let pp _ _pp_sub out = function
@@ -261,7 +300,12 @@ let same_q =
   make "SameQ" ~funs:[eval]
     ~fields:[E.field_protected]
     ~printer:(prec_same, print_infix_bin_ prec_same "===")
-    ~doc:"symbolic identity (infix: `a === b`)"
+    ~doc:[
+      `S "SameQ";
+      `P "symbolic identity, returns True on syntactically identical\
+          terms, False otherwise.";
+      `I ("infix", [`P "`a === b`"]);
+    ]
 
 let set =
   let pp _ pp_sub out = function
@@ -271,7 +315,11 @@ let set =
   in
   make "Set" ~printer:(prec_set, pp)
     ~fields:[E.field_hold_first; E.field_protected]
-    ~doc:"Eager assignment. Infix: `a = b`"
+    ~doc:[
+      `S "Set";
+      `P "Eager assignment: `a = b` sets `a` to the value of `b`.";
+      `I ("infix", [`P "`a = b`"]);
+    ]
 
 let set_delayed =
   let pp _ pp_sub out = function
@@ -281,7 +329,14 @@ let set_delayed =
   in
   make "SetDelayed" ~printer:(prec_set, pp)
     ~fields:[E.field_hold_all; E.field_protected]
-    ~doc:"Lazy assignment. Infix: `a := b`"
+    ~doc:[
+      `S "SetDelayed";
+      `P "Eager assignment: `a = b` sets `a` to `b`, as an expression,\
+          without evaluating `b` (it will be evaluated when `a` is
+          used).";
+      `I ("infix", [`P "`a := b`"]);
+      `I ("example", [`P "`[Log[x_ y_] := Log[x] + Log[y]`"]);
+    ]
 
 let rule =
   let pp _ pp_sub out = function
@@ -291,7 +346,12 @@ let rule =
   in
   make "Rule" ~printer:(prec_rule,pp)
     ~fields:[E.field_hold_first; E.field_protected]
-    ~doc:"Eager rewrite rule. Infix: `a -> b`"
+    ~doc:[
+      `S "Rule";
+      `P "Eager rewrite rule. `a -> b` evaluates `b`, then rewrites\
+          anything matching `a` to the value of `b`.";
+      `I ("infix", [`P "`a -> b`"]);
+    ]
 
 let rule_delayed =
   let pp _ pp_sub out = function
@@ -301,7 +361,13 @@ let rule_delayed =
   in
   make "RuleDelayed"  ~printer:(prec_rule,pp)
     ~fields:[E.field_hold_all; E.field_protected]
-    ~doc:"Lazy rewrite rule. Infix: `a :> b`"
+    ~doc:[
+      `S "RuleDelayed";
+      `P "Lazy rewrite rule. `a :> b` is the rule that rewrites
+          anything matching `a` to `b`, which is only evaluated
+          after the rewrite step is done.";
+      `I ("infix", [`P "`a :> b`"]);
+    ]
 
 let condition =
   let pp _ pp_sub out = function
@@ -312,7 +378,12 @@ let condition =
   make "Condition"
     ~printer:(prec_condition,pp)
     ~fields:[E.field_protected; E.field_hold_all]
-    ~doc:"Conditional pattern. Infix: `a /; b`"
+    ~doc:[
+      `S "Condition";
+      `P "Conditional pattern. `Condition[p,e]` matches the same \
+          way `p` does, but then check if `e` reduces to `True`.";
+      `I ("infix", [`P "`a /; b`"]);
+    ]
 
 let replace_all =
   let pp _ pp_sub out = function
@@ -322,7 +393,12 @@ let replace_all =
   in
   make "ReplaceAll" ~printer:(prec_replace,pp)
     ~fields:[E.field_hold_first; E.field_protected]
-    ~doc:"Replacement by rewrite rules. Infix: `a /. rules`"
+    ~doc:[
+      `S "ReplaceAll";
+      `P "Replacement by rewrite rules. `a /. b` expects `b` to be \
+         a pattern or a list of patterns.";
+      `I ("infix", [`P "`a /. rules`"]);
+    ]
 
 let replace_repeated =
   let pp _ pp_sub out = function
@@ -332,7 +408,20 @@ let replace_repeated =
   in
   make "ReplaceRepeated" ~printer:(prec_replace,pp)
     ~fields:[E.field_hold_all; E.field_protected]
-    ~doc:"Replacement by rewrite rules until fixpoint. Infix: `a //. rules`"
+    ~doc:[
+      `S "ReplaceRepeated";
+      `P "Replacement by rewrite rules until fixpoint. \
+          `a //. b` expects `b` to be \
+          a pattern or a list of patterns, and then evaluates `a`
+          and rewrites it until no rule applies.";
+      `I ("infix", [`P "`a //. rules`"]);
+      `I ("example", [
+          `S "The naive bubble sort";
+          `Pre "`Sort[l_] := l //. {x___,y_,z_,k___}/;(y>z) :> {x,z,y,k}`";
+          `P "This simple sort function rewrites `l` using one \
+              conditional rule that finds `y`,`z` and swaps them.";
+        ]);
+    ]
 
 let alternatives =
   make
@@ -342,7 +431,13 @@ let alternatives =
 let compound_expr =
   make "CompoundExpression"
     ~printer:(prec_semicolon,print_infix_ prec_semicolon ";" "")
-    ~doc:"Sequence of operations. Infix: `a; b`"
+    ~doc:[
+      `S "CompoundExpression";
+      `P "Sequence of operations.";
+      `P "`a;b;c` evaluates `a`, then `b`, then `c`, and \
+          returns the value of `c`.";
+      `I ("infix", [`P "`a; b`"]);
+    ]
 
 let if_ =
   let eval _ eval_st t = match t with
@@ -355,7 +450,13 @@ let if_ =
     | _ -> None
   in
   make "If" ~funs:[eval]
-    ~fields:[E.field_hold_rest] ~doc:"Test operator. `If[A,B,C]`."
+    ~fields:[E.field_hold_rest]
+    ~doc:[
+      `S "If";
+      `P "Test operator. `If[A,B,C]` evaluates `A`, \
+          then reduces to `B` or `C` depending on whether \
+          `A` is `True` or `False`.";
+    ]
 
 type changed = bool
 
@@ -391,7 +492,11 @@ let and_ =
   in
   make "And" ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
     ~printer:(prec_and,print_infix_ prec_and "&&" "True")
-    ~doc:"Logical conjunction. Infix: `a && b`"
+    ~doc:[
+      `S "And";
+      `P "Logical conjunction.";
+      `I ("infix", [`P "`a && b`"]);
+    ]
 
 type or_res =
   | Or_lst of Expr.t list * changed
@@ -426,7 +531,11 @@ let or_ =
   make "Or"
     ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
     ~printer:(prec_or,print_infix_ prec_or "||" "False")
-    ~doc:"Logical disjunction. Infix: `a || b`"
+    ~doc:[
+      `S "Or";
+      `P "Logical disjunction.";
+      `I ("infix", [`P "`a || b`"]);
+    ]
 
 let not_ =
   let eval self eval_st t = match t with
@@ -447,7 +556,11 @@ let not_ =
   make "Not"
     ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
     ~printer:(prec_not,pp)
-    ~doc:"Logical negation. Prefix: `!a`"
+    ~doc:[
+      `S "Not";
+      `P "Logical negation.";
+      `I ("prefix", [`P "`!a`"]);
+    ]
 
 let nest =
   let eval _self _ e = match e with
@@ -467,14 +580,24 @@ let nest =
     | _ -> None
   in
   make "Nest"
-    ~doc:"`Nest[f,e,n]` returns `f[f[…[f[e]]]]` nested `n` times"
     ~funs:[eval]
+    ~doc:[
+      `S "Nest";
+      `P "Nesting functions.";
+      `P "`Nest[f,e,n]` returns `f[f[…[f[e]]]]` nested `n` times";
+      `I ("example", [
+          `P "`Nest[F,a,5]` returns `F[F[F[F[F[a]]]]]`";
+        ])
+    ]
 
-let equal = make "Equal" ~doc:"value identity (infix: `a == b`)"
-let less = make "Less" ~doc:"value comparison (infix: `a < b`)"
-let less_equal = make "LessEqual" ~doc:"value comparison (infix: `a <= b`)"
-let greater = make "Greater" ~doc:"value comparison (infix: `a > b`)"
-let greater_equal = make "GreaterEqual" ~doc:"value comparison (infix: `a >= b`)"
+let mk_ineq_ name desc infix : t =
+  make name ~doc:[`S name; `P desc; `I ("infix", [`P infix])]
+
+let equal = mk_ineq_ "Equal" "value identity" "`a == b`"
+let less = mk_ineq_ "Less" "value comparison" "`a < b`"
+let less_equal = mk_ineq_ "LessEqual" "value comparison" "`a <= b`"
+let greater = mk_ineq_ "Greater" "value comparison" "`a > b`"
+let greater_equal = mk_ineq_ "GreaterEqual" "value comparison" "`a >= b`"
 
 module Ineq = struct
   type num = Q.t
@@ -540,8 +663,14 @@ let inequality =
     | _ -> raise Eval_does_not_apply
   in
   make "Inequality"
-    ~fields:[E.field_flatten; E.field_protected]
-    ~doc:"conjunction of comparisons" ~funs:[eval]
+    ~fields:[E.field_flatten; E.field_protected] ~funs:[eval]
+    ~doc:[
+      `S "Inequality";
+      `P "conjunction of comparisons";
+      `P "`a>b==c<d<=e` is parsed as \
+          `Inequality[a,Greater,b,Equal,c,Less,d,LessEqual,e]` \
+          and is `True` iff all the tests hold."
+    ]
 
 let null = make "Null"
 let print =
@@ -552,19 +681,26 @@ let print =
     | _ -> raise Eval_does_not_apply
   in
   make "Print" ~funs:[eval]
-    ~doc:"Print the expression and return Null"
+    ~doc:[
+      `S "Print";
+      `P "`Print[e]` evaluates `e`, prints it and returns `Null`";
+    ]
 
 let doc =
   let eval _ arg e = match e with
-    | E.App (_, [| E.Const ({E.cst_doc=doc;_} as c) |]) ->
-      E.prim_printf arg
-        "@[<hv>Doc for `%s`:@ %s@]@." c.E.cst_name doc;
+    | E.App (_, [| E.Const {E.cst_doc=doc;_} |]) ->
+      E.prim_write_doc arg (Lazy.from_val doc);
       Some null
     | _ -> raise Eval_does_not_apply
   in
   make "Doc" ~funs:[eval]
-    ~doc:"Print the documentation for a symbol.
-      Example: `Doc[Doc]`, `Doc[Nest]`
-      "
+    ~doc:[
+      `S "Doc";
+      `P "Print the documentation for a symbol.";
+      `I ("example", [
+          `P "The following prints the documentation of `Nest`:";
+          `Pre "`Doc[Nest]`";
+        ]);
+    ]
 
 let all_builtins () = !all_

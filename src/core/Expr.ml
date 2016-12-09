@@ -29,7 +29,7 @@ type const = {
   mutable cst_properties: Properties.t;
   mutable cst_rules: def list;
   mutable cst_local_rules: rewrite_rule list;
-  mutable cst_doc: string;
+  mutable cst_doc: Document.t;
   mutable cst_printer: (int * const_printer) option;
 }
 
@@ -99,7 +99,7 @@ and eval_state = {
   (* backtrackable list of rules *)
   st_undo: undo_state;
   (* undo stack, for local operations *)
-  st_print: Buffer.t option;
+  st_print: (Document.t Stack.t) option;
   (* temporary messages *)
 }
 
@@ -134,7 +134,7 @@ let const_of_string name =
         cst_id= bank.const_id;
         cst_rules=[];
         cst_local_rules=[];
-        cst_doc="";
+        cst_doc=[];
         cst_printer=None;
       } in
     bank.const_id <- bank.const_id + 1;
@@ -1015,39 +1015,38 @@ and try_rule st t rule (rs:rewrite_set) =
       eval_rec st t'
   end
 
-let create_eval_state ~buf() : eval_state = {
+let create_eval_state ~buf () : eval_state = {
   st_iter_count=0;
   st_rules=[];
   st_local_rules=[];
   st_undo=Undo.create();
-  st_print=if buf then Some(Buffer.create 16) else None;
+  st_print=buf;
 }
 
 let eval e =
-  let st = create_eval_state ~buf:false () in
+  let st = create_eval_state ~buf:None () in
   eval_rec st e
 
-let eval_full e =
-  let st = create_eval_state ~buf:true () in
+let eval_full e : t * Document.t list =
+  let q = Stack.create() in
+  let st = create_eval_state ~buf:(Some q) () in
   let e' = eval_rec st e in
-  let str = match st.st_print with
-    | None -> assert false
-    | Some buf -> Buffer.contents buf
-  in
-  e', str
+  let docs = Stack.fold (fun acc d -> d::acc) [] q in
+  e', docs
 
 (* primitive API *)
 
 let prim_eval = eval_rec
 let prim_fail _ = eval_fail
 let prim_failf _ msg = eval_failf msg
+
+let prim_write_doc st = match st.st_print with
+  | None -> (fun _ -> ())
+  | Some q -> fun msg -> Stack.push (Lazy.force msg) q
+
+let prim_print st m = prim_write_doc st (Lazy.from_val [Document.paragraph m])
+
 let prim_printf st = match st.st_print with
   | None -> (fun msg -> Format.ikfprintf (fun _ -> ()) Format.str_formatter msg)
-  | Some buf ->
-    fun msg ->
-    CCFormat.ksprintf msg
-      ~f:(fun msg -> Buffer.add_string buf msg)
-
-let prim_print st = match st.st_print with
-  | None -> (fun _ -> ())
-  | Some buf -> Buffer.add_string buf
+  | Some _ ->
+    fun msg -> CCFormat.ksprintf msg ~f:(fun msg -> prim_print st msg)

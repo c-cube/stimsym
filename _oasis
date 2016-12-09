@@ -22,7 +22,8 @@ Library stimsym
   Pack:             true
   Path:             src/core/
   Modules:          Expr, Builtins, Parser, Lexer, Parse_loc,
-                    Hash, Slice, Bit_set, Builtins_advanced
+                    Hash, Slice, Bit_set, Builtins_advanced,
+                    Document
   BuildDepends:     bytes, result, containers, sequence, zarith,
                     unix, containers.unix
 

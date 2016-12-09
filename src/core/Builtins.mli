@@ -15,7 +15,7 @@ exception Eval_does_not_apply
 type fun_def = Expr.const -> Expr.prim_fun_args -> Expr.t -> Expr.t option
 
 val make :
-  ?doc:string ->
+  ?doc:Document.t ->
   ?printer:int * Expr.const_printer ->
   ?fields:Expr.Properties.field list ->
   ?funs:fun_def list ->

@@ -165,9 +165,6 @@ module Sat_solve = struct
                 | n -> B.logf "unknown return: %d" n
               end;
               let out = CCIO.with_in file_out CCIO.read_lines_l in
-(*
-              Unix.sleep 300;
-*)
               parse_res st out
            ))
 
@@ -210,14 +207,29 @@ module Sat_solve = struct
     | _ -> raise B.Eval_does_not_apply
 end
 
+(* TODO: optional timeout *)
+
 let sat_solve =
   B.make "SatSolve"
     ~funs:[Sat_solve.eval]
-    ~doc:"Call a SAT solver on the conjunction of formulas given
-    as parameters.
-    Returns either Sat[a->True,b->False,…]
-    or Unsat[].
-
-    Example: `SatSolve[A || B,!A || !B,!B]`
-    "
+    ~doc:[
+      `S "SatSolve";
+      `P "Call a SAT solver on the conjunction of formulas given \
+          as parameters. Formulas are reduced to CNF before calling \
+          Minisat.";
+      `P "If Minisat is not installed, this does not reduce.";
+      `P "Returns either `Sat[m___]` where `m` is the model, as a \
+          list of bindings `Atom -> True` or `Atom -> False`, \
+          or Unsat[].";
+      `I ("example", [
+          `P "The following call will return `Unsat[]`.";
+          `Pre "`SatSolve[A || B,!A || !B,!B]`";
+        ]);
+      `I ("example", [
+          `P "The following call will return `Sat[A -> False,B->False]`, \
+              containing a model for each atom appearing in the formulas.";
+          `Pre "`SatSolve[A || B,!A]`";
+        ]);
+      `I ("requires", [`P "`minisat` must be on the $PATH"]);
+    ]
 
