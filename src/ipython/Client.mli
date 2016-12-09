@@ -9,7 +9,7 @@ module Kernel : sig
     | Mime of string * string * bool (* type, data, base64? *)
 
   type exec_status_ok = {
-    msg: string;
+    msg: string option;
     (* main message *)
     actions: exec_action list;
     (* other actions *)
@@ -21,7 +21,7 @@ module Kernel : sig
   val doc : Document.t -> exec_action
   val mime : ?base64:bool -> ty:string -> string -> exec_action
 
-  val ok : ?actions:exec_action list -> string -> exec_status_ok
+  val ok : ?actions:exec_action list -> string option -> exec_status_ok
 
   type t = {
     exec: count:int -> string -> exec_status Lwt.t;

@@ -61,7 +61,9 @@ let run_ count str : C.Kernel.exec_status =
         try
           let e', docs = Expr.eval_full e in
           let res =
-            CCFormat.sprintf "@[%a@]@." Expr.pp e'
+            if Expr.equal Builtins.null e'
+            then None
+            else Some (CCFormat.sprintf "@[%a@]@." Expr.pp e')
           and actions =
             List.map C.Kernel.doc docs
           in

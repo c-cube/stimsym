@@ -14,7 +14,7 @@ module Kernel = struct
     | Mime of string * string * bool (* type, data, base64? *)
 
   type exec_status_ok = {
-    msg: string;
+    msg: string option;
     (* main message *)
     actions: exec_action list;
     (* other actions *)
@@ -173,12 +173,15 @@ let execute_request (t:t) msg e : unit Lwt.t =
   let%lwt _ = send_iopub t Iopub_flush in
 
   (* in case of success, how to print *)
-  let pyout (s:Kernel.exec_status_ok) =
-    send_iopub t (Iopub_send_message
-        (M.Pyout {
-            po_execution_count = execution_count;
-            po_data = `Assoc ["text/html", `String s.Kernel.msg];
-            po_metadata = `Assoc []; }))
+  let pyout (s:Kernel.exec_status_ok) = match s.Kernel.msg with
+    | None -> Lwt.return_unit
+    | Some msg ->
+      send_iopub t (Iopub_send_message
+          (M.Pyout {
+              po_execution_count = execution_count;
+              po_data = `Assoc ["text/html", `String msg];
+              po_metadata = `Assoc []; }))
+      >|= fun _ -> ()
   and side_action (s:Kernel.exec_action) : unit Lwt.t =
     let ty, payload, b64 = match s with
       | Kernel.Doc d ->
@@ -216,7 +219,7 @@ let execute_request (t:t) msg e : unit Lwt.t =
             status = "error";
             execution_count;
             ename = Some "error"; evalue = Some err_msg;
-            traceback = Some []; payload = None;
+            traceback = Some ["<eval>"]; payload = None;
             er_user_expressions = None;
           })
   in
