@@ -25,7 +25,9 @@ let rec main_loop ~config () =
           begin
             try
               let e', str = Expr.eval_full e in
-              Format.printf "@[%a@]@." Expr.pp e';
+              if not (Expr.equal e' Builtins.null) then (
+                Format.printf "@[%a@]@." Expr.pp e';
+              );
               if str<>"" then print_endline str;
             with
               | Stack_overflow ->

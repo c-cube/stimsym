@@ -60,9 +60,12 @@ let run_ count str : C.Kernel.exec_status =
       begin
         try
           let e', str = Expr.eval_full e in
+          let res =
+            CCFormat.sprintf "@[%a@]@." Expr.pp e'
+          in
           let l =
-            (CCFormat.sprintf "@[%a@]@." Expr.pp e' |> C.Kernel.html)
-            ::
+            (if res="" then [] else [C.Kernel.html res])
+            @
             (if str="" then [] else [C.Kernel.html str])
           in
           Result.Ok l

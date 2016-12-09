@@ -369,7 +369,10 @@ let pp out (t:t) =
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
       (pp 0) head (CCFormat.array ~start:"" ~stop:"" ~sep:"," (pp 0)) args
   in
-  pp 0 out t
+  begin match t with
+    | Const {cst_name="Null";_} -> () (* do not print toplevel "null" *)
+    | _ -> pp 0 out t
+  end
 
 let to_string t = CCFormat.to_string pp t
 
