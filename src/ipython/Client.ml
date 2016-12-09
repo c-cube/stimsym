@@ -107,7 +107,7 @@ let send_iopub (t:t) (m:iopub_message): iopub_resp Lwt.t =
   begin match m with
     | Iopub_set_current m -> msg := Some m; Lwt.return Iopub_ok
     | Iopub_send_message content -> send_message content
-    | Iopub_send_raw_message(msg) -> send_raw_message msg
+    | Iopub_send_raw_message msg -> send_raw_message msg
     | Iopub_send_mime (context,mime_type,data,base64) ->
       send_mime context mime_type data base64
     | Iopub_get_current -> Lwt.return (Iopub_context !msg)
@@ -173,7 +173,7 @@ let execute_request (t:t) msg e : unit Lwt.t =
   let%lwt _ = send_iopub t Iopub_flush in
 
   (* in case of success, how to print *)
-  let pyout (s:Kernel.exec_status_ok) = match s.Kernel.msg with
+  let reply_status_ok (s:string option) = match s with
     | None -> Lwt.return_unit
     | Some msg ->
       send_iopub t (Iopub_send_message
@@ -206,7 +206,7 @@ let execute_request (t:t) msg e : unit Lwt.t =
               er_user_expressions = None;
             })
       in
-      let%lwt _ = pyout ok in
+      let%lwt _ = reply_status_ok ok.Kernel.msg in
       (* send mime type in the background *)
       Lwt.async
         (fun () ->
@@ -214,14 +214,17 @@ let execute_request (t:t) msg e : unit Lwt.t =
         );
       Lwt.return_unit
     | Result.Error err_msg ->
-      M.send_h ?key:t.key t.sockets.Sockets.shell msg
-        (M.Execute_reply {
+      let content =
+        M.Execute_reply {
             status = "error";
             execution_count;
             ename = Some "error"; evalue = Some err_msg;
             traceback = Some ["<eval>"]; payload = None;
             er_user_expressions = None;
-          })
+        }
+      in
+      Log.logf "send error `%s`" (M.json_of_content content);
+      M.send_h ?key:t.key t.sockets.Sockets.shell msg content
   in
   let%lwt _ =
     send_iopub t (Iopub_send_message (M.Status { execution_state = "idle" }))
