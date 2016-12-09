@@ -470,16 +470,78 @@ let nest =
     ~doc:"`Nest[f,e,n]` returns `f[f[…[f[e]]]]` nested `n` times"
     ~funs:[eval]
 
-(* TODO: define them all (on constants) *)
 let equal = make "Equal" ~doc:"value identity (infix: `a == b`)"
 let less = make "Less" ~doc:"value comparison (infix: `a < b`)"
 let less_equal = make "LessEqual" ~doc:"value comparison (infix: `a <= b`)"
 let greater = make "Greater" ~doc:"value comparison (infix: `a > b`)"
 let greater_equal = make "GreaterEqual" ~doc:"value comparison (infix: `a >= b`)"
+
+module Ineq = struct
+  type num = Q.t
+
+  type op = Eq | Less | Lesseq | Gt | Geq
+
+  type chain = num * (op * num) list
+
+  let as_chain (a:E.t array) : chain option =
+    try
+      let as_num e : num = match e with
+        | E.Z z -> Q.of_bigint z
+        | E.Q n -> n
+        | _ -> raise Exit
+      and as_op e : op = match e with
+        | E.Const {E.cst_name="Equal";_} -> Eq
+        | E.Const {E.cst_name="Less";_} -> Less
+        | E.Const {E.cst_name="LessEqual";_} -> Lesseq
+        | E.Const {E.cst_name="Greater";_} -> Gt
+        | E.Const {E.cst_name="GreaterEqual";_} -> Geq
+        | _ -> raise Exit
+      in
+      let st =
+        Array.fold_left
+          (fun acc e -> match acc with
+             | `Begin -> `At (as_num e, [])
+             | `At (n, l) -> `At_op (n, l, as_op e)
+             | `At_op (n, l, op) ->
+               let n2 = as_num e in
+               `At (n, (op,n2) :: l)
+          )
+          `Begin a
+      in
+      begin match st with
+        | `At (n,l) -> Some (n, List.rev l)
+        | `Begin | `At_op _ -> None
+      end
+    with Exit -> None
+
+  let eval_tup a op b = match op with
+    | Eq -> Q.equal a b
+    | Less -> Q.lt a b
+    | Lesseq -> Q.leq a b
+    | Gt -> Q.gt a b
+    | Geq -> Q.geq a b
+
+  let eval_chain ((n,l):chain): bool =
+    let rec aux left = function
+      | [] -> true
+      | (op,right) :: tail -> eval_tup left op right && aux right tail
+    in
+    aux n l
+end
+
 let inequality =
+  let eval _ _ e = match e with
+    | E.App (_, arr) ->
+      begin match Ineq.as_chain arr with
+        | Some c ->
+          Some (if Ineq.eval_chain c then true_ else false_)
+        | None -> raise Eval_does_not_apply
+      end
+    | _ -> raise Eval_does_not_apply
+  in
   make "Inequality"
     ~fields:[E.field_flatten; E.field_protected]
-    ~doc:"conjunction of comparisons"
+    ~doc:"conjunction of comparisons" ~funs:[eval]
 
 let null = make "Null"
 let print =
