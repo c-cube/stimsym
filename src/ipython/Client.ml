@@ -72,7 +72,7 @@ let mime_message_content mime_type base64 data : M.content =
     else Base64.encode data
   in
   (Message.Display_data (Ipython_json_j.({
-       dd_source = "rewrite";
+       dd_source = "stimsym";
        dd_data = `Assoc [mime_type,`String data];
        dd_metadata = `Assoc [];
      })))
@@ -114,6 +114,8 @@ let execute_request (t:t) msg e : unit Lwt.t =
     t.e_count <- t.e_count + 1;
   );
 
+  let execution_count = t.e_count in
+
   (* set state to busy *)
   let%lwt _ = send_iopub t (Iopub_set_current msg) in
   let%lwt _ =
@@ -122,12 +124,12 @@ let execute_request (t:t) msg e : unit Lwt.t =
   let%lwt _ = send_iopub t (Iopub_send_message
         (M.Pyin {
             pi_code = e.code;
-            pi_execution_count = t.e_count;
+            pi_execution_count = execution_count;
           }))
   in
 
   (* eval code *)
-  let%lwt status = t.kernel.Kernel.exec ~count:t.e_count e.code in
+  let%lwt status = t.kernel.Kernel.exec ~count:execution_count e.code in
   Pervasives.flush stdout;
   Pervasives.flush stderr;
   let%lwt _ = send_iopub t Iopub_flush in
@@ -136,7 +138,7 @@ let execute_request (t:t) msg e : unit Lwt.t =
   let pyout (s:Kernel.status_cell) =
     send_iopub t (Iopub_send_message
         (M.Pyout {
-            po_execution_count = t.e_count;
+            po_execution_count = execution_count;
             po_data = begin match s with
               | Kernel.Html s -> `Assoc [ "text/html", `String s]
               | Kernel.Mime (ty,s) -> `Assoc [ ty, `String s ]
@@ -149,17 +151,18 @@ let execute_request (t:t) msg e : unit Lwt.t =
         M.send_h ?key:t.key t.sockets.Sockets.shell msg
           (M.Execute_reply {
               status = "ok";
-              execution_count = t.e_count;
+              execution_count;
               ename = None; evalue = None; traceback = None; payload = None;
               er_user_expressions = None;
             })
       in
+      (* TODO use display mime for all but the first *)
       Lwt_list.iter_s (fun m -> pyout m >|= fun _ -> ()) l
     | Result.Error err_msg ->
       M.send_h ?key:t.key t.sockets.Sockets.shell msg
         (M.Execute_reply {
             status = "error";
-            execution_count = t.e_count;
+            execution_count;
             ename = Some "error"; evalue = Some err_msg;
             traceback = Some []; payload = None;
             er_user_expressions = None;
