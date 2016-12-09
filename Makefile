@@ -53,4 +53,4 @@ watch:
 	done
 
 jupyter:
-	cd data; jupyter-notebook
+	cd data; jupyter-notebook notebook1.ipynb
