@@ -464,6 +464,15 @@ let function_ =
           `P "Anonymous function `fun x->a+x`:";
           `Pre "(a+ #1)&";
         ]);
+      `I ("example", [
+          `Pre "({#0}&)[a,b,c,d]";
+          `P "Thanks to the use of `#0` slot, this \
+              reduces to `{a,b,c,d}`";
+        ]);
+      `I ("example", [
+          `Pre "Nest[f[#1,#1]&,a,2]";
+          `P "This reduces to `f[f[a,a],f[a,a]]`";
+        ]);
     ]
 
 let if_ =

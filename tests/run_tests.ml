@@ -318,6 +318,10 @@ let suite_eval =
     mk_eval __LINE__ "1<2<3<4" "True";
     mk_eval __LINE__ "1<2<3>4" "False";
     mk_eval __LINE__ "4>2==1+1<3" "True";
+    mk_eval __LINE__ "(1+#1&)[41]" "42";
+    mk_eval __LINE__ "({#0}&)[a,b,c,d]" "List[a,b,c,d]";
+    mk_eval __LINE__ "Nest[f[#1,#1]&,a,2]" "f[f[a,a],f[a,a]]";
+    mk_eval __LINE__ "Nest[f[#1,#1]&,a,3]" "f[f[f[a,a],f[a,a]],f[f[a,a],f[a,a]]]";
   ]
 
 (** {2 Main} *)

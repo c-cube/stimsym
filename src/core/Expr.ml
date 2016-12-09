@@ -281,7 +281,7 @@ let rec pp_full_form out (t:t) = match t with
   | Z n -> Z.pp_print out n
   | Q n -> Q.pp_print out n
   | String s -> Format.fprintf out "%S" s
-  | Reg i -> Format.fprintf out "Slot[%d]" i
+  | Reg i -> Format.fprintf out "Reg[%d]" i
 
 let rec pp_pattern out (p:pattern) = match p with
   | P_const {cst_name; _} -> Format.pp_print_string out cst_name
@@ -364,7 +364,7 @@ let pp out (t:t) =
     | Z n -> Z.pp_print out n
     | Q n -> Q.pp_print out n
     | String s -> Format.fprintf out "%S" s
-    | Reg i -> Format.fprintf out "#%d" i
+    | Reg i -> Format.fprintf out "Reg[%d]" i
   and pp_default out (head, args) =
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
       (pp 0) head (CCFormat.array ~start:"" ~stop:"" ~sep:"," (pp 0)) args
@@ -480,7 +480,7 @@ let compile_rule lhs rhs: rewrite_rule =
       let hd = aux_rhs hd in
       let args = Array.map aux_rhs args in
       app hd args
-    | Reg _ -> assert false
+    | Reg _  -> assert false
     | Const {cst_name;_} ->
       begin match CCHashtbl.get tbl cst_name with
         | None -> t
@@ -933,6 +933,10 @@ and eval_rec (st:eval_state) e =
         eval_failf "cannot assign to %a" pp_full_form a
     end;
     b
+  | App (App (Const {cst_name="Function";_}, [| body |]) as hd, args) ->
+    (* evaluate args, then apply function *)
+    let args = eval_args_of st hd args in
+    eval_beta_reduce st body args
   | App (hd, args) ->
     let hd = eval_rec st hd in
     (* evaluate arguments, but only if [hd] allows it *)
@@ -1014,6 +1018,30 @@ and try_rule st t rule (rs:rewrite_set) =
       st.st_iter_count <- st.st_iter_count + 1;
       eval_rec st t'
   end
+
+(* beta-reduction of given function expression *)
+and eval_beta_reduce st fun_body args =
+  let rec replace (t:expr): expr = match t with
+    | Reg _ -> assert false
+    | App (Const {cst_name="Function"; _}, _) ->
+      t (* do not enter functions *)
+    | App (Const {cst_name="Slot";_}, [| Z n |]) ->
+      (* slot substitution *)
+      let i = Z.to_int n in
+      if i < 0 then eval_failf "invalid slot `%d`: must be >= 0" i;
+      if i > Array.length args then (
+        eval_failf "invalid slot `%d`: not enough arguments" i;
+      );
+      (* dereference argument *)
+      if i=0
+      then sequence_of_array args
+      else args.(i-1)
+    | Const _ | Z _ | Q _ | String _ -> t
+    | App (hd, args) ->
+      app_flatten (replace hd) (Array.map replace args)
+  in
+  let t = replace fun_body in
+  eval_rec st t
 
 let create_eval_state ~buf () : eval_state = {
   st_iter_count=0;
