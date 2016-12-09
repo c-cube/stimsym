@@ -59,16 +59,13 @@ let run_ count str : C.Kernel.exec_status =
       Log.log (CCFormat.sprintf "parsed: @[%a@]@." Expr.pp_full_form e);
       begin
         try
-          let e', str = Expr.eval_full e in
+          let e', docs = Expr.eval_full e in
           let res =
             CCFormat.sprintf "@[%a@]@." Expr.pp e'
+          and actions =
+            List.map C.Kernel.doc docs
           in
-          let l =
-            (if res="" then [] else [C.Kernel.html res])
-            @
-            (if str="" then [] else [C.Kernel.html str])
-          in
-          Result.Ok l
+          Result.Ok (C.Kernel.ok ~actions res)
         with
           | Stack_overflow ->
             Result.Error "stack overflow."

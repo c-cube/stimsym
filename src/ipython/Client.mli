@@ -4,15 +4,24 @@
 (** {1 Main Kernel Loop} *)
 
 module Kernel : sig
-  type status_cell =
-    | Html of string
-    | Mime of string * string (* type, data *)
+  type exec_action =
+    | Doc of Document.t
+    | Mime of string * string * bool (* type, data, base64? *)
 
-  val html : string -> status_cell
-  val mime : ty:string -> string -> status_cell
+  type exec_status_ok = {
+    msg: string;
+    (* main message *)
+    actions: exec_action list;
+    (* other actions *)
+  }
 
-  type exec_status = (status_cell list, string) Result.result
+  type exec_status = (exec_status_ok, string) Result.result
   (** error, or list of things to display *)
+
+  val doc : Document.t -> exec_action
+  val mime : ?base64:bool -> ty:string -> string -> exec_action
+
+  val ok : ?actions:exec_action list -> string -> exec_status_ok
 
   type t = {
     exec: count:int -> string -> exec_status Lwt.t;

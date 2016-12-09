@@ -9,15 +9,23 @@ open Ipython_json_j
 module M = Message
 
 module Kernel = struct
-  type status_cell =
-    | Html of string
-    | Mime of string * string (* type, data *)
+  type exec_action =
+    | Doc of Document.t
+    | Mime of string * string * bool (* type, data, base64? *)
 
-  let html x = Html x
-  let mime ~ty x = Mime (ty,x)
+  type exec_status_ok = {
+    msg: string;
+    (* main message *)
+    actions: exec_action list;
+    (* other actions *)
+  }
 
-  type exec_status = (status_cell list, string) Result.result
-  (** error, or list of things to display *)
+  type exec_status = (exec_status_ok, string) Result.result
+
+  let doc x = Doc x
+  let mime ?(base64=false) ~ty x = Mime (ty,x,base64)
+
+  let ok ?(actions=[]) msg = {msg; actions}
 
   type t = {
     exec: count:int -> string -> exec_status Lwt.t;
@@ -107,6 +115,36 @@ let send_iopub (t:t) (m:iopub_message): iopub_resp Lwt.t =
     | Iopub_stop -> Lwt.return Iopub_ok
   end
 
+module H = Tyxml.Html
+
+(* display a document as HTML *)
+let html_of_doc : Document.t -> [<Html_types.div] H.elt =
+  let mk_header ~depth l = match depth with
+    | 1 -> H.h1 l
+    | 2 -> H.h2 l
+    | 3 -> H.h3 l
+    | 4 -> H.h4 l
+    | 5 -> H.h5 l
+    | n when n>=6 -> H.h6 l
+    | _ -> assert false
+  in
+  let rec aux ~depth doc =
+    H.div (List.map (aux_block ~depth) doc)
+  and aux_block ~depth (b:Document.block) =
+    let h = match b with
+      | `S s -> mk_header ~depth [H.pcdata s]
+      | `P s -> H.p [H.pcdata s]
+      | `Pre s -> H.pre [H.pcdata s]
+      | `I (s,sub) ->
+        let depth = depth+1 in
+        H.div (
+          mk_header ~depth [H.pcdata s] :: List.map (aux_block ~depth) sub
+        )
+    in
+    H.div [h]
+  in
+  aux ~depth:3
+
 (* execute code *)
 let execute_request (t:t) msg e : unit Lwt.t =
   (* if we are not silent increment execution count *)
@@ -135,18 +173,27 @@ let execute_request (t:t) msg e : unit Lwt.t =
   let%lwt _ = send_iopub t Iopub_flush in
 
   (* in case of success, how to print *)
-  let pyout (s:Kernel.status_cell) =
+  let pyout (s:Kernel.exec_status_ok) =
     send_iopub t (Iopub_send_message
         (M.Pyout {
             po_execution_count = execution_count;
-            po_data = begin match s with
-              | Kernel.Html s -> `Assoc [ "text/html", `String s]
-              | Kernel.Mime (ty,s) -> `Assoc [ ty, `String s ]
-            end;
+            po_data = `Assoc ["text/html", `String s.Kernel.msg];
             po_metadata = `Assoc []; }))
+  and side_action (s:Kernel.exec_action) : unit Lwt.t =
+    let ty, payload, b64 = match s with
+      | Kernel.Doc d ->
+        let html = html_of_doc d in
+        let s = CCFormat.sprintf "%a@." (H.pp_elt ()) html in
+        "text/html", s, false
+      | Kernel.Mime (ty,s,b64) -> ty, s, b64
+    in
+    let%lwt _ =
+      send_iopub t (Iopub_send_mime (None, ty, payload, b64))
+    in
+    Lwt.return_unit
   in
   let%lwt () = match status with
-    | Result.Ok l ->
+    | Result.Ok ok ->
       let%lwt () =
         M.send_h ?key:t.key t.sockets.Sockets.shell msg
           (M.Execute_reply {
@@ -156,8 +203,13 @@ let execute_request (t:t) msg e : unit Lwt.t =
               er_user_expressions = None;
             })
       in
-      (* TODO use display mime for all but the first *)
-      Lwt_list.iter_s (fun m -> pyout m >|= fun _ -> ()) l
+      let%lwt _ = pyout ok in
+      (* send mime type in the background *)
+      Lwt.async
+        (fun () ->
+           Lwt_list.iter_p side_action ok.Kernel.actions
+        );
+      Lwt.return_unit
     | Result.Error err_msg ->
       M.send_h ?key:t.key t.sockets.Sockets.shell msg
         (M.Execute_reply {

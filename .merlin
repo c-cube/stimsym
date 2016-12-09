@@ -29,4 +29,5 @@ PKG nocrypto
 PKG hex
 PKG containers.unix
 PKG unix
+PKG tyxml
 FLG -w +a-4-44@8 -safe-string
