@@ -125,6 +125,10 @@ let suite_parser =
       "f[a,b+c d!] //. {f[x,y,z___] :> f[x y,z]}"
         "ReplaceRepeated[f[a,Plus[b,Times[c,Factorial[d]]]],\
          List[RuleDelayed[f[x,y,Pattern[z,BlankNullSequence[]]],f[Times[x,y],z]]]]";
+    test_parser __LINE__ "a := b; c" "CompoundExpression[SetDelayed[a,b],c]";
+    test_parser __LINE__ "a/; test := b ; c" "CompoundExpression[SetDelayed[Condition[a,test],b],c]";
+    test_parser __LINE__ "a := b :> c; d//.e"
+      "CompoundExpression[SetDelayed[a,RuleDelayed[b,c]],ReplaceRepeated[d,e]]";
   ]
 
 (** {2 Printer} *)
@@ -302,6 +306,10 @@ let suite_eval =
     mk_eval __LINE__
       "f[g[a1,b,c1],h[a2,b,c2]] //. f[g[___,x_,___],h[___,y_,___]] /; x===y :> {x}"
       "List[b]";
+    mk_eval __LINE__
+      "sortRule := {x___,y_,z_,k___}/;(y>z) :> {x,z,y,k} ; \
+       {64, 44, 71, 48, 96, 47, 59, 71, 73, 51, 67, 50, 26, 49, 49}//.sortRule"
+      "{26,44,47,48,49,49,50,51,59,64,67,71,71,73,96}";
   ]
 
 (** {2 Main} *)

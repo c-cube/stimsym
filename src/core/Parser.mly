@@ -79,28 +79,31 @@ expr_nospace:
 
 compound_expr:
   | e=set_expr { e }
-  | e=set_expr O_SEMI_COLON l=separated_nonempty_list(O_SEMI_COLON, set_expr)
+  | e=set_expr O_SEMI_COLON l=separated_nonempty_list(O_SEMI_COLON, compound_expr)
     { E.app_l B.compound_expr (e::l) }
 
 set_expr:
+  | e = set_expr_rhs { e }
+  | a=pattern_expr O_SET b=set_expr_rhs
+    { E.app_l B.set [a;b] }
+  | a=pattern_expr O_SET_DELAYED b=set_expr_rhs
+    { E.app_l B.set_delayed [a;b] }
+
+set_expr_rhs:
   | e=replace_expr { e }
   | e=rule_expr { e }
   | e=pattern_expr { e }
-  | a=pattern_expr O_SET b=expr_nospace
-    { E.app_l B.set [a;b] }
-  | a=pattern_expr O_SET_DELAYED b=expr_nospace
-    { E.app_l B.set_delayed [a;b] }
 
 replace_expr:
-  | a=pattern_expr O_REPLACE_ALL b=expr_nospace
+  | a=pattern_expr O_REPLACE_ALL b=set_expr_rhs
     { E.app_l B.replace_all [a;b] }
-  | a=pattern_expr O_REPLACE_REPEATED b=expr_nospace
+  | a=pattern_expr O_REPLACE_REPEATED b=set_expr_rhs
     { E.app_l B.replace_repeated [a;b] }
 
 rule_expr:
-  | a=pattern_expr O_RULE b=expr_nospace
+  | a=pattern_expr O_RULE b=set_expr_rhs
     { E.app_l B.rule [a;b] }
-  | a=pattern_expr O_RULE_DELAYED b=expr_nospace
+  | a=pattern_expr O_RULE_DELAYED b=set_expr_rhs
     { E.app_l B.rule_delayed [a;b] }
 
 pattern_expr:

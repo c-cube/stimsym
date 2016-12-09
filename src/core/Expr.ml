@@ -890,6 +890,8 @@ and eval_rec (st:eval_state) e =
         maybe parametrize [eval_rec] with max num of rewrite steps? *)
     eval_failf "not implemented: ReplaceAll"
   | App (Const {cst_name="ReplaceRepeated";_}, [| a; b |]) ->
+    (* first, eval [b] *)
+    let b = eval_rec st b in
     (* rewrite [a] with rules in [b], until fixpoint *)
     let rules = term_as_rules st b in
     trace_eval_
