@@ -24,11 +24,13 @@ let rec main_loop ~config () =
           );
           begin
             try
-              let e', str = Expr.eval_full e in
+              let e', docs = Expr.eval_full e in
               if not (Expr.equal e' Builtins.null) then (
                 Format.printf "@[%a@]@." Expr.pp e';
               );
-              if str<>"" then print_endline str;
+              List.iter
+                (fun doc -> Format.printf "%a@." Document.pp doc)
+                docs
             with
               | Stack_overflow ->
                 Format.printf "stack overflow.@.";
