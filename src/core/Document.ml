@@ -23,11 +23,11 @@ let pre_f s = CCFormat.ksprintf ~f:pre s
 let sub l = `Sub l
 
 let rec pp out (l:t) =
-  Fmt.fprintf out "@[<v>%a@]@." (Fmt.list ~start:"" ~stop:"" ~sep:"" pp_block) l
+  Fmt.fprintf out "@[<v>%a@]@." (Fmt.list ~start:"" ~stop:"" ~sep:"\n" pp_block) l
 
 and pp_block out : block -> unit = function
   | `S sec -> Fmt.fprintf out "# @[<h>%s@]@," sec
   | `P msg -> Fmt.fprintf out "@[%a@]" Format.pp_print_text msg
   | `Pre msg -> Fmt.fprintf out "@[%s@]" msg
   | `I (head, body) ->
-    Fmt.fprintf out "@[<2>%s@ %a@]" head pp body
+    Fmt.fprintf out "@[<v2>%s::@ %a@]" head pp body
