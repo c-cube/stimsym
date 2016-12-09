@@ -47,6 +47,8 @@ let prec_replace = 7
 let prec_alternatives = 8
 let prec_same = 10
 
+let prec_function = 15
+
 let prec_or = 21
 let prec_and = 22
 let prec_not = 23
@@ -454,9 +456,13 @@ let slot =
           then `#1`, `#2`, etc. are  positional arguments."
     ]
 
-(* TODO printer *)
 let function_ =
-  make "Function"
+  let pp _ pp_sub out args = match args with
+    | [| body |] ->
+      Fmt.fprintf out "%a&" (pp_sub prec_function) body
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Function" ~printer:(prec_function,pp)
     ~doc:[
       `S "Function";
       `P "Anonymous function (also called \"lambda\").";
@@ -472,6 +478,11 @@ let function_ =
       `I ("example", [
           `Pre "Nest[f[#1,#1]&,a,2]";
           `P "This reduces to `f[f[a,a],f[a,a]]`";
+        ]);
+      `I ("example", [
+          `P "The following \"omega combinator\" does not terminate. \
+              Do not evaluate!";
+          `Pre "(#1[#1]&)[#1[#1]&]";
         ]);
     ]
 
