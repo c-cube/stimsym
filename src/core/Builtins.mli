@@ -40,6 +40,9 @@ val replace_repeated : t
 val alternatives : t
 val compound_expr : t
 
+val slot : t
+val function_ : t
+
 val true_ : t
 val false_ : t
 val if_ : t

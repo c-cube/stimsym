@@ -26,6 +26,9 @@
 %token COMMA
 %token SPACE
 
+%token <int> SLOT
+%token ANCHOR
+
 %token <string> SYMBOL
 %token <string> STRING_LIT
 %token <string> INT_LIT
@@ -114,10 +117,14 @@ pattern_expr:
     { E.app_l B.condition [a;b] }
 
 alternative_expr:
-  | a=same_expr { a }
-  | a=same_expr O_ALTERNATIVE
-    b=separated_nonempty_list(O_ALTERNATIVE,same_expr)
+  | a=fun_expr { a }
+  | a=fun_expr O_ALTERNATIVE
+    b=separated_nonempty_list(O_ALTERNATIVE,fun_expr)
     { E.app_l B.alternatives (a::b) }
+
+fun_expr:
+  | e=same_expr { e }
+  | e=same_expr ANCHOR { E.app B.function_ [| e |] }
 
 same_expr:
   | e=or_expr { e }
@@ -200,6 +207,7 @@ atomic_expr_nospace:
     { E.app_l B.list l }
   | a=SYMBOL b=blank
     { E.app_l B.pattern [E.const_of_string a; b] }
+  | n=SLOT { E.app B.slot [| E.z (Z.of_int n) |] }
   | b=blank { b }
   | t=SYMBOL { E.const_of_string t }
   | n=INT_LIT { E.z (Z.of_string n) }

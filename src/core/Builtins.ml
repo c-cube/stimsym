@@ -57,6 +57,7 @@ let prec_factorial = 45
 
 let prec_pattern = 90
 let prec_blank = 95
+let prec_slot = 96
 let prec_list = 100
 
 let hold =
@@ -437,6 +438,32 @@ let compound_expr =
       `P "`a;b;c` evaluates `a`, then `b`, then `c`, and \
           returns the value of `c`.";
       `I ("infix", [`P "`a; b`"]);
+    ]
+
+let slot =
+  let pp _ _ out = function
+    | [| E.Z i |] ->
+      Fmt.fprintf out "#%a" Z.pp_print i
+    | _ -> raise E.Print_default
+  in
+  make "Slot" ~printer:(prec_slot,pp)
+    ~doc:[
+      `S "Slot";
+      `P "Nameless argument of a function. \
+          `#0` is the whole sequence of arguments, \
+          then `#1`, `#2`, etc. are  positional arguments."
+    ]
+
+(* TODO printer *)
+let function_ =
+  make "Function"
+    ~doc:[
+      `S "Function";
+      `P "Anonymous function (also called \"lambda\").";
+      `I ("suffix", [
+          `P "Anonymous function `fun x->a+x`:";
+          `Pre "(a+ #1)&";
+        ]);
     ]
 
 let if_ =

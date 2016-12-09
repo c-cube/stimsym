@@ -7,6 +7,10 @@
   let cntspace b =
     let s = Lexing.lexeme b in
     CCString.iter (fun c -> if c='\n' then Lexing.new_line b) s
+
+  let slot_int s =
+    let i = String.index s '#' in
+    int_of_string (String.sub s (i+1) 1)
 }
 
 let comment_body = [ ^ '*' ] | ('*' [^ ')'])
@@ -36,6 +40,8 @@ let upper_alpha = ['A' - 'Z']
 let alpha_numeric = lower_alpha | upper_alpha | numeric | '_'
 let symbol = (lower_alpha | upper_alpha) (lower_alpha | upper_alpha | numeric)*
 
+let slot = '#' ['0' - '9']
+
 let space = ['\n' '\t' ' '] | comment
 
 rule token = parse
@@ -50,6 +56,7 @@ rule token = parse
   | space* ')'    { cntspace lexbuf; RIGHT_PAREN }
   | '{' space*    { cntspace lexbuf; LEFT_BRACE }
   | space* '}'    { cntspace lexbuf; RIGHT_BRACE }
+  | space* "&" space*   { cntspace lexbuf; ANCHOR }
   | space* ',' space*   { cntspace lexbuf; COMMA }
   | space* ":=" space*  { cntspace lexbuf; O_SET_DELAYED }
   | space* "="  space*  { cntspace lexbuf; O_SET }
@@ -76,5 +83,6 @@ rule token = parse
   | "__"          { O_BLANK_SEQ }
   | "_"           { O_BLANK }
   | symbol        { SYMBOL (Lexing.lexeme lexbuf) }
+  | slot          { SLOT (Lexing.lexeme lexbuf |> slot_int) }
   | _ as c
     { Parse_loc.parse_errorf_buf lexbuf "lexer failed on char '%c'" c }
