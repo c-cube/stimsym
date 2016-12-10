@@ -9,8 +9,10 @@
     CCString.iter (fun c -> if c='\n' then Lexing.new_line b) s
 
   let slot_int s =
-    let i = String.index s '#' in
-    int_of_string (String.sub s (i+1) 1)
+    assert (s.[0] = '#');
+    if String.length s>1
+    then int_of_string (String.sub s 1 1)
+    else 1 (* default *)
 }
 
 let comment_body = [ ^ '*' ] | ('*' [^ ')'])
@@ -40,7 +42,7 @@ let upper_alpha = ['A' - 'Z']
 let alpha_numeric = lower_alpha | upper_alpha | numeric | '_'
 let symbol = (lower_alpha | upper_alpha) (lower_alpha | upper_alpha | numeric)*
 
-let slot = '#' ['0' - '9']
+let slot = '#' ['0' - '9']?
 
 let space = ['\n' '\t' ' '] | comment
 
