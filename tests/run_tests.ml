@@ -354,6 +354,12 @@ let suite_eval =
       "Comprehension[f[x,y],g[x_]<<-{a,g[b],c,g[d]},y_<<-{1,2+x,3}]"
       "Sequence[f[b,1],f[b,Plus[2,b]],f[b,3],f[d,1],f[d,Plus[2,d]],f[d,3]]";
     mk_eval __LINE__ "{f[x y] :: x_<<-{1,2,3,4,5}, y_<-3, x+y<7}" "List[f[3],f[6],f[9]]";
+    mk_eval __LINE__ "Range[5]" "List[0,1,2,3,4,5]";
+    mk_eval __LINE__ "Range[2,5]" "List[2,3,4,5]";
+    mk_eval __LINE__ "Range[1]" "List[0,1]";
+    mk_eval __LINE__ "Range[-1]" "List[]";
+    mk_eval __LINE__ "Range[2,9,3]" "List[2,5,8]";
+    mk_eval __LINE__ "Range[10,5,-1]" "List[10,9,8,7,6,5]";
   ]
 
 (** {2 Main} *)

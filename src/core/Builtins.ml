@@ -725,6 +725,41 @@ let nest =
         ])
     ]
 
+let range =
+  let mk_ arg i j ~step =
+    let rec aux_incr acc i j step =
+      if Z.gt i j then List.rev acc
+      else aux_incr (E.z i :: acc) Z.(i + step) j step
+    and aux_decr acc i j step =
+      if Z.lt i j then List.rev acc
+      else aux_decr (E.z i :: acc) Z.(i + step) j step
+    in
+    let l = match Z.sign step with
+      | 0 -> E.prim_failf arg "invalid `step` argument in Range: 0"
+      | n when n>0 -> aux_incr [] i j step
+      | _ -> aux_decr [] i j step
+    in
+    Some (E.app_l list l)
+  in
+  let eval _ arg e = match e with
+    | E.App (_, [| E.Z i |]) -> mk_ arg Z.zero i ~step:Z.one
+    | E.App (_, [| E.Z i; E.Z j |]) -> mk_ arg i j ~step:Z.one
+    | E.App (_, [| E.Z i; E.Z j; E.Z step |]) -> mk_ arg i j ~step
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Range"
+    ~funs:[eval]
+    ~doc:[
+      `S "Range";
+      `P "Integer Range.";
+      `P "`Range[i]` returns `{0,1,2,…,i}`";
+      `P "`Range[i,j]` returns `{i,i+1,…,j}`";
+      `P "`Range[i,j,step]` returns `{i,i+step,…}` until `j` is reached";
+      `I ("example", [
+          `P "`Range[3]` returns `{0,1,2,3}`";
+        ])
+    ]
+
 let mk_ineq_ name desc infix : t =
   let infix_str = Printf.sprintf "`a %s b`" infix in
   let printer = prec_const, print_const infix in
