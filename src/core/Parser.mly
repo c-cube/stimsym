@@ -52,6 +52,7 @@
 
 %token O_MATCH_BIND
 %token O_MATCH_BIND1
+%token O_COMPREHENSION
 
 %token O_PLUS
 %token O_EQUAL
@@ -77,11 +78,18 @@ parse_expr: e=expr EOI { e }
 expr: skip_space e=expr_nospace skip_space { e }
 
 expr_nospace:
-  | e=compound_expr { e }
+  | e=comprehension_expr { e }
   | error
     {
       let loc = L.mk_pos $startpos $endpos in
       Parse_loc.parse_error loc "expected expression" }
+
+comprehension_expr:
+  | e=compound_expr { e }
+  | e=compound_expr
+    O_COMPREHENSION
+    l=separated_nonempty_list(COMMA,set_expr)
+    { E.app_l B.comprehension (e::l) }
 
 compound_expr:
   | e=set_expr { e }
