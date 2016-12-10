@@ -10,11 +10,11 @@ let mk_name prefix line = Printf.sprintf "%s_line_%d" prefix line
 
 (** {2 Parser} *)
 
-exception Parse_test_fail of string
+exception Test_fail of string
 
 let () = Printexc.register_printer
     (function
-      | Parse_test_fail s -> Some s
+      | Test_fail s -> Some s
       | _ -> None)
 
 let test_parser line a b : test =
@@ -28,7 +28,7 @@ let test_parser line a b : test =
       let msg =
         CCFormat.sprintf "failed to parse `%s`:@ %s@ (expected: `%s`)" a s b
       in
-      raise (Parse_test_fail msg)
+      raise (Test_fail msg)
   )
 
 let test_parser_fail line a : test =
@@ -141,6 +141,9 @@ let suite_parser =
     test_parser __LINE__ "a<<-b" "MatchBind1[a,b]";
     test_parser __LINE__ "a_<<-b+c" "MatchBind1[Pattern[a,Blank[]],Plus[b,c]]";
     test_parser __LINE__ "{a<-b,c<<-d }" "List[MatchBind[a,b],MatchBind1[c,d]]";
+    test_parser __LINE__
+      "{f[x] :: x_<<-{1}, y_<-b, t}"
+      "List[Comprehension[f[x],MatchBind1[Pattern[x,Blank[]],List[1]],MatchBind[Pattern[y,Blank[]],b],t]]";
   ]
 
 (** {2 Printer} *)
@@ -161,7 +164,7 @@ let test_printer ?(strip_space=false) line a b : test =
       let msg =
         CCFormat.sprintf "failed to parse `%s`:@ %s@ (expected: `%s`)" a s b
       in
-      raise (Parse_test_fail msg)
+      raise (Test_fail msg)
   )
 
 let test_printer_same line a = test_printer line a a
@@ -261,11 +264,17 @@ let suite_printer =
 
 let mk_eval line a b : test =
   mk_name "ok" line >:: (fun _ ->
-    let buf = Lexing.from_string a in
-    let e = Parser.parse_expr Lexer.token buf in
-    let e = Expr.eval e in
-    OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
-      b (CCFormat.to_string Expr.pp_full_form e)
+    try
+      let buf = Lexing.from_string a in
+      let e = Parser.parse_expr Lexer.token buf in
+      let e = Expr.eval e in
+      OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
+        b (CCFormat.to_string Expr.pp_full_form e)
+    with Parse_loc.Parse_error (_,s) ->
+      let msg =
+        CCFormat.sprintf "failed to parse `%s`:@ %s" a s
+      in
+      raise (Test_fail msg)
   )
 
 let suite_eval =
@@ -332,12 +341,25 @@ let suite_eval =
     mk_eval __LINE__ "({#0}&)[a,b,c,d]" "List[a,b,c,d]";
     mk_eval __LINE__ "Nest[f[#1,#1]&,a,2]" "f[f[a,a],f[a,a]]";
     mk_eval __LINE__ "Nest[f[#1,#1]&,a,3]" "f[f[f[a,a],f[a,a]],f[f[a,a],f[a,a]]]";
+    mk_eval __LINE__
+      "Comprehension[f[x],x_<<-{1,2,3,4}]"
+      "Sequence[f[1],f[2],f[3],f[4]]";
+    mk_eval __LINE__
+      "{Comprehension[f[x],x_<<-{1,2,3,4}]}"
+      "List[f[1],f[2],f[3],f[4]]";
+    mk_eval __LINE__
+      "Comprehension[f[x,y],g[x_]<-g[a],y_<<-{1,2,3,4}]"
+      "Sequence[f[a,1],f[a,2],f[a,3],f[a,4]]";
+    mk_eval __LINE__
+      "Comprehension[f[x,y],g[x_]<<-{a,g[b],c,g[d]},y_<<-{1,2+x,3}]"
+      "Sequence[f[b,1],f[b,Plus[2,b]],f[b,3],f[d,1],f[d,Plus[2,d]],f[d,3]]";
+    mk_eval __LINE__ "{f[x y] :: x_<<-{1,2,3,4,5}, y_<-3, x+y<7}" "List[f[3],f[6],f[9]]";
   ]
 
 (** {2 Main} *)
 
 let suite =
-  "rewrite" >::: [
+  "stimsym" >::: [
     suite_parser;
     suite_eval;
     suite_printer;
