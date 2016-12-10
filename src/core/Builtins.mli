@@ -55,6 +55,10 @@ val times : t
 val factorial : t
 val list : t
 
+val match_bind : t
+val match_bind1 : t
+val comprehension : t
+
 val equal : t
 val less : t
 val greater : t

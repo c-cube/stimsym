@@ -49,6 +49,9 @@ let prec_same = 10
 
 let prec_function = 15
 
+let prec_comprehension = 18
+let prec_comprehension_args = 19
+
 let prec_or = 21
 let prec_and = 22
 let prec_not = 23
@@ -229,6 +232,58 @@ let list =
       (Fmt.array ~start:"" ~stop:"" ~sep:"," (pp_sub 0)) a
   in
   make ~printer:(prec_list,pp_list) "List"
+
+let match_bind =
+  let pp _ pp_sub out = function
+    | [| pat; rhs |] ->
+      Fmt.fprintf out "@[<2>%a@ <- %a@]"
+        (pp_sub prec_comprehension_args) pat (pp_sub prec_comprehension_args) rhs
+    | _ -> raise E.Print_default
+  in
+  make "MatchBind" ~printer:(prec_comprehension_args,pp)
+    ~doc:[
+      `S "MatchBind";
+      `P "`MatchBind[pat,e]` matches `e` against pattern `pat`. \
+          It will yield every matching substitution.";
+      `I ("infix", [`P "`pat <- e`"]);
+    ]
+
+let match_bind1 =
+  let pp _ pp_sub out = function
+    | [| pat; rhs |] ->
+      Fmt.fprintf out "@[<2>%a@ <<- %a@]"
+        (pp_sub prec_comprehension_args) pat (pp_sub prec_comprehension_args) rhs
+    | _ -> raise E.Print_default
+  in
+  make "MatchBind1" ~printer:(prec_comprehension_args,pp)
+    ~doc:[
+      `S "MatchBind1";
+      `P "`MatchBind1[pat,e]` matches every argument of `e` \
+          against pattern `pat`. \
+          For instance, `MatchBind1[f[x_], {a,f[b],c,f[d]}]` will \
+          try the pattern `f[x_]` against each element of the list.";
+      `I ("infix", [`P "`pat <<- e`"]);
+    ]
+
+(* sequence comprehension *)
+let comprehension =
+  let pp _ pp_sub out args = match args with
+    | [||] -> raise E.Print_default
+    | _ ->
+      let res = args.(0) in
+      Fmt.fprintf out "(@[<2>%a | %a@])" (pp_sub prec_comprehension) res
+        (Slice.print ~sep:"," (pp_sub prec_comprehension))
+        (Slice.make args 1 ~len:(Array.length args-1))
+  in
+  make "Comprehension"
+    ~fields:[E.field_hold_all; E.field_protected]
+    ~printer:(prec_comprehension,pp)
+    ~doc:[
+      `S "Comprehension";
+      `P "Sequence comprehension. It returns the sequence of all possibles \
+          solutions to the definition.";
+      (* TODO: examples! *)
+    ]
 
 let blank =
   let pp _ _ out args = match args with
