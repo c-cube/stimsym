@@ -56,6 +56,8 @@ let prec_or = 21
 let prec_and = 22
 let prec_not = 23
 
+let prec_ineq = 30
+
 let prec_plus = 40
 let prec_times = 41
 let prec_factorial = 45
@@ -64,6 +66,8 @@ let prec_pattern = 90
 let prec_blank = 95
 let prec_slot = 96
 let prec_list = 100
+
+let prec_const = 200
 
 let hold =
   make "Hold" ~fields:[E.field_hold_all]
@@ -103,6 +107,11 @@ let print_infix_ prec sep neutral _ pp_sub out args = match args with
 let print_infix_bin_ prec op _ pp_sub out args = match args with
   | [|x;y|] ->
     Fmt.fprintf out "@[<hv>%a%s@,%a@]" (pp_sub prec) x op (pp_sub prec) y
+  | _ -> raise E.Print_default
+
+(* print an unapplied constant *)
+let print_const str _ _ out = function
+  | [||] -> Fmt.string out str
   | _ -> raise E.Print_default
 
 let plus =
@@ -357,7 +366,7 @@ let same_q =
   in
   make "SameQ" ~funs:[eval]
     ~fields:[E.field_protected]
-    ~printer:(prec_same, print_infix_bin_ prec_same "===")
+    ~printer:(prec_same, print_infix_ prec_same "===" "")
     ~doc:[
       `S "SameQ";
       `P "symbolic identity, returns True on syntactically identical\
@@ -693,13 +702,15 @@ let nest =
     ]
 
 let mk_ineq_ name desc infix : t =
-  make name ~doc:[`S name; `P desc; `I ("infix", [`P infix])]
+  let infix_str = Printf.sprintf "`a %s b`" infix in
+  let printer = prec_const, print_const infix in
+  make name ~printer ~doc:[`S name; `P desc; `I ("infix", [`P infix_str])]
 
-let equal = mk_ineq_ "Equal" "value identity" "`a == b`"
-let less = mk_ineq_ "Less" "value comparison" "`a < b`"
-let less_equal = mk_ineq_ "LessEqual" "value comparison" "`a <= b`"
-let greater = mk_ineq_ "Greater" "value comparison" "`a > b`"
-let greater_equal = mk_ineq_ "GreaterEqual" "value comparison" "`a >= b`"
+let equal = mk_ineq_ "Equal" "value identity" "=="
+let less = mk_ineq_ "Less" "value comparison" "<"
+let less_equal = mk_ineq_ "LessEqual" "value comparison" "<="
+let greater = mk_ineq_ "Greater" "value comparison" ">"
+let greater_equal = mk_ineq_ "GreaterEqual" "value comparison" ">="
 
 module Ineq = struct
   type num = Q.t
@@ -762,10 +773,15 @@ let inequality =
           Some (if Ineq.eval_chain c then true_ else false_)
         | None -> raise Eval_does_not_apply
       end
+
     | _ -> raise Eval_does_not_apply
+  and pp _ pp_sub out args =
+    Fmt.fprintf out "@[%a@]"
+      (Fmt.array ~start:"" ~stop:"" ~sep:"" (pp_sub prec_ineq)) args
   in
   make "Inequality"
     ~fields:[E.field_flatten; E.field_protected] ~funs:[eval]
+    ~printer:(prec_ineq,pp)
     ~doc:[
       `S "Inequality";
       `P "conjunction of comparisons";

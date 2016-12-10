@@ -349,17 +349,15 @@ let to_string_compact t =
 
 let pp out (t:t) =
   let rec pp prec out t = match t with
-    | Const {cst_name; _} -> Format.pp_print_string out cst_name
     | App (Const {cst_name="FullForm";_}, [|t|]) -> pp_full_form out t
+    | Const ({cst_printer=Some (_, pp_special); _} as c)
     | App (Const ({cst_printer=Some (_, pp_special); _} as c), [||]) ->
-      pp_special c pp out [||]
+      pp_const_custom pp_special c [||] out ()
     | App (Const ({cst_printer=Some (prec', pp_special); _} as c), args) ->
       if prec' > prec
-      then (
-        try pp_special c pp out args
-        with Print_default ->  pp_default out (const c, args)
-      )
+      then pp_const_custom pp_special c args out ()
       else CCFormat.within "(" ")" (pp_special c pp) out args
+    | Const {cst_name; _} -> Format.pp_print_string out cst_name
     | App (head, args) -> pp_default out (head, args)
     | Z n -> Z.pp_print out n
     | Q n -> Q.pp_print out n
@@ -368,6 +366,9 @@ let pp out (t:t) =
   and pp_default out (head, args) =
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
       (pp 0) head (CCFormat.array ~start:"" ~stop:"" ~sep:"," (pp 0)) args
+  and pp_const_custom pp_special c args out () =
+    try pp_special c pp out args
+    with Print_default ->  pp_default out (const c, args)
   in
   begin match t with
     | Const {cst_name="Null";_} -> () (* do not print toplevel "null" *)

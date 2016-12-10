@@ -223,15 +223,18 @@ let suite_printer =
     test_printer_same __LINE__ "f[a] /. {x,y,z}";
     test_printer_same __LINE__ "f[a] //. {x,y,z} d";
     test_printer_same __LINE__ "f[a,b+c d!] //. {f[x,y,z___] :> f[x y,z]}";
-    (* TODO
-    test_printer_same __LINE__ "f[a_] = b " "Set[f[Pattern[a,Blank[]]],b]";
-    test_printer_same __LINE__ "f[a_] :> g[a,a]" "RuleDelayed[f[Pattern[a,Blank[]]],g[a,a]]";
-    test_printer_same __LINE__ "f[x] -> g[x,a]" "Rule[f[x],g[x,a]]";
-    test_printer_same __LINE__ "f[x]:> g[x,a]" "RuleDelayed[f[x],g[x,a]]";
-    test_printer_same __LINE__ "f[x]->g[x,a]" "Rule[f[x],g[x,a]]";
-    test_printer_same __LINE__ "f[x]:> g[x]+ h[x] 3" "RuleDelayed[f[x],Plus[g[x],Times[h[x],3]]]";
+    test_printer_same __LINE__ "f[a_] = b";
+    test_printer_same __LINE__ "f[a_] :> g[a,a]";
+    test_printer_same __LINE__ "f[x] -> g[x,a]";
+    test_printer_same __LINE__ "f[x] :> g[x,a]";
+    test_printer_same __LINE__ "f[x] -> g[x,a]";
+    test_printer_same __LINE__ "f[x] :> g[x]+h[x] 3";
     test_printer_same __LINE__ "f -> a===b===c";
-    test_printer_same __LINE__ "f[a==b==c,1]" "f[Inequality[a,Equal,b,Equal,c],1]";
+    test_printer_same __LINE__ "f[a==b==c,1]";
+    test_printer __LINE__
+      "Comprehension[f[x,y],MatchBind[g[x_],g[a]],MatchBind1[y_,{1,2,3,4}]]"
+      "(f[x,y] | g[x_] <- g[a],y_ <<- {1,2,3,4})";
+    (* TODO
     test_printer_same __LINE__
       "1==a>=b<d<=e b+c|d<e"
       "Alternatives[Inequality[1,Equal,a,GreaterEqual,b,Less,d,LessEqual,Plus[Times[e,b],c]],\
