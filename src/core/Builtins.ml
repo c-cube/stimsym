@@ -227,7 +227,7 @@ let factorial =
     | _ -> raise E.Print_default
   in
   make "Factorial" ~printer:(prec_factorial,pp)
-    ~funs:[eval]
+    ~funs:[eval] ~fields:[E.field_listable]
     ~doc:[
       `S "Factorial";
       `P "The factorial function";
@@ -689,7 +689,7 @@ let not_ =
     | _ -> raise E.Print_default
   in
   make "Not"
-    ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
+    ~fields:[E.field_listable] ~funs:[eval]
     ~printer:(prec_not,pp)
     ~doc:[
       `S "Not";

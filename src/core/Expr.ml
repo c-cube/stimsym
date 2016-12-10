@@ -13,6 +13,7 @@ let field_hold_rest = Properties.mk_field()
 let field_orderless = Properties.mk_field()
 let field_flatten = Properties.mk_field()
 let field_one_identity = Properties.mk_field()
+let field_listable = Properties.mk_field ()
 let () = Properties.freeze()
 
 (* TODO: remove? *)
@@ -1030,6 +1031,12 @@ and eval_rec (st:eval_state) e =
     (* evaluate args, then apply function *)
     let args = eval_args_of st hd args in
     eval_beta_reduce st body args
+  | App (Const c as hd,
+      [| App (Const {cst_name="List";_} as list_, args) |])
+    when Cst.get_field field_listable c ->
+    (* distribute [hd] on the list *)
+    let args = Array.map (fun a -> app hd [| a |]) args in
+    eval_rec st (app list_ args)
   | App (hd, args) ->
     let hd = eval_rec st hd in
     (* evaluate arguments, but only if [hd] allows it *)
