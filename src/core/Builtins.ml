@@ -293,7 +293,29 @@ let comprehension =
       `S "Comprehension";
       `P "Sequence comprehension. It returns the sequence of all possibles \
           solutions to the definition.";
-      (* TODO: examples! *)
+      (* TODO: have finer grained documents, with lists, etc. *)
+      `Pre "General form: `Comprehension[t,body1,…,bodyn]` where `t` \n\
+          is the returned term, and each `body` element is one of:\n\
+            - `pat <- expr` (see `MatchBind`), \
+            matching `pat` against expression `expr`. \n\
+            Each resulting substitution is used to evaluate the following \
+            body elements;\n\
+            - `pat <<- expr` (see `MatchBind`), \
+            matching `pat` against immediate arguments of expression `expr`;\n\
+            - `If[expr]`, meaning evaluation proceeds iff `expr` evaluates \
+            to `True.";
+      `I ("infix", [
+          `P "The following is short for `Comprehension[t,body1,body2,…,bodyn]`";
+          `Pre "`t :: body1,body2,…,bodyn`";
+        ]);
+      `I ("example", [
+          `Pre "{f[x y] :: x_<<-{1,2,3,4,5}, y_<-3, x+y<7}";
+          `P "yields `{f[3],f[6],f[9]}`";
+        ]);
+      `I ("example", [
+          `Pre "`f[x,y] :: g[x_]<<-{a,g[b],c,g[d]},y_<<-{1,2+x,3}`";
+          `P "yields `Sequence[f[b,1],f[b,2+b],f[b,3],f[d,1],f[d,2+d],f[d,3]]`";
+        ]);
     ]
 
 let blank =
