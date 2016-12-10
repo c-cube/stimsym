@@ -50,6 +50,9 @@
 %token O_SAME_Q
 %token O_SEMI_COLON
 
+%token O_MATCH_BIND
+%token O_MATCH_BIND1
+
 %token O_PLUS
 %token O_EQUAL
 %token O_LESS
@@ -91,6 +94,10 @@ set_expr:
     { E.app_l B.set [a;b] }
   | a=pattern_expr O_SET_DELAYED b=set_expr_rhs
     { E.app_l B.set_delayed [a;b] }
+  | a=pattern_expr O_MATCH_BIND b=set_expr_rhs
+    { E.app_l B.match_bind [a;b] }
+  | a=pattern_expr O_MATCH_BIND1 b=set_expr_rhs
+    { E.app_l B.match_bind1 [a;b] }
 
 set_expr_rhs:
   | e=replace_expr { e }

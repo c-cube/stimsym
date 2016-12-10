@@ -136,6 +136,11 @@ let suite_parser =
       "CompoundExpression[Set[f,a],Function[Plus[1,Slot[2]]]]";
     test_parser __LINE__ "({#0}&)+#1&"
       "Function[Plus[Function[List[Slot[0]]],Slot[1]]]";
+    test_parser __LINE__ "a<-b" "MatchBind[a,b]";
+    test_parser __LINE__ "a_<-b+c" "MatchBind[Pattern[a,Blank[]],Plus[b,c]]";
+    test_parser __LINE__ "a<<-b" "MatchBind1[a,b]";
+    test_parser __LINE__ "a_<<-b+c" "MatchBind1[Pattern[a,Blank[]],Plus[b,c]]";
+    test_parser __LINE__ "{a<-b,c<<-d }" "List[MatchBind[a,b],MatchBind1[c,d]]";
   ]
 
 (** {2 Printer} *)
