@@ -226,7 +226,7 @@ let sat_solve =
           `Pre "`SatSolve[A || B,!A || !B,!B]`";
         ]);
       `I ("example", [
-          `P "The following call will return `Sat[A -> False,B->False]`, \
+          `P "The following call will return `Sat[A -> False,B->True]`, \
               containing a model for each atom appearing in the formulas.";
           `Pre "`SatSolve[A || B,!A]`";
         ]);
