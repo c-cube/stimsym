@@ -250,6 +250,7 @@ let match_bind =
     | _ -> raise E.Print_default
   in
   make "MatchBind" ~printer:(prec_comprehension_args,pp)
+    ~fields:[E.field_hold_first]
     ~doc:[
       `S "MatchBind";
       `P "`MatchBind[pat,e]` matches `e` against pattern `pat`. \
@@ -265,6 +266,7 @@ let match_bind1 =
     | _ -> raise E.Print_default
   in
   make "MatchBind1" ~printer:(prec_comprehension_args,pp)
+    ~fields:[E.field_hold_first]
     ~doc:[
       `S "MatchBind1";
       `P "`MatchBind1[pat,e]` matches every argument of `e` \

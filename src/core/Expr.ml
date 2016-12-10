@@ -3,6 +3,7 @@
 
 (** {1 Expressions} *)
 
+module Fmt = CCFormat
 module Properties = Bit_set.Make(struct end)
 
 let field_protected = Properties.mk_field()
@@ -41,7 +42,7 @@ and t =
   | String of string
   | Reg of int (* only in rules RHS *)
 
-and const_printer = const -> (int -> t CCFormat.printer) -> t array CCFormat.printer
+and const_printer = const -> (int -> t Fmt.printer) -> t array Fmt.printer
 
 (* (partial) definition of a symbol *)
 and def =
@@ -82,6 +83,16 @@ and assoc_pattern_vantage = {
   ap_left: assoc_pattern; (* matches left slice *)
   ap_vantage: pattern; (* match this unary pattern first *)
   ap_right: assoc_pattern; (* matches right slice *)
+}
+
+and comprehension_body_item =
+  | Comp_match of pattern * t
+  | Comp_match1 of pattern * t
+  | Comp_test of t
+
+and comprehension = {
+  comp_body: comprehension_body_item list;
+  comp_yield: t;
 }
 
 (* TODO? *)
@@ -277,7 +288,7 @@ let rec pp_full_form out (t:t) = match t with
   | Const {cst_name; _} -> Format.pp_print_string out cst_name
   | App (head, args) ->
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
-      pp_full_form head (CCFormat.array ~start:"" ~stop:"" ~sep:"," pp_full_form) args
+      pp_full_form head (Fmt.array ~start:"" ~stop:"" ~sep:"," pp_full_form) args
   | Z n -> Z.pp_print out n
   | Q n -> Q.pp_print out n
   | String s -> Format.fprintf out "%S" s
@@ -287,21 +298,21 @@ let rec pp_pattern out (p:pattern) = match p with
   | P_const {cst_name; _} -> Format.pp_print_string out cst_name
   | P_app (head, args) ->
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
-      pp_pattern head (CCFormat.array ~start:"" ~stop:"" ~sep:"," pp_pattern) args
+      pp_pattern head (Fmt.array ~start:"" ~stop:"" ~sep:"," pp_pattern) args
   | P_app_assoc (head, arg) ->
     Format.fprintf out "@[<2>%a[@[%a@]]@]"
       pp_pattern head pp_assoc_pattern arg
   | P_z n -> Z.pp_print out n
   | P_q n -> Q.pp_print out n
   | P_string s -> Format.fprintf out "%S" s
-  | P_blank -> CCFormat.string out "Blank[]"
-  | P_blank_sequence -> CCFormat.string out "BlankSequence[]"
-  | P_blank_sequence_null -> CCFormat.string out "BlankNullSequence[]"
-  | P_fail -> CCFormat.string out "Fail[]"
+  | P_blank -> Fmt.string out "Blank[]"
+  | P_blank_sequence -> Fmt.string out "BlankSequence[]"
+  | P_blank_sequence_null -> Fmt.string out "BlankNullSequence[]"
+  | P_fail -> Fmt.string out "Fail[]"
   | P_alt ([] | [_]) -> assert false
   | P_alt l ->
     Format.fprintf out "(@[<hv>%a@])"
-      (CCFormat.list ~start:"" ~stop:"" ~sep:"|" pp_pattern) l
+      (Fmt.list ~start:"" ~stop:"" ~sep:"|" pp_pattern) l
   | P_bind (i,p) -> Format.fprintf out "Pattern[%d,@[%a@]]" i pp_pattern p
   | P_check_same (i,p) -> Format.fprintf out "CheckSame[%d,@[%a@]]" i pp_pattern p
   | P_conditional (p,cond) ->
@@ -314,14 +325,28 @@ and pp_assoc_pattern out = function
       pp_pattern apv.ap_vantage pp_assoc_pattern apv.ap_right
   | AP_pure (l,_) ->
     Format.fprintf out "[@[<hv>%a@]]"
-      (CCFormat.list ~start:"" ~stop:"" pp_pattern) l
+      (Fmt.list ~start:"" ~stop:"" pp_pattern) l
+
+let pp_comprehension out (c:comprehension) =
+  let pp_body out = function
+    | Comp_match (pat,e) ->
+      Format.fprintf out "@[%a@,<-%a@]"
+        pp_pattern pat pp_full_form e
+    | Comp_match1 (pat,e) ->
+      Format.fprintf out "@[%a@,<<-%a@]"
+        pp_pattern pat pp_full_form e
+    | Comp_test e -> pp_full_form out e
+  in
+  Format.fprintf out "Comprehension[@[%a,@,@[<hv>%a@]@]]"
+    pp_full_form c.comp_yield
+    (Fmt.list ~start:"" ~stop:"" ~sep:"," pp_body) c.comp_body
 
 let pp_rule out (r:rewrite_rule): unit =
   Format.fprintf out "@[%a @<1>→@ %a@]" pp_pattern r.rr_pat pp_full_form r.rr_rhs
 
 let pp_def out = function
   | Rewrite r -> pp_rule out r
-  | Fun _ -> CCFormat.string out "<primi>"
+  | Fun _ -> Fmt.string out "<primi>"
 
 let to_string_compact t =
   let buf = Buffer.create 32 in
@@ -356,7 +381,7 @@ let pp out (t:t) =
     | App (Const ({cst_printer=Some (prec', pp_special); _} as c), args) ->
       if prec' > prec
       then pp_const_custom pp_special c args out ()
-      else CCFormat.within "(" ")" (pp_special c pp) out args
+      else Fmt.within "(" ")" (pp_special c pp) out args
     | Const {cst_name; _} -> Format.pp_print_string out cst_name
     | App (head, args) -> pp_default out (head, args)
     | Z n -> Z.pp_print out n
@@ -365,7 +390,7 @@ let pp out (t:t) =
     | Reg i -> Format.fprintf out "Reg[%d]" i
   and pp_default out (head, args) =
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
-      (pp 0) head (CCFormat.array ~start:"" ~stop:"" ~sep:"," (pp 0)) args
+      (pp 0) head (Fmt.array ~start:"" ~stop:"" ~sep:"," (pp 0)) args
   and pp_const_custom pp_special c args out () =
     try pp_special c pp out args
     with Print_default ->  pp_default out (const c, args)
@@ -375,14 +400,14 @@ let pp out (t:t) =
     | _ -> pp 0 out t
   end
 
-let to_string t = CCFormat.to_string pp t
+let to_string t = Fmt.to_string pp t
 
 (** {2 Evaluation} *)
 
 exception Invalid_rule of string
 
 let invalid_rule msg = raise (Invalid_rule msg)
-let invalid_rulef msg = CCFormat.ksprintf msg ~f:invalid_rule
+let invalid_rulef msg = Fmt.ksprintf msg ~f:invalid_rule
 
 let rec matches_slice (p:pattern): bool = match p with
   | P_blank_sequence | P_blank_sequence_null -> true
@@ -412,14 +437,21 @@ let ap_assoc_min_size (ap:assoc_pattern): int = match ap with
   | AP_vantage apv -> apv.ap_min_size
   | AP_pure (_,i) -> i
 
-(* raise Invalid_rule if cannot compile *)
-let compile_rule lhs rhs: rewrite_rule =
-  (* variable name -> register *)
-  let tbl : (string, int) Hashtbl.t = Hashtbl.create 16 in
-  (* variables bound in super-terms. Necessary to avoid cyclical substs *)
-  let surrounding : string Stack.t = Stack.create () in
+module Pat_compile = struct
+  type state = {
+    tbl: (string, int) Hashtbl.t;
+    (* var name -> register *)
+    surrounding: string Stack.t;
+    (* variables bound in superterms, to avoid cyclical substitutions *)
+  }
+
+  let create() : state = {
+    tbl = Hashtbl.create 12;
+    surrounding=Stack.create();
+  }
+
   (* convert LHS into a proper pattern *)
-  let rec aux_pat t = match t with
+  let rec tr_pattern st t = match t with
     | Const c -> P_const c
     | String s -> P_string s
     | Z n -> P_z n
@@ -430,40 +462,40 @@ let compile_rule lhs rhs: rewrite_rule =
     | App (Const {cst_name="Pattern";_},
         [| Const {cst_name=x;_}; sub |]) ->
       (* [x] on the stack -> failure, would lead to cyclical subst *)
-      if Sequence.of_stack surrounding |> Sequence.mem x then (
+      if Sequence.of_stack st.surrounding |> Sequence.mem x then (
         invalid_rulef "variable `%s` cannot appear in its own pattern" x
       );
       (* compute pattern itself *)
       let sub_p = match sub with
         | App (Const {cst_name="Blank";_}, [||]) -> P_blank (* trivial case *)
         | _ ->
-          Stack.push x surrounding;
-          CCFun.finally1 ~h:(fun () -> ignore (Stack.pop surrounding))
-            aux_pat sub
+          Stack.push x st.surrounding;
+          CCFun.finally2 ~h:(fun () -> ignore (Stack.pop st.surrounding))
+            tr_pattern st sub
       in
-      begin match CCHashtbl.get tbl x with
+      begin match CCHashtbl.get st.tbl x with
         | None ->
           (* bind content of sub to [i] *)
-          let i = Hashtbl.length tbl in
-          Hashtbl.add tbl x i;
+          let i = Hashtbl.length st.tbl in
+          Hashtbl.add st.tbl x i;
           P_bind (i, sub_p)
         | Some i ->
           (* already bound, check SameQ *)
           P_check_same (i, sub_p)
       end
     | App (Const {cst_name="Alternatives";_}, [| |]) -> P_fail
-    | App (Const {cst_name="Alternatives";_}, [| p |]) -> aux_pat p
+    | App (Const {cst_name="Alternatives";_}, [| p |]) -> tr_pattern st p
     | App (Const {cst_name="Alternatives";_}, a) ->
-      let l = CCList.init (Array.length a) (fun i -> aux_pat a.(i)) in
+      let l = CCList.init (Array.length a) (fun i -> tr_pattern st a.(i)) in
       P_alt l
     | App (Const {cst_name="Condition";_}, [| p; cond |]) ->
-      let p = aux_pat p in
-      let cond = aux_rhs cond in (* replace variables, etc. in condition *)
+      let p = tr_pattern st p in
+      let cond = tr_term st cond in (* replace variables, etc. in condition *)
       (* TODO: check vars(cond) ⊆ vars(p) *)
       P_conditional (p, cond)
     | App (hd, args) ->
-      let hd = aux_pat hd in
-      let args = Array.map aux_pat args in
+      let hd = tr_pattern st hd in
+      let args = Array.map (tr_pattern st) args in
       if CCArray.exists matches_slice args
       then (
         (* associative match *)
@@ -475,15 +507,15 @@ let compile_rule lhs rhs: rewrite_rule =
       )
     | Reg _ -> assert false
   (* convert variables in RHS *)
-  and aux_rhs t = match t with
+  and tr_term st t = match t with
     | Z _ | Q _ | String _ -> t
     | App (hd, args) ->
-      let hd = aux_rhs hd in
-      let args = Array.map aux_rhs args in
+      let hd = tr_term st hd in
+      let args = Array.map (tr_term st) args in
       app hd args
     | Reg _  -> assert false
     | Const {cst_name;_} ->
-      begin match CCHashtbl.get tbl cst_name with
+      begin match CCHashtbl.get st.tbl cst_name with
         | None -> t
         | Some i -> reg i (* lookup *)
       end
@@ -524,10 +556,59 @@ let compile_rule lhs rhs: rewrite_rule =
           AP_pure (l, min_size)
       end
     )
-  in
-  let pat = aux_pat lhs in
-  let rhs = aux_rhs rhs in
+end
+
+(* raise Invalid_rule if cannot compile *)
+let compile_rule (lhs:t) (rhs:t): rewrite_rule =
+  let st = Pat_compile.create() in
+  let pat = Pat_compile.tr_pattern st lhs in
+  let rhs = Pat_compile.tr_term st rhs in
   {rr_pat=pat; rr_pat_as_expr=lhs; rr_rhs=rhs }
+
+exception Invalid_comprehension of string
+
+let invalid_comprehension msg = raise (Invalid_comprehension msg)
+
+let compile_comprehension_body (s:t Slice.t) (ret:t): comprehension =
+  let st = Pat_compile.create() in
+  (* evaluation order matters *)
+  let body =
+    Slice.fold_left
+      (fun acc sub ->
+         begin match sub with
+           | App (Const {cst_name="MatchBind";_}, [| pat; rhs |]) ->
+             let pat = Pat_compile.tr_pattern st pat in
+             let rhs = Pat_compile.tr_term st rhs in
+             Comp_match (pat,rhs) :: acc
+           | App (Const {cst_name="MatchBind1";_}, [| pat; rhs |]) ->
+             let pat = Pat_compile.tr_pattern st pat in
+             let rhs = Pat_compile.tr_term st rhs in
+             Comp_match1 (pat,rhs) :: acc
+           | _ ->
+             let t = Pat_compile.tr_term st sub in
+             Comp_test t :: acc
+         end)
+      []
+      s
+  in
+  let ret = Pat_compile.tr_term st ret in
+  { comp_yield=ret; comp_body=List.rev body }
+
+let check_comprehension (_c:comprehension): unit =
+  () (* TODO: check order of bindings *)
+
+let compile_comprehension (args:t array): (comprehension,string) Result.result =
+  try
+    match args with
+      | [||] -> Result.Error "need at least 2 arguments"
+      | _ ->
+        let ret = args.(0) in
+        let body = Slice.make args 1 ~len:(Array.length args-1) in
+        let c = compile_comprehension_body body ret in
+        check_comprehension c; (* check if well-defined *)
+        Result.Ok c
+  with
+    | Invalid_comprehension msg -> Result.Error msg
 
 let def_fun f = Fun f
 
@@ -547,7 +628,7 @@ let () = Printexc.register_printer
       | _ -> None)
 
 let eval_fail msg = raise (Eval_fail msg)
-let eval_failf msg = CCFormat.ksprintf msg ~f:eval_fail
+let eval_failf msg = Fmt.ksprintf msg ~f:eval_fail
 
 module Subst : sig
   type t
@@ -557,7 +638,7 @@ module Subst : sig
   val get : int -> t -> expr option
   val get_exn : int -> t -> expr
   val apply : t -> expr -> expr
-  val pp : t CCFormat.printer
+  val pp : t Fmt.printer
 end = struct
   module IntMap = CCMap.Make(CCInt)
   type t = expr IntMap.t
@@ -568,12 +649,12 @@ end = struct
 
   let pp out (s:t) =
     Format.fprintf out "{@[<hv>%a@]}"
-      (IntMap.print ~start:"" ~stop:"" CCFormat.int pp_full_form) s
+      (IntMap.print ~start:"" ~stop:"" Fmt.int pp_full_form) s
 
   let get_exn i s =
     try IntMap.find i s
     with Not_found ->
-      invalid_arg (CCFormat.sprintf "could not find %d in %a" i pp s)
+      invalid_arg (Fmt.sprintf "could not find %d in %a" i pp s)
 
   let rec apply (s:t) (t:expr): expr = match t with
     | Reg i ->
@@ -897,7 +978,7 @@ and eval_rec (st:eval_state) e =
     let rules = term_as_rules st b in
     trace_eval_
       (fun k->k "(@[replace_repeated@ %a@ rules: (@[%a@])@])"
-          pp_full_form a (CCFormat.list ~start:"" ~stop:"" pp_rule) rules);
+          pp_full_form a (Fmt.list ~start:"" ~stop:"" pp_rule) rules);
     (* add rules to definitions of symbols, etc. and on [st.st_undo]
        so the changes are reversible *)
     let lev = Undo.save st.st_undo in
@@ -913,6 +994,17 @@ and eval_rec (st:eval_state) e =
     CCFun.finally2
       ~h:(fun () -> Undo.restore st.st_undo lev) (* restore old state *)
       eval_rec st a
+  | App (Const {cst_name="Comprehension";_}, args) when Array.length args>0 ->
+    (* sequence comprehension. First evaluate all terms but the first
+       one, then compile into a comprehension *)
+    let args =
+      Array.mapi (fun i arg -> if i>0 then eval_rec st arg else arg) args
+    in
+    begin match compile_comprehension args with
+      | Result.Ok c -> eval_comprehension st c
+      | Result.Error msg ->
+        eval_failf "@[<2>could not evaluate@ `%a`@ reason: %s@]" pp e msg
+    end
   | App (Const {cst_name="SetDelayed";_}, [| a; b |]) ->
     (* lazy set: add rewrite rule [a :> b] to the definitions of [head a] *)
     begin match head a with
@@ -1044,6 +1136,49 @@ and eval_beta_reduce st fun_body args =
   let t = replace fun_body in
   eval_rec st t
 
+(* evaluate a sequence comprehension *)
+and eval_comprehension st (c:comprehension) =
+  let open Sequence.Infix in
+  let eval_subst subst t =
+    Subst.apply subst t |> eval_rec st
+  in
+  (* recurse through the body *)
+  let rec aux subst (l:comprehension_body_item list): t Sequence.t =
+    match l with
+      | [] ->
+        (* yield result, under subst *)
+        let t = eval_subst subst c.comp_yield in
+        Sequence.return t
+      | op :: tail ->
+        aux_op subst op >>= fun subst -> aux subst tail
+  and aux_op subst (op:comprehension_body_item): Subst.t Sequence.t =
+    match op with
+      | Comp_test t ->
+        let t' = Subst.apply subst t |> eval_rec st in
+        begin match t' with
+          | Const {cst_name="True";_} -> Sequence.return subst
+          | _ -> Sequence.empty
+        end
+      | Comp_match (pat, rhs) ->
+        match_ st subst pat (eval_subst subst rhs)
+      | Comp_match1 (pat, rhs) ->
+        let rhs' = eval_subst subst rhs in
+        (* match each subterm of [rhs] with [pat] *)
+        begin match rhs' with
+          | App (_, args) ->
+            Sequence.of_array args
+            >>= fun sub_rhs ->
+            match_ st subst pat sub_rhs
+          | _ -> Sequence.empty
+        end
+  in
+  begin
+    aux Subst.empty c.comp_body
+    |> Sequence.to_list
+    |> Array.of_list
+    |> app sequence
+  end
+
 let create_eval_state ~buf () : eval_state = {
   st_iter_count=0;
   st_rules=[];
@@ -1078,4 +1213,4 @@ let prim_print st m = prim_write_doc st (Lazy.from_val [Document.paragraph m])
 let prim_printf st = match st.st_print with
   | None -> (fun msg -> Format.ikfprintf (fun _ -> ()) Format.str_formatter msg)
   | Some _ ->
-    fun msg -> CCFormat.ksprintf msg ~f:(fun msg -> prim_print st msg)
+    fun msg -> Fmt.ksprintf msg ~f:(fun msg -> prim_print st msg)
