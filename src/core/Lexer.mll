@@ -47,7 +47,7 @@ let space = ['\n' '\t' ' '] | comment
 rule token = parse
   | space* eof    { cntspace lexbuf; EOI }
   | rational      { RAT_LIT (Lexing.lexeme lexbuf) }
-  | decimal       { INT_LIT (Lexing.lexeme lexbuf) }
+  | integer       { INT_LIT (Lexing.lexeme lexbuf) }
   | quoted_string { STRING_LIT (Lexing.lexeme lexbuf) }
   | space+        { cntspace lexbuf; SPACE }
   | '[' space*    { cntspace lexbuf; LEFT_BRACKET }
