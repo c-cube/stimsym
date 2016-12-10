@@ -360,6 +360,7 @@ let suite_eval =
     mk_eval __LINE__ "Range[-1]" "List[]";
     mk_eval __LINE__ "Range[2,9,3]" "List[2,5,8]";
     mk_eval __LINE__ "Range[10,5,-1]" "List[10,9,8,7,6,5]";
+    mk_eval __LINE__ "Range[Range[3]]" "List[List[0],List[0,1],List[0,1,2],List[0,1,2,3]]";
   ]
 
 (** {2 Main} *)

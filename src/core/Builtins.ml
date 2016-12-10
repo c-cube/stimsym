@@ -748,16 +748,24 @@ let range =
     | _ -> raise Eval_does_not_apply
   in
   make "Range"
-    ~funs:[eval]
+    ~funs:[eval] ~fields:[E.field_listable]
     ~doc:[
       `S "Range";
-      `P "Integer Range.";
-      `P "`Range[i]` returns `{0,1,2,…,i}`";
-      `P "`Range[i,j]` returns `{i,i+1,…,j}`";
-      `P "`Range[i,j,step]` returns `{i,i+step,…}` until `j` is reached";
+      `P "Integer Range, inclusive of both bounds.";
+      `P "- `Range[i]` returns `{0,1,2,…,i}`";
+      `P "- `Range[i,j]` returns `{i,i+1,…,j}`";
+      `P "- `Range[i,j,step]` returns `{i,i+step,…}` until `j` is reached";
+      `P "Note: the `Range[]` operator distributes on lists.";
       `I ("example", [
           `P "`Range[3]` returns `{0,1,2,3}`";
-        ])
+        ]);
+      `I ("example", [
+          `P "`Range[10,3,-2]` returns `{10,8,6,4}`";
+        ]);
+      `I ("example", [
+          `P "Range[Range[5]]";
+          `P "returns `{{0},{0,1},{0,1,2},{0,1,2,3},{0,1,2,3,4},{0,1,2,3,4,5}}`";
+        ]);
     ]
 
 let mk_ineq_ name desc infix : t =
