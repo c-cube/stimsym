@@ -1031,23 +1031,24 @@ and eval_rec (st:eval_state) e =
     (* evaluate args, then apply function *)
     let args = eval_args_of st hd args in
     eval_beta_reduce st body args
-  | App (Const c as hd,
-      [| App (Const {cst_name="List";_} as list_, args) |])
-    when Cst.get_field field_listable c ->
-    (* distribute [hd] on the list *)
-    let args = Array.map (fun a -> app hd [| a |]) args in
-    eval_rec st (app list_ args)
   | App (hd, args) ->
     let hd = eval_rec st hd in
     (* evaluate arguments, but only if [hd] allows it *)
     let args = eval_args_of st hd args in
     let t' = app_flatten hd args in
-    begin match head hd with
-      | c ->
+    begin match t' with
+      | App (Const c as hd,
+          [| App (Const {cst_name="List";_} as list_, args) |])
+        when Cst.get_field field_listable c ->
+        (* distribute [hd] on the list and evaluate it *)
+        let args = Array.map (fun a -> eval_rec st (app hd [| a |])) args in
+        (* return the list of results *)
+        app list_ args
+      | App (Const c, _) ->
         (* try every definition of [c] *)
         try_defs st t' (rs_of_cst st c)
-      | exception No_head ->
-        (* just return the new term *)
+      | _ ->
+        (* just try the global rewrite rules *)
         try_defs st t' (rs_of_st st)
     end
   | Reg _ -> e (* cannot evaluate *)
