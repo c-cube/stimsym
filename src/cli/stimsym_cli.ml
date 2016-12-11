@@ -9,6 +9,29 @@ type config = {
   verbose: bool;
 }
 
+type mime_view =
+  | Mime_xdg_open of string (* extension *)
+  | Mime_unknown
+
+let mime_classify (m:Expr.mime_content): mime_view = match m.Expr.mime_ty with
+  | "image/png" -> Mime_xdg_open ".png"
+  | "image/svg" -> Mime_xdg_open ".svg"
+  | _ -> Mime_unknown
+
+(* try to display the given mime type *)
+let display_mime (m:Expr.mime_content): unit = match mime_classify m with
+  | Mime_xdg_open ext ->
+    CCIO.File.with_temp ~prefix:"stimsym_cli" ~suffix:ext
+      (fun file ->
+         CCIO.with_out file
+           (fun oc -> output_string oc m.Expr.mime_data; flush oc);
+         let p = CCUnix.call "xdg-open '%s'" file in
+         ignore p#errcode);
+    ()
+  | Mime_unknown ->
+    Format.printf "<mime data type='%s', length=%d>"
+      m.Expr.mime_ty (String.length m.Expr.mime_data)
+
 (* completion callback *)
 let completion str (lnoise:LNoise.completions): unit =
   Completion.complete str
@@ -36,7 +59,7 @@ let rec main_loop ~config () =
               List.iter
                 (function
                   | Expr.Print_doc doc -> Format.printf "%a@." Document.pp doc
-                  | Expr.Print_mime _ -> ())
+                  | Expr.Print_mime m -> display_mime m)
                 docs
             with
               | Stack_overflow ->
