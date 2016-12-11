@@ -75,6 +75,9 @@ val range : t
 
 val all_builtins : unit -> t list
 
+val complete_symbol : string -> t list
+(** Completion of the given identifier prefix using builtins *)
+
 (**/**)
 val log_: (string->unit) ref
 val log : string -> unit

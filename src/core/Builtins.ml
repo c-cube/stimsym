@@ -889,3 +889,13 @@ let doc =
     ]
 
 let all_builtins () = !all_
+
+let complete_symbol s : t list =
+  if String.length s = 0 then []
+  else (
+    CCList.filter_map
+      (fun c -> match c with
+        | E.Const {E.cst_name=name;_} when CCString.prefix ~pre:s name -> Some c
+        | _ -> None)
+      !all_
+  )
