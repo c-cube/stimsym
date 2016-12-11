@@ -278,38 +278,34 @@ module Graph = struct
          B.logf "got png (%d bytes)\n" (String.length data);
          {E.mime_data=data; mime_ty="image/png"; mime_base64=true})
 
-  let eval _ arg e =
-    let res, vertices, edges = match e with
-      | E.App (hd, [| E.App (E.Const {E.cst_name="List";_}, edges) |]) ->
-        (* convert to the canonical form *)
-        let vertices =
-          Sequence.of_array edges
-          |> Sequence.flat_map_l
-            (function
-              | E.App (E.Const {E.cst_name="Rule";_}, [| lhs; rhs |]) ->
-                [lhs;rhs]
-              | _ -> raise B.Eval_does_not_apply)
-          |> E.Tbl.of_seq_count
-          |> E.Tbl.keys_list
-          |> Array.of_list
-        in
-        Some (E.app hd [| E.app B.list vertices; E.app B.list edges |]), vertices, edges
-      | E.App (_,
-          [| E.App (E.Const {E.cst_name="List";_}, vertices);
-             E.App (E.Const {E.cst_name="List";_}, edges)
-          |]) ->
-        (* canonical form already *)
-        None, vertices, edges
-      | _ -> raise B.Eval_does_not_apply
-    in
-    (* display *)
-    E.prim_write_mime arg (lazy (make vertices edges |> get_png));
-    res
+  let display e = match e with
+    | E.App (_,
+        [| E.App (E.Const {E.cst_name="List";_}, vertices);
+           E.App (E.Const {E.cst_name="List";_}, edges)
+        |]) ->
+      [make vertices edges |> get_png]
+    | _ -> []
 
+  let eval _ _ e = match e with
+    | E.App (hd, [| E.App (E.Const {E.cst_name="List";_}, edges) |]) ->
+      (* convert to the canonical form *)
+      let vertices =
+        Sequence.of_array edges
+        |> Sequence.flat_map_l
+          (function
+            | E.App (E.Const {E.cst_name="Rule";_}, [| lhs; rhs |]) ->
+              [lhs;rhs]
+            | _ -> raise B.Eval_does_not_apply)
+        |> E.Tbl.of_seq_count
+        |> E.Tbl.keys_list
+        |> Array.of_list
+      in
+      Some (E.app hd [| E.app B.list vertices; E.app B.list edges |])
+    | _ -> raise B.Eval_does_not_apply
 end
 
 let graph =
-  B.make "Graph" ~funs:[Graph.eval]
+  B.make "Graph" ~funs:[Graph.eval] ~display:Graph.display
     ~doc:[
       `S "Graph";
       `P "A directed graph structure.";

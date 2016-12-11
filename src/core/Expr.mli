@@ -35,6 +35,7 @@ type const = private {
   mutable cst_local_rules: rewrite_rule list;
   mutable cst_doc: Document.t;
   mutable cst_printer: (int * const_printer) option;
+  mutable cst_display : mime_printer option;
 }
 
 and t = private
@@ -47,6 +48,15 @@ and t = private
 
 (* custom printer for a constant *)
 and const_printer = const -> (int -> t CCFormat.printer) -> t array CCFormat.printer
+
+and mime_content = {
+  mime_ty: string;
+  mime_data: string;
+  mime_base64: bool;
+}
+
+(* custom display for expressions *)
+and mime_printer = t -> mime_content list
 
 exception Print_default
 (** Used in {!const_printer} to indicate that default printing should be preferred *)
@@ -125,6 +135,8 @@ module Cst : sig
 
   val set_printer : int -> const_printer -> t -> unit
 
+  val set_display : mime_printer -> t -> unit
+
   val set_doc : Document.t -> t -> unit
 end
 
@@ -145,12 +157,6 @@ val to_string : t -> string
 (** {2 Evaluation} *)
 
 exception Eval_fail of string
-
-type mime_content = {
-  mime_ty: string;
-  mime_data: string;
-  mime_base64: bool;
-}
 
 type eval_side_effect =
   | Print_doc of Document.t

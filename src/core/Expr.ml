@@ -33,6 +33,7 @@ type const = {
   mutable cst_local_rules: rewrite_rule list;
   mutable cst_doc: Document.t;
   mutable cst_printer: (int * const_printer) option;
+  mutable cst_display : mime_printer option;
 }
 
 and t =
@@ -127,6 +128,9 @@ and mime_content = {
   mime_base64: bool;
 }
 
+(* custom display for expressions *)
+and mime_printer = t -> mime_content list
+
 type expr = t
 
 module Str_tbl = CCHashtbl.Make(struct
@@ -158,6 +162,7 @@ let const_of_string name =
         cst_local_rules=[];
         cst_doc=[];
         cst_printer=None;
+        cst_display=None;
       } in
     bank.const_id <- bank.const_id + 1;
     Str_tbl.add bank.by_name name c;
@@ -254,6 +259,7 @@ module Cst = struct
   let set_doc d c = c.cst_doc <- d
 
   let set_printer i f c = c.cst_printer <- Some (i,f)
+  let set_display f c = c.cst_display <- Some f
 end
 
 let const_of_string_with ~f name =
@@ -1222,8 +1228,15 @@ let eval_full e : t * eval_side_effect list =
   let q = Stack.create() in
   let st = create_eval_state ~buf:(Some q) () in
   let e' = eval_rec st e in
-  let docs = Stack.fold (fun acc d -> d::acc) [] q in
-  e', docs
+  let effects = Stack.fold (fun acc d -> d::acc) [] q in
+  (* also check if there is a custom display *)
+  let e_display = match e' with
+    | Const {cst_display=Some f;_}
+    | App (Const {cst_display=Some f;_}, _) ->
+      f e' |> List.map (fun d -> Print_mime d)
+    | _ -> []
+  in
+  e', e_display @ effects
 
 (* primitive API *)
 

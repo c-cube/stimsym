@@ -17,6 +17,7 @@ type fun_def = Expr.const -> Expr.prim_fun_args -> Expr.t -> Expr.t option
 val make :
   ?doc:Document.t ->
   ?printer:int * Expr.const_printer ->
+  ?display:Expr.mime_printer ->
   ?fields:Expr.Properties.field list ->
   ?funs:fun_def list ->
   string -> t

@@ -19,7 +19,7 @@ let logf s = Printf.ksprintf log s
    into [None] (fail) or [Some t'] *)
 type fun_def = E.const -> E.prim_fun_args -> E.t -> E.t option
 
-let make ?(doc:Document.t=[]) ?printer ?(fields=[]) ?(funs:fun_def list =[]) name =
+let make ?(doc:Document.t=[]) ?printer ?display ?(fields=[]) ?(funs:fun_def list =[]) name =
   let c =
     E.const_of_string_with name
       ~f:(fun c ->
@@ -34,6 +34,7 @@ let make ?(doc:Document.t=[]) ?printer ?(fields=[]) ?(funs:fun_def list =[]) nam
              E.Cst.add_def (E.def_fun d_protected) c)
           funs;
         CCOpt.iter (fun (i,p) -> E.Cst.set_printer i p c) printer;
+        CCOpt.iter (fun f -> E.Cst.set_display f c) display;
         E.Cst.set_doc doc c)
   in
   all_ := c :: !all_;
