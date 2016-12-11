@@ -620,9 +620,6 @@ let compile_comprehension_body (s:t Slice.t) (ret:t): comprehension =
   let ret = Pat_compile.tr_term st ret in
   { comp_yield=ret; comp_body=List.rev body }
 
-let check_comprehension (_c:comprehension): unit =
-  () (* TODO: check order of bindings *)
-
 let compile_comprehension (args:t array): (comprehension,string) Result.result =
   try
     match args with
@@ -631,7 +628,6 @@ let compile_comprehension (args:t array): (comprehension,string) Result.result =
         let ret = args.(0) in
         let body = Slice.make args 1 ~len:(Array.length args-1) in
         let c = compile_comprehension_body body ret in
-        check_comprehension c; (* check if well-defined *)
         Result.Ok c
   with
     | Invalid_comprehension msg -> Result.Error msg

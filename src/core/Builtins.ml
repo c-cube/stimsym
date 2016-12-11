@@ -283,7 +283,7 @@ let comprehension =
     | [||] -> raise E.Print_default
     | _ ->
       let res = args.(0) in
-      Fmt.fprintf out "(@[<2>%a | %a@])" (pp_sub prec_comprehension) res
+      Fmt.fprintf out "(@[<2>%a :: %a@])" (pp_sub prec_comprehension) res
         (Slice.print ~sep:"," (pp_sub prec_comprehension))
         (Slice.make args 1 ~len:(Array.length args-1))
   in

@@ -241,7 +241,7 @@ let suite_printer =
     test_printer_same __LINE__ "f[a==b==c,1]";
     test_printer __LINE__
       "Comprehension[f[x,y],MatchBind[g[x_],g[a]],MatchBind1[y_,{1,2,3,4}]]"
-      "(f[x,y] | g[x_] <- g[a],y_ <<- {1,2,3,4})";
+      "(f[x,y] :: g[x_] <- g[a],y_ <<- {1,2,3,4})";
     (* TODO
     test_printer_same __LINE__
       "1==a>=b<d<=e b+c|d<e"
