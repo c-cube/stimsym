@@ -9,6 +9,11 @@ type config = {
   verbose: bool;
 }
 
+(* completion callback *)
+let completion str (lnoise:LNoise.completions): unit =
+  Completion.complete str
+  |> List.iter (fun c -> LNoise.add_completion lnoise c.Completion.text)
+
 let rec main_loop ~config () =
   match LNoise.linenoise "> " with
     | None -> ()
@@ -61,6 +66,7 @@ let () =
     verbose= !verbose;
   } in
   ignore (LNoise.history_set ~max_length:1000);
+  LNoise.set_completion_callback completion;
   CCOpt.iter (fun f -> ignore (LNoise.history_load ~filename:f)) history_file;
   if config.verbose then (
     Builtins.log_ := (fun s -> print_endline ("log: " ^ s));
