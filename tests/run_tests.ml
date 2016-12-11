@@ -209,10 +209,10 @@ let suite_printer =
     test_printer __LINE__ "f[a b, c+d e + 1]" "f[a b,c+d e+1]";
     test_printer_same __LINE__ "a_|f[b__]|c";
     test_printer_same __LINE__ "a ___ b";
-    test_printer __LINE__ "f[a_] = b " "f[a_] = b";
+    test_printer __LINE__ "f[a_]=b " "f[a_]=b";
     test_printer __LINE__
-      "f[a_|foo] := b[c] d+f "
-      "f[a_|foo] := b[c] d+f";
+      "f[a_|foo]:=b[c] d+f "
+      "f[a_|foo]:=b[c] d+f";
     test_printer __LINE__ ~strip_space:true
       "FullForm[1==a>=b<d<=e b+c|d<e]"
       "Alternatives[Inequality[1,Equal,a,GreaterEqual,b,Less,d,LessEqual,Plus[Times[e,b],c]],\
@@ -225,19 +225,19 @@ let suite_printer =
     test_printer_same __LINE__ "a!+b";
     test_printer_same __LINE__ "a! b";
     test_printer_same __LINE__ "!a+b! c";
-    test_printer_same __LINE__ "a /; b";
-    test_printer_same __LINE__ "f[a_] /; b";
-    test_printer_same __LINE__ "a_ /; b :> a+1";
+    test_printer_same __LINE__ "a/;b";
+    test_printer_same __LINE__ "f[a_]/;b";
+    test_printer_same __LINE__ "a_/;b:>a+1";
     test_printer_same __LINE__ "f[a] /. {x,y,z}";
     test_printer_same __LINE__ "f[a] //. {x,y,z} d";
-    test_printer_same __LINE__ "f[a,b+c d!] //. {f[x,y,z___] :> f[x y,z]}";
-    test_printer_same __LINE__ "f[a_] = b";
-    test_printer_same __LINE__ "f[a_] :> g[a,a]";
-    test_printer_same __LINE__ "f[x] -> g[x,a]";
-    test_printer_same __LINE__ "f[x] :> g[x,a]";
-    test_printer_same __LINE__ "f[x] -> g[x,a]";
-    test_printer_same __LINE__ "f[x] :> g[x]+h[x] 3";
-    test_printer_same __LINE__ "f -> a===b===c";
+    test_printer_same __LINE__ "f[a,b+c d!] //. {f[x,y,z___]:>f[x y,z]}";
+    test_printer_same __LINE__ "f[a_]=b";
+    test_printer_same __LINE__ "f[a_]:>g[a,a]";
+    test_printer_same __LINE__ "f[x]->g[x,a]";
+    test_printer_same __LINE__ "f[x]:>g[x,a]";
+    test_printer_same __LINE__ "f[x]->g[x,a]";
+    test_printer_same __LINE__ "f[x]:>g[x]+h[x] 3";
+    test_printer_same __LINE__ "f->a===b===c";
     test_printer_same __LINE__ "f[a==b==c,1]";
     test_printer __LINE__
       "Comprehension[f[x,y],MatchBind[g[x_],g[a]],MatchBind1[y_,{1,2,3,4}]]"

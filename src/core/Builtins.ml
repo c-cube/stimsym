@@ -396,13 +396,13 @@ let same_q =
       `S "SameQ";
       `P "symbolic identity, returns True on syntactically identical\
           terms, False otherwise.";
-      `I ("infix", [`P "`a === b`"]);
+      `I ("infix", [`P "`a===b`"]);
     ]
 
 let set =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a = %a" (pp_sub prec_set) lhs (pp_sub prec_set) rhs
+      Fmt.fprintf out "%a=%a" (pp_sub prec_set) lhs (pp_sub prec_set) rhs
     | _ -> raise E.Print_default
   in
   make "Set" ~printer:(prec_set, pp)
@@ -416,7 +416,7 @@ let set =
 let set_delayed =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a := %a" (pp_sub prec_set) lhs (pp_sub prec_set) rhs
+      Fmt.fprintf out "%a:=%a" (pp_sub prec_set) lhs (pp_sub prec_set) rhs
     | _ -> raise E.Print_default
   in
   make "SetDelayed" ~printer:(prec_set, pp)
@@ -433,7 +433,7 @@ let set_delayed =
 let rule =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a -> %a" (pp_sub prec_rule) lhs (pp_sub prec_rule) rhs
+      Fmt.fprintf out "%a->%a" (pp_sub prec_rule) lhs (pp_sub prec_rule) rhs
     | _ -> raise E.Print_default
   in
   make "Rule" ~printer:(prec_rule,pp)
@@ -448,7 +448,7 @@ let rule =
 let rule_delayed =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a :> %a" (pp_sub prec_rule) lhs (pp_sub prec_rule) rhs
+      Fmt.fprintf out "%a:>%a" (pp_sub prec_rule) lhs (pp_sub prec_rule) rhs
     | _ -> raise E.Print_default
   in
   make "RuleDelayed"  ~printer:(prec_rule,pp)
@@ -464,7 +464,7 @@ let rule_delayed =
 let condition =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
-      Fmt.fprintf out "%a /; %a" (pp_sub prec_condition) lhs (pp_sub prec_condition) rhs
+      Fmt.fprintf out "%a/;%a" (pp_sub prec_condition) lhs (pp_sub prec_condition) rhs
     | _ -> raise E.Print_default
   in
   make "Condition"
