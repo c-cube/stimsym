@@ -252,7 +252,7 @@ module Graph = struct
     { vertices; edges=tbl }
 
   let as_graph g =
-    CCGraph.make_tuple (fun v -> E.Tbl.find g.edges v |> Sequence.of_list)
+    CCGraph.make_tuple (fun v -> E.Tbl.get_or ~or_:[] g.edges v |> Sequence.of_list)
 
   let pp_dot out (g:t): unit =
     let fmt = Format.formatter_of_out_channel out in
@@ -313,4 +313,8 @@ let graph =
       `P "`Graph[{a,b,c},{a->b,…}]` builds a graph from a list of vertices \
           and a list of edges.";
       `P "The graph has a graphical display in the notebook.";
+      `I ("example", [
+          `P "a simple 2-layers graph";
+          `Pre "Graph[{i->j :: i_<<- {1,2,3,4}, j_<<-{a,b,c,d}}]";
+        ]);
     ]
