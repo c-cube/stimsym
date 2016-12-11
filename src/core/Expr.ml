@@ -163,35 +163,6 @@ let app hd args = App (hd, args)
 let sequence_of_array (a:t array) = app sequence a
 let sequence_of_slice (a:t Slice.t) = sequence_of_array (Slice.copy a)
 
-let app_flatten hd args =
-  (* splicing *)
-  let must_splice, res_len =
-    Array.fold_left
-      (fun (must_split,len) arg -> match arg with
-         | App (Const {cst_name="Sequence";_}, sub) -> true, len+Array.length sub
-         | _ -> must_split, len+1)
-      (false,0) args
-  in
-  if must_splice
-  then (
-    let args_flat = Array.make res_len null in
-    (* make a flattened array *)
-    let len' =
-      Array.fold_left
-        (fun offset arg -> match arg with
-           | App (Const {cst_name="Sequence";_}, sub) ->
-             Array.blit sub 0 args_flat offset (Array.length sub);
-             offset + Array.length sub
-           | _ ->
-             args_flat.(offset) <- arg;
-             offset + 1)
-        0 args
-    in
-    assert (len' = res_len);
-    App (hd, args_flat)
-  ) else
-    App (hd, args)
-
 let app_l head args = app head (Array.of_list args)
 
 let z n = Z n
@@ -282,6 +253,44 @@ let const_of_string_with ~f name =
     | App _ | Z _ | Q _ | String _ | Reg _ -> assert false
   end;
   c
+
+let app_flatten hd args =
+  (* splicing *)
+  let must_splice, res_len =
+    Array.fold_left
+      (fun (must_split,len) arg -> match hd, arg with
+         | _, App (Const {cst_name="Sequence";_}, sub) ->
+           true, len+Array.length sub
+         | Const c, App (Const c', sub)
+           when Cst.equal c c' && Cst.get_field field_flatten c ->
+           (* same symbol, also "flatten" *)
+           true, len+Array.length sub
+         | _ -> must_split, len+1)
+      (false,0) args
+  in
+  if must_splice
+  then (
+    let args_flat = Array.make res_len null in
+    (* make a flattened array *)
+    let len' =
+      Array.fold_left
+        (fun offset arg -> match hd, arg with
+           | _, App (Const {cst_name="Sequence";_}, sub) ->
+             Array.blit sub 0 args_flat offset (Array.length sub);
+             offset + Array.length sub
+           | Const c, App (Const c', sub)
+             when Cst.equal c c' && Cst.get_field field_flatten c ->
+             Array.blit sub 0 args_flat offset (Array.length sub);
+             offset + Array.length sub
+           | _ ->
+             args_flat.(offset) <- arg;
+             offset + 1)
+        0 args
+    in
+    assert (len' = res_len);
+    App (hd, args_flat)
+  ) else
+    App (hd, args)
 
 (** {2 IO} *)
 
