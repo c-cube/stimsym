@@ -87,13 +87,13 @@ and assoc_pattern_vantage = {
   ap_right: assoc_pattern; (* matches right slice *)
 }
 
-and comprehension_body_item =
+and binding_seq_body_item =
   | Comp_match of pattern * t
   | Comp_match1 of pattern * t
   | Comp_test of t
 
-and comprehension = {
-  comp_body: comprehension_body_item list;
+and binding_seq = {
+  comp_body: binding_seq_body_item list;
   comp_yield: t;
 }
 
@@ -353,7 +353,7 @@ and pp_assoc_pattern out = function
     Format.fprintf out "[@[<hv>%a@]]"
       (Fmt.list ~start:"" ~stop:"" pp_pattern) l
 
-let pp_comprehension out (c:comprehension) =
+let pp_binding_seq out (c:binding_seq) =
   let pp_body out = function
     | Comp_match (pat,e) ->
       Format.fprintf out "@[%a@,<-%a@]"
@@ -591,11 +591,11 @@ let compile_rule (lhs:t) (rhs:t): rewrite_rule =
   let rhs = Pat_compile.tr_term st rhs in
   {rr_pat=pat; rr_pat_as_expr=lhs; rr_rhs=rhs }
 
-exception Invalid_comprehension of string
+exception Invalid_binding_seq of string
 
-let invalid_comprehension msg = raise (Invalid_comprehension msg)
+let invalid_binding_seq msg = raise (Invalid_binding_seq msg)
 
-let compile_comprehension_body (s:t Slice.t) (ret:t): comprehension =
+let compile_binding_seq_body (s:t Slice.t) (ret:t): binding_seq =
   let st = Pat_compile.create() in
   (* evaluation order matters *)
   let body =
@@ -620,17 +620,23 @@ let compile_comprehension_body (s:t Slice.t) (ret:t): comprehension =
   let ret = Pat_compile.tr_term st ret in
   { comp_yield=ret; comp_body=List.rev body }
 
-let compile_comprehension (args:t array): (comprehension,string) Result.result =
+let compile_binding_seq ~ret (args:t array): (binding_seq,string) Result.result =
   try
-    match args with
-      | [||] -> Result.Error "need at least 2 arguments"
-      | _ ->
+    let n = Array.length args in
+    match args, ret with
+      | [||], _ -> Result.Error "need at least 2 arguments"
+      | _, `First ->
         let ret = args.(0) in
-        let body = Slice.make args 1 ~len:(Array.length args-1) in
-        let c = compile_comprehension_body body ret in
+        let body = Slice.make args 1 ~len:(n-1) in
+        let c = compile_binding_seq_body body ret in
+        Result.Ok c
+      | _, `Last ->
+        let ret = args.(n-1) in
+        let body = Slice.make args 0 ~len:(n-1) in
+        let c = compile_binding_seq_body body ret in
         Result.Ok c
   with
-    | Invalid_comprehension msg -> Result.Error msg
+    | Invalid_binding_seq msg -> Result.Error msg
 
 let def_fun f = Fun f
 
@@ -1017,13 +1023,24 @@ and eval_rec (st:eval_state) e =
       ~h:(fun () -> Undo.restore st.st_undo lev) (* restore old state *)
       eval_rec st a
   | App (Const {cst_name="Comprehension";_}, args) when Array.length args>0 ->
-    (* sequence comprehension. First evaluate all terms but the first
-       one, then compile into a comprehension *)
+    (* sequence binding_seq. First evaluate all terms but the first
+       one, then compile into a binding_seq *)
     let args =
       Array.mapi (fun i arg -> if i>0 then eval_rec st arg else arg) args
     in
-    begin match compile_comprehension args with
+    begin match compile_binding_seq ~ret:`First args with
       | Result.Ok c -> eval_comprehension st c
+      | Result.Error msg ->
+        eval_failf "@[<2>could not evaluate@ `%a`@ reason: %s@]" pp e msg
+    end
+  | App (Const {cst_name="Let";_}, args) when Array.length args>0 ->
+    (* sequence of bindings. First evaluate all terms but the first
+       one, then compile into a binding_seq *)
+    let args =
+      Array.mapi (fun i arg -> if i>0 then eval_rec st arg else arg) args
+    in
+    begin match compile_binding_seq ~ret:`Last args with
+      | Result.Ok c -> eval_let st c
       | Result.Error msg ->
         eval_failf "@[<2>could not evaluate@ `%a`@ reason: %s@]" pp e msg
     end
@@ -1165,47 +1182,59 @@ and eval_beta_reduce st fun_body args =
   let t = replace fun_body in
   eval_rec st t
 
-(* evaluate a sequence comprehension *)
-and eval_comprehension st (c:comprehension) =
+and eval_bindings st subst (l:binding_seq_body_item list): Subst.t Sequence.t =
   let open Sequence.Infix in
-  let eval_subst subst t =
-    Subst.apply subst t |> eval_rec st
-  in
+  match l with
+    | [] -> Sequence.return subst
+    | op :: tail ->
+      eval_binding st subst op >>= fun subst -> eval_bindings st subst tail
+
+and eval_binding st subst (op:binding_seq_body_item): Subst.t Sequence.t =
+  let open Sequence.Infix in
+  let eval_subst subst t = Subst.apply subst t |> eval_rec st in
+  match op with
+    | Comp_test t ->
+      let t' = Subst.apply subst t |> eval_rec st in
+      begin match t' with
+        | Const {cst_name="True";_} -> Sequence.return subst
+        | _ -> Sequence.empty
+      end
+    | Comp_match (pat, rhs) ->
+      match_ st subst pat (eval_subst subst rhs)
+    | Comp_match1 (pat, rhs) ->
+      let rhs' = eval_subst subst rhs in
+      (* match each subterm of [rhs] with [pat] *)
+      begin match rhs' with
+        | App (_, args) ->
+          Sequence.of_array args
+          >>= fun sub_rhs ->
+          match_ st subst pat sub_rhs
+        | _ -> Sequence.empty
+      end
+
+(* evaluate a comprehension *)
+and eval_comprehension st (c:binding_seq) =
+  let eval_subst subst t = Subst.apply subst t |> eval_rec st in
   (* recurse through the body *)
-  let rec aux subst (l:comprehension_body_item list): t Sequence.t =
-    match l with
-      | [] ->
-        (* yield result, under subst *)
-        let t = eval_subst subst c.comp_yield in
-        Sequence.return t
-      | op :: tail ->
-        aux_op subst op >>= fun subst -> aux subst tail
-  and aux_op subst (op:comprehension_body_item): Subst.t Sequence.t =
-    match op with
-      | Comp_test t ->
-        let t' = Subst.apply subst t |> eval_rec st in
-        begin match t' with
-          | Const {cst_name="True";_} -> Sequence.return subst
-          | _ -> Sequence.empty
-        end
-      | Comp_match (pat, rhs) ->
-        match_ st subst pat (eval_subst subst rhs)
-      | Comp_match1 (pat, rhs) ->
-        let rhs' = eval_subst subst rhs in
-        (* match each subterm of [rhs] with [pat] *)
-        begin match rhs' with
-          | App (_, args) ->
-            Sequence.of_array args
-            >>= fun sub_rhs ->
-            match_ st subst pat sub_rhs
-          | _ -> Sequence.empty
-        end
-  in
   begin
-    aux Subst.empty c.comp_body
+    eval_bindings st Subst.empty c.comp_body
+    |> Sequence.map (fun subst -> eval_subst subst c.comp_yield)
     |> Sequence.to_list
     |> Array.of_list
     |> app sequence
+  end
+
+(* let is like a binding_seq, but we only return the first result *)
+and eval_let st (c:binding_seq) =
+  let eval_subst subst t = Subst.apply subst t |> eval_rec st in
+  (* recurse through the body *)
+  begin
+    eval_bindings st Subst.empty c.comp_body
+    |> Sequence.map (fun subst -> eval_subst subst c.comp_yield)
+    |> Sequence.head
+    |> (function
+      | Some t -> t
+      | None -> eval_failf "no match for `Let`")
   end
 
 let create_eval_state ~buf () : eval_state = {

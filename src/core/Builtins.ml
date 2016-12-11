@@ -319,6 +319,16 @@ let comprehension =
         ]);
     ]
 
+let let_ =
+  make "Let"
+    ~fields:[E.field_hold_all; E.field_protected]
+    ~doc:[
+      `S "Let";
+      `P "Let binding. It evaluates bindings in order, \
+          then returns the last expression. \
+          Only one result is returned, all backtracking is ignored.";
+    ]
+
 let blank =
   let pp _ _ out args = match args with
     | [||] -> Fmt.string out "_"
