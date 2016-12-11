@@ -22,6 +22,12 @@ module Kernel = struct
 
   type exec_status = (exec_status_ok, string) Result.result
 
+  type completion_status = {
+    completion_matches: string list;
+    completion_start: int;
+    completion_end: int;
+  }
+
   let doc x = Doc x
   let mime ?(base64=false) ~ty x = Mime (ty,x,base64)
 
@@ -29,6 +35,7 @@ module Kernel = struct
 
   type t = {
     exec: count:int -> string -> exec_status Lwt.t;
+    complete: pos:int -> string -> completion_status Lwt.t;
   }
 end
 
@@ -252,11 +259,21 @@ let shutdown_request (t:t) msg _ : 'a Lwt.t =
 let handle_invalid_message () =
   Lwt.fail (Failure "Invalid message on shell socket")
 
-let complete_request _socket _msg _x =
-  () (* TODO: completion *)
+let complete_request t msg (r:complete_request): unit Lwt.t =
+  let%lwt st = t.kernel.Kernel.complete ~pos:r.cursor_pos r.line in
+  let reply = {
+    matches=st.Kernel.completion_matches;
+    cursor_start=st.Kernel.completion_start;
+    cursor_end=st.Kernel.completion_end;
+    cr_status="ok";
+  } in
+  let%lwt _ = send_iopub t
+      (Iopub_send_message (M.Complete_reply reply))
+  in
+  Lwt.return_unit
 
 let object_info_request _socket _msg _x =
-  () (* TODO: completion *)
+  () (* TODO: doc? *)
 
 let connect_request _socket _msg = ()
 let history_request _socket _msg _x = ()
@@ -277,7 +294,7 @@ let run t : unit Lwt.t =
       | M.Execute_request x -> execute_request t msg x
       | M.Connect_request -> connect_request t msg; Lwt.return_unit
       | M.Object_info_request x -> object_info_request t msg x; Lwt.return_unit
-      | M.Complete_request x -> complete_request t msg x; Lwt.return_unit
+      | M.Complete_request x -> complete_request t msg x
       | M.History_request x -> history_request t msg x; Lwt.return_unit
       | M.Shutdown_request x -> shutdown_request t msg x
 

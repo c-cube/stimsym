@@ -138,7 +138,8 @@ type complete_request = Ipython_json_t.complete_request = {
 
 type complete_reply = Ipython_json_t.complete_reply = {
   matches: string list;
-  matched_text: string;
+  cursor_start: int;
+  cursor_end: int;
   cr_status: string
 }
 
@@ -3786,7 +3787,7 @@ let read_execute_request = (
 let execute_request_of_string s =
   read_execute_request (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
 let write__6 = (
-  Ag_oj_run.write_option (
+  Ag_oj_run.write_std_option (
     write_dyn
   )
 )
@@ -3932,7 +3933,7 @@ let read__4 = (
 let _4_of_string s =
   read__4 (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
 let write__5 = (
-  Ag_oj_run.write_option (
+  Ag_oj_run.write_std_option (
     write__4
   )
 )
@@ -4062,7 +4063,7 @@ let read__5 = (
 let _5_of_string s =
   read__5 (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
 let write__3 = (
-  Ag_oj_run.write_option (
+  Ag_oj_run.write_std_option (
     write__2
   )
 )
@@ -4192,7 +4193,7 @@ let read__3 = (
 let _3_of_string s =
   read__3 (Yojson.Safe.init_lexer ()) (Lexing.from_string s)
 let write__1 = (
-  Ag_oj_run.write_option (
+  Ag_oj_run.write_std_option (
     Yojson.Safe.write_string
   )
 )
@@ -5808,11 +5809,20 @@ let write_complete_reply : _ -> complete_reply -> _ = (
       is_first := false
     else
       Bi_outbuf.add_char ob ',';
-    Bi_outbuf.add_string ob "\"matched_text\":";
+    Bi_outbuf.add_string ob "\"cursor_start\":";
     (
-      Yojson.Safe.write_string
+      Yojson.Safe.write_int
     )
-      ob x.matched_text;
+      ob x.cursor_start;
+    if !is_first then
+      is_first := false
+    else
+      Bi_outbuf.add_char ob ',';
+    Bi_outbuf.add_string ob "\"cursor_end\":";
+    (
+      Yojson.Safe.write_int
+    )
+      ob x.cursor_end;
     if !is_first then
       is_first := false
     else
@@ -5833,7 +5843,8 @@ let read_complete_reply = (
     Yojson.Safe.read_space p lb;
     Yojson.Safe.read_lcurl p lb;
     let field_matches = ref (Obj.magic (Sys.opaque_identity 0.0)) in
-    let field_matched_text = ref (Obj.magic (Sys.opaque_identity 0.0)) in
+    let field_cursor_start = ref (Obj.magic (Sys.opaque_identity 0.0)) in
+    let field_cursor_end = ref (Obj.magic (Sys.opaque_identity 0.0)) in
     let field_cr_status = ref (Obj.magic (Sys.opaque_identity 0.0)) in
     let bits0 = ref 0 in
     try
@@ -5847,7 +5858,7 @@ let read_complete_reply = (
           match len with
             | 6 -> (
                 if String.unsafe_get s pos = 's' && String.unsafe_get s (pos+1) = 't' && String.unsafe_get s (pos+2) = 'a' && String.unsafe_get s (pos+3) = 't' && String.unsafe_get s (pos+4) = 'u' && String.unsafe_get s (pos+5) = 's' then (
-                  2
+                  3
                 )
                 else (
                   -1
@@ -5861,8 +5872,16 @@ let read_complete_reply = (
                   -1
                 )
               )
+            | 10 -> (
+                if String.unsafe_get s pos = 'c' && String.unsafe_get s (pos+1) = 'u' && String.unsafe_get s (pos+2) = 'r' && String.unsafe_get s (pos+3) = 's' && String.unsafe_get s (pos+4) = 'o' && String.unsafe_get s (pos+5) = 'r' && String.unsafe_get s (pos+6) = '_' && String.unsafe_get s (pos+7) = 'e' && String.unsafe_get s (pos+8) = 'n' && String.unsafe_get s (pos+9) = 'd' then (
+                  2
+                )
+                else (
+                  -1
+                )
+              )
             | 12 -> (
-                if String.unsafe_get s pos = 'm' && String.unsafe_get s (pos+1) = 'a' && String.unsafe_get s (pos+2) = 't' && String.unsafe_get s (pos+3) = 'c' && String.unsafe_get s (pos+4) = 'h' && String.unsafe_get s (pos+5) = 'e' && String.unsafe_get s (pos+6) = 'd' && String.unsafe_get s (pos+7) = '_' && String.unsafe_get s (pos+8) = 't' && String.unsafe_get s (pos+9) = 'e' && String.unsafe_get s (pos+10) = 'x' && String.unsafe_get s (pos+11) = 't' then (
+                if String.unsafe_get s pos = 'c' && String.unsafe_get s (pos+1) = 'u' && String.unsafe_get s (pos+2) = 'r' && String.unsafe_get s (pos+3) = 's' && String.unsafe_get s (pos+4) = 'o' && String.unsafe_get s (pos+5) = 'r' && String.unsafe_get s (pos+6) = '_' && String.unsafe_get s (pos+7) = 's' && String.unsafe_get s (pos+8) = 't' && String.unsafe_get s (pos+9) = 'a' && String.unsafe_get s (pos+10) = 'r' && String.unsafe_get s (pos+11) = 't' then (
                   1
                 )
                 else (
@@ -5885,19 +5904,26 @@ let read_complete_reply = (
             );
             bits0 := !bits0 lor 0x1;
           | 1 ->
-            field_matched_text := (
+            field_cursor_start := (
               (
-                Ag_oj_run.read_string
+                Ag_oj_run.read_int
               ) p lb
             );
             bits0 := !bits0 lor 0x2;
           | 2 ->
+            field_cursor_end := (
+              (
+                Ag_oj_run.read_int
+              ) p lb
+            );
+            bits0 := !bits0 lor 0x4;
+          | 3 ->
             field_cr_status := (
               (
                 Ag_oj_run.read_string
               ) p lb
             );
-            bits0 := !bits0 lor 0x4;
+            bits0 := !bits0 lor 0x8;
           | _ -> (
               Yojson.Safe.skip_json p lb
             )
@@ -5913,7 +5939,7 @@ let read_complete_reply = (
             match len with
               | 6 -> (
                   if String.unsafe_get s pos = 's' && String.unsafe_get s (pos+1) = 't' && String.unsafe_get s (pos+2) = 'a' && String.unsafe_get s (pos+3) = 't' && String.unsafe_get s (pos+4) = 'u' && String.unsafe_get s (pos+5) = 's' then (
-                    2
+                    3
                   )
                   else (
                     -1
@@ -5927,8 +5953,16 @@ let read_complete_reply = (
                     -1
                   )
                 )
+              | 10 -> (
+                  if String.unsafe_get s pos = 'c' && String.unsafe_get s (pos+1) = 'u' && String.unsafe_get s (pos+2) = 'r' && String.unsafe_get s (pos+3) = 's' && String.unsafe_get s (pos+4) = 'o' && String.unsafe_get s (pos+5) = 'r' && String.unsafe_get s (pos+6) = '_' && String.unsafe_get s (pos+7) = 'e' && String.unsafe_get s (pos+8) = 'n' && String.unsafe_get s (pos+9) = 'd' then (
+                    2
+                  )
+                  else (
+                    -1
+                  )
+                )
               | 12 -> (
-                  if String.unsafe_get s pos = 'm' && String.unsafe_get s (pos+1) = 'a' && String.unsafe_get s (pos+2) = 't' && String.unsafe_get s (pos+3) = 'c' && String.unsafe_get s (pos+4) = 'h' && String.unsafe_get s (pos+5) = 'e' && String.unsafe_get s (pos+6) = 'd' && String.unsafe_get s (pos+7) = '_' && String.unsafe_get s (pos+8) = 't' && String.unsafe_get s (pos+9) = 'e' && String.unsafe_get s (pos+10) = 'x' && String.unsafe_get s (pos+11) = 't' then (
+                  if String.unsafe_get s pos = 'c' && String.unsafe_get s (pos+1) = 'u' && String.unsafe_get s (pos+2) = 'r' && String.unsafe_get s (pos+3) = 's' && String.unsafe_get s (pos+4) = 'o' && String.unsafe_get s (pos+5) = 'r' && String.unsafe_get s (pos+6) = '_' && String.unsafe_get s (pos+7) = 's' && String.unsafe_get s (pos+8) = 't' && String.unsafe_get s (pos+9) = 'a' && String.unsafe_get s (pos+10) = 'r' && String.unsafe_get s (pos+11) = 't' then (
                     1
                   )
                   else (
@@ -5951,19 +5985,26 @@ let read_complete_reply = (
               );
               bits0 := !bits0 lor 0x1;
             | 1 ->
-              field_matched_text := (
+              field_cursor_start := (
                 (
-                  Ag_oj_run.read_string
+                  Ag_oj_run.read_int
                 ) p lb
               );
               bits0 := !bits0 lor 0x2;
             | 2 ->
+              field_cursor_end := (
+                (
+                  Ag_oj_run.read_int
+                ) p lb
+              );
+              bits0 := !bits0 lor 0x4;
+            | 3 ->
               field_cr_status := (
                 (
                   Ag_oj_run.read_string
                 ) p lb
               );
-              bits0 := !bits0 lor 0x4;
+              bits0 := !bits0 lor 0x8;
             | _ -> (
                 Yojson.Safe.skip_json p lb
               )
@@ -5971,11 +6012,12 @@ let read_complete_reply = (
       done;
       assert false;
     with Yojson.End_of_object -> (
-        if !bits0 <> 0x7 then Ag_oj_run.missing_fields p [| !bits0 |] [| "matches"; "matched_text"; "cr_status" |];
+        if !bits0 <> 0xf then Ag_oj_run.missing_fields p [| !bits0 |] [| "matches"; "cursor_start"; "cursor_end"; "cr_status" |];
         (
           {
             matches = !field_matches;
-            matched_text = !field_matched_text;
+            cursor_start = !field_cursor_start;
+            cursor_end = !field_cursor_end;
             cr_status = !field_cr_status;
           }
          : complete_reply)

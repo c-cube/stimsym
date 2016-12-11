@@ -80,12 +80,28 @@ let run_ count str : C.Kernel.exec_status =
         (CCFormat.sprintf "error: %s@." (Printexc.to_string e))
   end
 
+let complete pos str = 
+  let completion_matches =
+    if pos >= String.length str then []
+    else
+      let left = String.sub str 0 pos in
+      Completion.complete left
+      |> List.map (fun c -> c.Completion.text)
+  in
+  let c = {
+    C.Kernel.completion_matches;
+    completion_start=0; completion_end=pos
+  } in
+  c
+
 let () =
   Builtins.log_ := Log.log
 
 let kernel : C.Kernel.t = {
   C.Kernel.
   exec = (fun ~count msg -> Lwt.return (run_ count msg));
+  complete =
+    (fun ~pos msg -> Lwt.return (complete pos msg))
 }
 
 (*******************************************************************************)

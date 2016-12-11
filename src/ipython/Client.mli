@@ -18,6 +18,12 @@ module Kernel : sig
   type exec_status = (exec_status_ok, string) Result.result
   (** error, or list of things to display *)
 
+  type completion_status = {
+    completion_matches: string list;
+    completion_start: int;
+    completion_end: int;
+  }
+
   val doc : Document.t -> exec_action
   val mime : ?base64:bool -> ty:string -> string -> exec_action
 
@@ -25,6 +31,7 @@ module Kernel : sig
 
   type t = {
     exec: count:int -> string -> exec_status Lwt.t;
+    complete: pos:int -> string -> completion_status Lwt.t;
   }
 end
 

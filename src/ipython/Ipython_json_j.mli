@@ -138,7 +138,8 @@ type complete_request = Ipython_json_t.complete_request = {
 
 type complete_reply = Ipython_json_t.complete_reply = {
   matches: string list;
-  matched_text: string;
+  cursor_start: int;
+  cursor_end: int;
   cr_status: string
 }
 
