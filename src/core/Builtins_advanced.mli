@@ -7,3 +7,6 @@ type t = Builtins.t
 
 val sat_solve : t
 (** Call a sat solver on the given arguments *)
+
+val graph : t
+(** Graph structure and display *)

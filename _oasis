@@ -25,7 +25,7 @@ Library stimsym
                     Hash, Slice, Bit_set, Builtins_advanced,
                     Document, Completion
   BuildDepends:     bytes, result, containers, sequence, zarith,
-                    unix, containers.unix
+                    unix, containers.unix, containers.data
 
 Executable stimsym_cli
   Path:             src/cli/

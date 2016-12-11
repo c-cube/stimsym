@@ -156,13 +156,13 @@ module Sat_solve = struct
               let cmd =
                 Printf.sprintf "minisat -cpu-lim=%d %s %s" limit file_in file_out
               in
-              B.logf "call minisat with `%s`" cmd;
+              B.logf "call minisat with `%s`\n" cmd;
               let p = CCUnix.call "%s" cmd in
               let err = p#errcode in
               begin match err with
-                | 10 -> B.log "should return sat"
-                | 20 -> B.log "should return unsat"
-                | n -> B.logf "unknown return: %d" n
+                | 10 -> B.log "should return sat\n"
+                | 20 -> B.log "should return unsat\n"
+                | n -> B.logf "unknown return: %d\n" n
               end;
               let out = CCIO.with_in file_out CCIO.read_lines_l in
               parse_res st out
@@ -191,7 +191,7 @@ module Sat_solve = struct
         |> Sequence.flat_map_l (cnf st)
         |> Sequence.to_rev_list
       in
-      B.logf "call solver with %d clauses" (List.length clauses);
+      B.logf "call solver with %d clauses\n" (List.length clauses);
       let res = match call st clauses with
         | Unsat -> E.app (E.const_of_string "Unsat") [| |]
         | Sat m ->
@@ -233,3 +233,88 @@ let sat_solve =
       `I ("requires", [`P "`minisat` must be on the $PATH"]);
     ]
 
+module Graph = struct
+  (* convenient representation *)
+  type t = {
+    vertices: E.t array;
+    edges: E.t list E.Tbl.t;
+  }
+
+  let make vertices (edges:E.t array): t =
+    let tbl = E.Tbl.create 32 in
+    Array.iter
+      (function
+        | E.App (E.Const {E.cst_name="Rule";_}, [| lhs; rhs |]) ->
+          let l = E.Tbl.get_or ~or_:[] tbl lhs in
+          E.Tbl.replace tbl lhs (rhs :: l)
+        | _ -> raise B.Eval_does_not_apply)
+      edges;
+    { vertices; edges=tbl }
+
+  let as_graph g =
+    CCGraph.make_tuple (fun v -> E.Tbl.find g.edges v |> Sequence.of_list)
+
+  let pp_dot out (g:t): unit =
+    let fmt = Format.formatter_of_out_channel out in
+    let attrs_v v = [`Label (E.to_string v)] in
+    let attrs_e _ = [] in
+    Format.fprintf fmt "%a@."
+      (CCGraph.Dot.pp_seq
+         ~eq:E.equal ~name:"some_graph"
+         ~attrs_v ~attrs_e
+         ~tbl:(CCGraph.mk_table ~eq:E.equal ~hash:E.hash 32)
+         ~graph:(as_graph g))
+       (Sequence.of_array g.vertices)
+
+  let get_png (g:t): E.mime_content =
+    B.log "get png for graph...\n";
+    CCIO.File.with_temp ~prefix:"stimsym_graph" ~suffix:".dot"
+      (fun dot_file ->
+         (* write file, then invoke `dot` *)
+         CCIO.with_out dot_file (fun oc -> pp_dot oc g);
+         let p = CCUnix.call "dot '%s' -Tpng " dot_file in
+         let _ = p#errcode in
+         let data = p#stdout in
+         B.logf "got png (%d bytes)\n" (String.length data);
+         {E.mime_data=data; mime_ty="image/png"; mime_base64=true})
+
+  let eval _ arg e =
+    let res, vertices, edges = match e with
+      | E.App (hd, [| E.App (E.Const {E.cst_name="List";_}, edges) |]) ->
+        (* convert to the canonical form *)
+        let vertices =
+          Sequence.of_array edges
+          |> Sequence.flat_map_l
+            (function
+              | E.App (E.Const {E.cst_name="Rule";_}, [| lhs; rhs |]) ->
+                [lhs;rhs]
+              | _ -> raise B.Eval_does_not_apply)
+          |> E.Tbl.of_seq_count
+          |> E.Tbl.keys_list
+          |> Array.of_list
+        in
+        Some (E.app hd [| E.app B.list vertices; E.app B.list edges |]), vertices, edges
+      | E.App (_,
+          [| E.App (E.Const {E.cst_name="List";_}, vertices);
+             E.App (E.Const {E.cst_name="List";_}, edges)
+          |]) ->
+        (* canonical form already *)
+        None, vertices, edges
+      | _ -> raise B.Eval_does_not_apply
+    in
+    (* display *)
+    E.prim_write_mime arg (lazy (make vertices edges |> get_png));
+    res
+
+end
+
+let graph =
+  B.make "Graph" ~funs:[Graph.eval]
+    ~doc:[
+      `S "Graph";
+      `P "A directed graph structure.";
+      `P "`Graph[{a->b,…}]` builds a graph from a list of edges.";
+      `P "`Graph[{a,b,c},{a->b,…}]` builds a graph from a list of vertices \
+          and a list of edges.";
+      `P "The graph has a graphical display in the notebook.";
+    ]
