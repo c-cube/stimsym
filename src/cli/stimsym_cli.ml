@@ -34,7 +34,9 @@ let rec main_loop ~config () =
                 Format.printf "@[%a@]@." Expr.pp e';
               );
               List.iter
-                (fun doc -> Format.printf "%a@." Document.pp doc)
+                (function
+                  | Expr.Print_doc doc -> Format.printf "%a@." Document.pp doc
+                  | Expr.Print_mime _ -> ())
                 docs
             with
               | Stack_overflow ->

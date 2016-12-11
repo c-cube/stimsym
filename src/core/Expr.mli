@@ -146,9 +146,19 @@ val to_string : t -> string
 
 exception Eval_fail of string
 
+type mime_content = {
+  mime_ty: string;
+  mime_data: string;
+  mime_base64: bool;
+}
+
+type eval_side_effect =
+  | Print_doc of Document.t
+  | Print_mime of mime_content
+
 val eval : t -> t
 
-val eval_full : t -> t * Document.t list
+val eval_full : t -> t * eval_side_effect list
 (** @returns the normal form, and messages printed in the mean time *)
 
 (**/**)
@@ -167,5 +177,7 @@ val prim_write_doc : prim_fun_args -> Document.t lazy_t -> unit
 val prim_print : prim_fun_args -> string -> unit
 
 val prim_printf : prim_fun_args -> ('a, Format.formatter, unit, unit) format4 -> 'a
+
+val prim_write_mime : prim_fun_args -> mime_content lazy_t -> unit
 
 (**/**)

@@ -59,13 +59,18 @@ let run_ count str : C.Kernel.exec_status =
       Log.log (CCFormat.sprintf "parsed: @[%a@]@." Expr.pp_full_form e);
       begin
         try
-          let e', docs = Expr.eval_full e in
+          let e', effects = Expr.eval_full e in
           let res =
             if Expr.equal Builtins.null e'
             then None
             else Some (CCFormat.sprintf "@[%a@]@." Expr.pp e')
           and actions =
-            List.map C.Kernel.doc docs
+            List.map
+              (function
+                | Expr.Print_doc d -> C.Kernel.doc d
+                | Expr.Print_mime {Expr.mime_ty;mime_data;mime_base64} ->
+                  C.Kernel.mime ~base64:mime_base64 ~ty:mime_ty mime_data)
+              effects
           in
           Result.Ok (C.Kernel.ok ~actions res)
         with

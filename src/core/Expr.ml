@@ -111,11 +111,21 @@ and eval_state = {
   (* backtrackable list of rules *)
   st_undo: undo_state;
   (* undo stack, for local operations *)
-  st_print: (Document.t Stack.t) option;
+  st_effects: (eval_side_effect Stack.t) option;
   (* temporary messages *)
 }
 
 and undo_state = (unit -> unit) CCVector.vector
+
+and eval_side_effect =
+  | Print_doc of Document.t
+  | Print_mime of mime_content
+
+and mime_content = {
+  mime_ty: string;
+  mime_data: string;
+  mime_base64: bool;
+}
 
 type expr = t
 
@@ -1201,14 +1211,14 @@ let create_eval_state ~buf () : eval_state = {
   st_rules=[];
   st_local_rules=[];
   st_undo=Undo.create();
-  st_print=buf;
+  st_effects=buf;
 }
 
 let eval e =
   let st = create_eval_state ~buf:None () in
   eval_rec st e
 
-let eval_full e : t * Document.t list =
+let eval_full e : t * eval_side_effect list =
   let q = Stack.create() in
   let st = create_eval_state ~buf:(Some q) () in
   let e' = eval_rec st e in
@@ -1221,13 +1231,19 @@ let prim_eval = eval_rec
 let prim_fail _ = eval_fail
 let prim_failf _ msg = eval_failf msg
 
-let prim_write_doc st = match st.st_print with
+let prim_write_doc st = match st.st_effects with
   | None -> (fun _ -> ())
-  | Some q -> fun msg -> Stack.push (Lazy.force msg) q
+  | Some q -> fun msg -> Stack.push (Print_doc (Lazy.force msg)) q
 
 let prim_print st m = prim_write_doc st (Lazy.from_val [Document.paragraph m])
 
-let prim_printf st = match st.st_print with
+let prim_printf st = match st.st_effects with
   | None -> (fun msg -> Format.ikfprintf (fun _ -> ()) Format.str_formatter msg)
   | Some _ ->
     fun msg -> Fmt.ksprintf msg ~f:(fun msg -> prim_print st msg)
+
+let prim_write_mime st = match st.st_effects with
+  | None -> (fun _ -> ())
+  | Some q -> fun (lazy m) -> Stack.push (Print_mime m) q
+
+
