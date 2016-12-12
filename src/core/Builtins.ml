@@ -524,7 +524,7 @@ let replace_repeated =
     | _ -> raise E.Print_default
   in
   make "ReplaceRepeated" ~printer:(prec_replace,pp)
-    ~fields:[E.field_hold_all; E.field_protected]
+    ~fields:[E.field_hold_first; E.field_protected]
     ~doc:[
       `S "ReplaceRepeated";
       `P "Replacement by rewrite rules until fixpoint. \
@@ -882,6 +882,30 @@ let inequality =
           `Inequality[a,Greater,b,Equal,c,Less,d,LessEqual,e]` \
           and is `True` iff all the tests hold."
     ]
+
+let integer_q =
+  let eval _ _ = function
+    | E.App (_, [| E.Z _ |]) -> Some true_
+    | E.App (_, [| _ |]) -> Some false_
+    | _ -> raise Eval_does_not_apply
+  in
+  make "IntegerQ" ~funs:[eval]
+
+let rational_q =
+  let eval _ _ = function
+    | E.App (_, [| E.Z _ | E.Q _ |]) -> Some true_
+    | E.App (_, [| _ |]) -> Some false_
+    | _ -> raise Eval_does_not_apply
+  in
+  make "RationalQ" ~funs:[eval]
+
+let true_q =
+  let eval _ _ = function
+    | E.App (_, [| E.Const {E.cst_name="True";_} |]) -> Some true_
+    | E.App (_, [| _ |]) -> Some false_
+    | _ -> raise Eval_does_not_apply
+  in
+  make "TrueQ" ~funs:[eval]
 
 let null = make "Null"
 let print =
