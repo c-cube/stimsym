@@ -37,6 +37,9 @@ let completion str (lnoise:LNoise.completions): unit =
   Completion.complete str
   |> List.iter (fun c -> LNoise.add_completion lnoise c.Completion.text)
 
+let pp_rule out n =
+  Format.fprintf out "%s@," (String.make n '=')
+
 let rec main_loop ~config () =
   match LNoise.linenoise "> " with
     | None -> ()
@@ -58,7 +61,8 @@ let rec main_loop ~config () =
               );
               List.iter
                 (function
-                  | Expr.Print_doc doc -> Format.printf "%a@." Document.pp doc
+                  | Expr.Print_doc doc ->
+                    Format.printf "%a@.%a@.%a@." pp_rule 50 Document.pp doc pp_rule 50
                   | Expr.Print_mime m -> display_mime m)
                 docs
             with
