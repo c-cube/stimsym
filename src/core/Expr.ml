@@ -1081,7 +1081,7 @@ and eval_rec (st:eval_state) e =
         (* distribute [hd] on the list and evaluate it *)
         let args = Array.map (fun a -> eval_rec st (app hd [| a |])) args in
         (* return the list of results *)
-        app list_ args
+        app_flatten list_ args
       | App (Const c, _) ->
         (* try every definition of [c] *)
         try_defs st t' (rs_of_cst st c)
@@ -1221,7 +1221,7 @@ and eval_comprehension st (c:binding_seq) =
     |> Sequence.map (fun subst -> eval_subst subst c.comp_yield)
     |> Sequence.to_list
     |> Array.of_list
-    |> app sequence
+    |> app_flatten sequence
   end
 
 (* let is like a binding_seq, but we only return the first result *)
