@@ -40,6 +40,8 @@ val replace_all : t
 val replace_repeated : t
 val alternatives : t
 val compound_expr : t
+val head : t
+val length : t (* number of immediate arguments *)
 
 val slot : t
 val function_ : t
@@ -55,6 +57,10 @@ val plus : t
 val times : t
 val factorial : t
 val list : t
+
+val random : t
+val floor : t
+val ceil : t
 
 val match_bind : t
 val match_bind1 : t

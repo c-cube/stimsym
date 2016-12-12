@@ -387,6 +387,15 @@ let suite_eval =
     mk_eval __LINE__ "TrueQ[a]" "False";
     mk_eval __LINE__ "f[Plus[a,Plus[b,c]]]" "f[Plus[a,b,c]]";
     mk_eval __LINE__ "f[Sequence[a,Sequence[b,c]]]" "f[a,b,c]";
+    mk_eval __LINE__ "Head[f[a,b,c]]" "f";
+    mk_eval __LINE__ "Head[f]" "Head[f]";
+    mk_eval __LINE__ "Length[f[a,b,c]]" "3";
+    mk_eval __LINE__ "Length[f]" "Length[f]";
+    mk_eval __LINE__ "Ceil[1/2]" "1";
+    mk_eval __LINE__ "Ceil[-1/2]" "0";
+    mk_eval __LINE__ "Floor[1/2]" "0";
+    mk_eval __LINE__ "Floor[-1/2]" "-1";
+    mk_eval __LINE__ "Ceil[0]==Floor[0]==0" "True";
   ]
 
 (** {2 Main} *)

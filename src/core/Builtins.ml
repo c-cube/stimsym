@@ -236,6 +236,68 @@ let factorial =
       `I ("postfix", [`P "`a!`"]);
     ]
 
+let q_is_int_ q = Q.equal (Q.to_bigint q |> Q.of_bigint) q
+
+let floor =
+  let eval _ _ = function
+    | E.App (_, [| E.Z _ as x |]) -> Some x
+    | E.App (_, [| E.Q q |]) ->
+      let x =
+        if Q.sign q>=0 || q_is_int_ q
+        then Q.to_bigint q
+        else Q.to_bigint (Q.add q Q.minus_one)
+      in
+      Some (E.z x)
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Floor" ~funs:[eval] ~fields:[E.field_listable]
+
+let ceil =
+  let eval _ _ = function
+    | E.App (_, [| E.Z _ as x |]) -> Some x
+    | E.App (_, [| E.Q q |]) ->
+      let x =
+        if Q.sign q<0 || q_is_int_ q
+        then Q.to_bigint q
+        else Q.to_bigint (Q.add Q.one q)
+      in
+      Some (E.z x)
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Ceil" ~funs:[eval] ~fields:[E.field_listable]
+
+let random =
+  let st = lazy (Random.State.make_self_init ()) in
+  let rand i j : Q.t =
+    if i>=j then raise Eval_does_not_apply;
+    let lazy st = st in
+    let fraction_precision = 1 lsl 20 in
+    let fraction = Random.State.int st (fraction_precision+1) in
+    let offset = Random.State.int st (j-i) in
+    Q.(of_int i + of_int offset + (of_int fraction / of_int fraction_precision))
+  in
+  let eval _ _ = function
+    | E.App (_, [| |]) -> Some (rand 0 1 |> E.q)
+    | E.App (_, [| E.Z i |]) when Z.sign i>0 ->
+      let i = try Z.to_int i with _ -> raise Eval_does_not_apply in
+      Some (rand 0 i |> E.q)
+    | E.App (_, [| E.Z i; E.Z j |]) when Z.compare i j<0 ->
+      let i = try Z.to_int i with _ -> raise Eval_does_not_apply in
+      let j = try Z.to_int j with _ -> raise Eval_does_not_apply in
+      Some (rand i j |> E.q)
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Random" ~funs:[eval]
+    ~doc:[
+      `S "Random";
+      `P "generates random numbers.";
+      `L [
+        [`P "`Random[]` returns a random rational in [0,1]"];
+        [`P "`Random[i]` returns a random rational in [0,i] (if i>0)"];
+        [`P "`Random[i,j]` returns a random rational in [i,j] (if i>j)"];
+      ];
+    ]
+
 let list =
   let pp_list _ pp_sub out a =
     Fmt.fprintf out "{@[<hv>%a@]}"
@@ -555,6 +617,20 @@ let compound_expr =
           returns the value of `c`.";
       `I ("infix", [`P "`a; b`"]);
     ]
+
+let head =
+  let eval _ _ = function
+    | E.App (_, [| E.App (hd, _) |]) -> Some hd
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Head" ~funs:[eval]
+
+let length =
+  let eval _ _ = function
+    | E.App (_, [| E.App (_, args) |]) -> Some (E.of_int (Array.length args))
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Length" ~funs:[eval]
 
 let slot =
   let pp _ _ out = function
