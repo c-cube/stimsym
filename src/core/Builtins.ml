@@ -317,6 +317,19 @@ let comprehension =
           `Pre "`f[x,y] :: g[x_]<<-{a,g[b],c,g[d]},y_<<-{1,2+x,3}`";
           `P "yields `Sequence[f[b,1],f[b,2+b],f[b,3],f[d,1],f[d,2+d],f[d,3]]`";
         ]);
+      `I ("example", [
+          `P "computing all prefixes of a list:";
+          `Pre "`Inits[l_] := {{x} :: {x___,___} <- l};\n\
+                Inits[{1,2,3,4}]";
+          `P "the result is `{{},{1},{1,2},{1,2,3},{1,2,3,4}}`";
+        ]);
+      `I ("example", [
+          `P "computing the permutations of a list:";
+          `Pre "`Perms[{}] := {{}}`";
+          `Pre "`Perms[{x_,r___}] := { {l1,x,l2} :: {l1___,l2___} <<- Perms[{r}]}`";
+          `Pre "`Perms[{1,2,3}]`";
+          `P "returns `{{1,2,3},{2,1,3},{2,3,1},{1,3,2},{3,1,2},{3,2,1}}`";
+        ]);
     ]
 
 let let_ =
