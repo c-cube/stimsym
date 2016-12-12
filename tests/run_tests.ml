@@ -267,7 +267,7 @@ let mk_eval line a b : test =
     try
       let buf = Lexing.from_string a in
       let e = Parser.parse_expr Lexer.token buf in
-      let e = Expr.eval e in
+      let e = Eval.eval e in
       OUnit.assert_equal ~cmp:CCString.equal ~printer:CCFun.id
         b (CCFormat.to_string Expr.pp_full_form e)
     with Parse_loc.Parse_error (_,s) ->

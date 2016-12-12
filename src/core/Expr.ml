@@ -4,7 +4,7 @@
 (** {1 Expressions} *)
 
 module Fmt = CCFormat
-module Properties = Bit_set.Make(struct end)
+include Base_types
 
 let field_protected = Properties.mk_field()
 let field_hold_all = Properties.mk_field()
@@ -17,122 +17,17 @@ let field_listable = Properties.mk_field ()
 let field_no_duplicates = Properties.mk_field()
 let () = Properties.freeze()
 
-(* TODO: remove? *)
-type def_style =
-  | Def_eager
-  | Def_lazy
-
 (** {2 Basics} *)
 
-exception Print_default
-
-type const = {
-  cst_name: string;
-  cst_id: int;
-  mutable cst_properties: Properties.t;
-  mutable cst_rules: def list;
-  mutable cst_local_rules: rewrite_rule list;
-  mutable cst_doc: Document.t;
-  mutable cst_printer: (int * const_printer) option;
-  mutable cst_display : mime_printer option;
-}
-
-and t =
+type t = Base_types.expr =
   | Const of const
   | App of t * t array
   | Z of Z.t
   | Q of Q.t
   | String of string
-  | Reg of int (* only in rules RHS *)
+  | Reg of int
 
-and const_printer = const -> (int -> t Fmt.printer) -> t array Fmt.printer
-
-(* (partial) definition of a symbol *)
-and def =
-  | Rewrite of rewrite_rule
-  | Fun of prim_fun
-
-and rewrite_rule = {
-  rr_pat: pattern;
-  rr_pat_as_expr: t;
-  rr_rhs: t;
-}
-
-and pattern =
-  | P_const of const
-  | P_z of Z.t
-  | P_q of Q.t
-  | P_string of string
-  | P_app of pattern * pattern array
-  | P_blank
-  | P_blank_sequence (* >= 1 elements *)
-  | P_blank_sequence_null (* >= 0 elements *)
-  | P_fail
-  | P_bind of int * pattern
-    (* match, then bind register *)
-  | P_check_same of int * pattern
-    (* match, then check syntactic equality with content of register *)
-  | P_alt of pattern list
-  | P_app_assoc of pattern * assoc_pattern (* for slices *)
-  | P_conditional of pattern * t (* pattern if condition *)
-
-and assoc_pattern =
-  | AP_vantage of assoc_pattern_vantage
-  | AP_pure of pattern list * int (* only sequence/sequencenull; min size *)
-
-(* a subtree used for associative pattern matching *)
-and assoc_pattern_vantage = {
-  ap_min_size: int; (* minimum length of matched slice *)
-  ap_left: assoc_pattern; (* matches left slice *)
-  ap_vantage: pattern; (* match this unary pattern first *)
-  ap_right: assoc_pattern; (* matches right slice *)
-}
-
-and binding_seq_body_item =
-  | Comp_match of pattern * t
-  | Comp_match1 of pattern * t
-  | Comp_test of t
-
-and binding_seq = {
-  comp_body: binding_seq_body_item list;
-  comp_yield: t;
-}
-
-(* TODO? *)
-and prim_fun_args = eval_state
-
-and prim_fun = prim_fun_args -> t -> t option
-
-(* state for evaluation *)
-and eval_state = {
-  mutable st_iter_count: int;
-  (* number of iterations *)
-  mutable st_rules: rewrite_rule list;
-  (* permanent list of rules *)
-  mutable st_local_rules: rewrite_rule list;
-  (* backtrackable list of rules *)
-  st_undo: undo_state;
-  (* undo stack, for local operations *)
-  st_effects: (eval_side_effect Stack.t) option;
-  (* temporary messages *)
-}
-
-and undo_state = (unit -> unit) CCVector.vector
-
-and eval_side_effect =
-  | Print_doc of Document.t
-  | Print_mime of mime_content
-
-and mime_content = {
-  mime_ty: string;
-  mime_data: string;
-  mime_base64: bool;
-}
-
-(* custom display for expressions *)
-and mime_printer = t -> mime_content list
-
-type expr = t
+exception Print_default
 
 module Str_tbl = CCHashtbl.Make(struct
     type t = string
@@ -169,15 +64,9 @@ let const_of_string name =
     Str_tbl.add bank.by_name name c;
     c
 
-let true_ = const_of_string "True"
-let false_ = const_of_string "False"
-let null = const_of_string "Null"
-let sequence = const_of_string "Sequence"
-
 let app hd args = App (hd, args)
 
-let sequence_of_array (a:t array) = app sequence a
-let sequence_of_slice (a:t Slice.t) = sequence_of_array (Slice.copy a)
+let null = const_of_string "Null"
 
 let app_l head args = app head (Array.of_list args)
 
@@ -194,34 +83,6 @@ let of_int i = Z (Z.of_int i)
 let of_int_ratio a b = Q (Q.of_ints a b)
 
 let of_float x = Q (Q.of_float x)
-
-(** {2 Undo Stack}
-
-    Used for local operations *)
-module Undo : sig
-  type t = undo_state
-  type level
-  val create : unit -> t
-  val push : t -> (unit -> unit) -> unit
-  val save : t -> level
-  val restore : t -> level -> unit
-end = struct
-  type t = undo_state
-  type level = int
-
-  let create() : t = CCVector.create()
-
-  let push = CCVector.push
-
-  let save v = CCVector.length v
-
-  let restore v lev =
-    assert (lev < CCVector.length v);
-    while lev < CCVector.length v do
-      let op = CCVector.pop_exn v in
-      op ();
-    done
-end
 
 (** {2 Constants} *)
 
@@ -247,15 +108,15 @@ module Cst = struct
       c.cst_rules <- [d] (* shadowing *)
     | _ -> c.cst_rules <- d :: c.cst_rules
 
-  let add_local_rule (u:Undo.t) rule c = match rule with
+  let add_local_rule (u:undo_state) rule c = match rule with
     | {rr_pat=P_const c'; _} when equal c c' ->
       let old_local_rules = c.cst_local_rules in
       c.cst_local_rules <- [rule];
-      Undo.push u (fun () -> c.cst_local_rules <- old_local_rules)
+      CCVector.push u (fun () -> c.cst_local_rules <- old_local_rules)
     | _ ->
       let old_local_rules = c.cst_local_rules in
       c.cst_local_rules <- rule :: c.cst_local_rules;
-      Undo.push u (fun () -> c.cst_local_rules <- old_local_rules)
+      CCVector.push u (fun () -> c.cst_local_rules <- old_local_rules)
 
   let set_doc d c = c.cst_doc <- d
 
@@ -312,6 +173,45 @@ let app_flatten hd args =
   ) else
     App (hd, args)
 
+(** {2 Comparisons} *)
+
+let rec equal a b = match a, b with
+  | Z n1, Z n2 -> Z.equal n1 n2
+  | Z z, Q q
+  | Q q, Z z -> Q.equal q (Q.of_bigint z)
+  | Q n1, Q n2 -> Q.equal n1 n2
+  | String s1, String s2 -> s1=s2
+  | Const c1, Const c2 -> c1.cst_id = c2.cst_id
+  | App (f1,a1), App (f2,a2) ->
+    Array.length a1=Array.length a2 &&
+    equal f1 f2 &&
+    CCArray.equal equal a1 a2
+  | Reg i, Reg j when i=j -> true
+  | Z _, _ | Q _, _ | String _, _ | Const _, _ | App _, _ | Reg _, _
+    -> false
+
+(* hash up to a given depth *)
+let rec hash_limit n t =
+  if n=0 then 0x42
+  else match t with
+    | Reg i -> Hash.int i
+    | Z n -> Z.hash n
+    | Q n -> Q.to_string n |> Hash.string
+    | String s -> Hash.string s
+    | Const c -> Cst.hash c
+    | App (f, a) ->
+      Hash.combine3 0x11
+        (hash_limit (n-1) f)
+        (Hash.array (hash_limit (n-1)) a)
+
+let hash t = hash_limit 5 t
+
+module Tbl = CCHashtbl.Make(struct
+    type t = expr
+    let equal = equal
+    let hash = hash
+  end)
+
 (** {2 IO} *)
 
 let rec pp_full_form out (t:t) = match t with
@@ -323,60 +223,6 @@ let rec pp_full_form out (t:t) = match t with
   | Q n -> Q.pp_print out n
   | String s -> Format.fprintf out "%S" s
   | Reg i -> Format.fprintf out "Reg[%d]" i
-
-let rec pp_pattern out (p:pattern) = match p with
-  | P_const {cst_name; _} -> Format.pp_print_string out cst_name
-  | P_app (head, args) ->
-    Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
-      pp_pattern head (Fmt.array ~start:"" ~stop:"" ~sep:"," pp_pattern) args
-  | P_app_assoc (head, arg) ->
-    Format.fprintf out "@[<2>%a[@[%a@]]@]"
-      pp_pattern head pp_assoc_pattern arg
-  | P_z n -> Z.pp_print out n
-  | P_q n -> Q.pp_print out n
-  | P_string s -> Format.fprintf out "%S" s
-  | P_blank -> Fmt.string out "Blank[]"
-  | P_blank_sequence -> Fmt.string out "BlankSequence[]"
-  | P_blank_sequence_null -> Fmt.string out "BlankNullSequence[]"
-  | P_fail -> Fmt.string out "Fail[]"
-  | P_alt ([] | [_]) -> assert false
-  | P_alt l ->
-    Format.fprintf out "(@[<hv>%a@])"
-      (Fmt.list ~start:"" ~stop:"" ~sep:"|" pp_pattern) l
-  | P_bind (i,p) -> Format.fprintf out "Pattern[%d,@[%a@]]" i pp_pattern p
-  | P_check_same (i,p) -> Format.fprintf out "CheckSame[%d,@[%a@]]" i pp_pattern p
-  | P_conditional (p,cond) ->
-    Format.fprintf out "Condition[%a,%a]" pp_pattern p pp_full_form cond
-
-and pp_assoc_pattern out = function
-  | AP_vantage apv ->
-    Format.fprintf out "[@[<2>%a,@,vantage(@[%a@]),@,%a@]]"
-      pp_assoc_pattern apv.ap_left
-      pp_pattern apv.ap_vantage pp_assoc_pattern apv.ap_right
-  | AP_pure (l,_) ->
-    Format.fprintf out "[@[<hv>%a@]]"
-      (Fmt.list ~start:"" ~stop:"" pp_pattern) l
-
-let pp_binding_seq out (c:binding_seq) =
-  let pp_body out = function
-    | Comp_match (pat,e) ->
-      Format.fprintf out "@[%a@,<-%a@]"
-        pp_pattern pat pp_full_form e
-    | Comp_match1 (pat,e) ->
-      Format.fprintf out "@[%a@,<<-%a@]"
-        pp_pattern pat pp_full_form e
-    | Comp_test e -> pp_full_form out e
-  in
-  Format.fprintf out "Comprehension[@[%a,@,@[<hv>%a@]@]]"
-    pp_full_form c.comp_yield
-    (Fmt.list ~start:"" ~stop:"" ~sep:"," pp_body) c.comp_body
-
-let pp_rule out (r:rewrite_rule): unit =
-  Format.fprintf out "@[%a @<1>→@ %a@]" pp_pattern r.rr_pat pp_full_form r.rr_rhs
-
-let pp_def out = function
-  | Rewrite r -> pp_rule out r
-  | Fun _ -> Fmt.string out "<primi>"
 
 let to_string_compact t =
   let buf = Buffer.create 32 in
@@ -431,861 +277,5 @@ let pp out (t:t) =
   end
 
 let to_string t = Fmt.to_string pp t
-
-(** {2 Evaluation} *)
-
-exception Invalid_rule of string
-
-let invalid_rule msg = raise (Invalid_rule msg)
-let invalid_rulef msg = Fmt.ksprintf msg ~f:invalid_rule
-
-let rec matches_slice (p:pattern): bool = match p with
-  | P_blank_sequence | P_blank_sequence_null -> true
-  | P_alt l -> List.exists matches_slice l
-  | P_bind (_, sub_p)
-  | P_conditional (sub_p, _)
-  | P_check_same (_, sub_p) -> matches_slice sub_p
-  | P_blank -> false
-  | P_q _ | P_z _ | P_string _ | P_app _ | P_const _ | P_fail | P_app_assoc _
-    -> false
-
-(* 0 or 1, depending on whether the pattern can be Null *)
-let rec pat_assoc_min_size (p:pattern): int = match p with
-  | P_blank_sequence -> 1
-  | P_blank_sequence_null -> 0
-  | P_alt [] -> assert false
-  | P_alt (x::l) ->
-    List.fold_left (fun n p -> min n (pat_assoc_min_size p)) (pat_assoc_min_size x) l
-  | P_bind (_, sub_p)
-  | P_conditional (sub_p, _)
-  | P_check_same (_, sub_p) -> pat_assoc_min_size sub_p
-  | P_blank | P_q _ | P_z _ | P_string _ | P_app _ | P_const _
-  | P_fail | P_app_assoc _
-    -> 1
-
-let ap_assoc_min_size (ap:assoc_pattern): int = match ap with
-  | AP_vantage apv -> apv.ap_min_size
-  | AP_pure (_,i) -> i
-
-module Pat_compile = struct
-  type state = {
-    tbl: (string, int) Hashtbl.t;
-    (* var name -> register *)
-    surrounding: string Stack.t;
-    (* variables bound in superterms, to avoid cyclical substitutions *)
-  }
-
-  let create() : state = {
-    tbl = Hashtbl.create 12;
-    surrounding=Stack.create();
-  }
-
-  (* convert LHS into a proper pattern *)
-  let rec tr_pattern st t = match t with
-    | Const c -> P_const c
-    | String s -> P_string s
-    | Z n -> P_z n
-    | Q n -> P_q n
-    | App (Const {cst_name="Blank";_},[||]) -> P_blank
-    | App (Const {cst_name="BlankSequence";_},[||]) -> P_blank_sequence
-    | App (Const {cst_name="BlankNullSequence";_},[||]) -> P_blank_sequence_null
-    | App (Const {cst_name="Pattern";_},
-        [| Const {cst_name=x;_}; sub |]) ->
-      (* [x] on the stack -> failure, would lead to cyclical subst *)
-      if Sequence.of_stack st.surrounding |> Sequence.mem x then (
-        invalid_rulef "variable `%s` cannot appear in its own pattern" x
-      );
-      (* compute pattern itself *)
-      let sub_p = match sub with
-        | App (Const {cst_name="Blank";_}, [||]) -> P_blank (* trivial case *)
-        | _ ->
-          Stack.push x st.surrounding;
-          CCFun.finally2 ~h:(fun () -> ignore (Stack.pop st.surrounding))
-            tr_pattern st sub
-      in
-      begin match CCHashtbl.get st.tbl x with
-        | None ->
-          (* bind content of sub to [i] *)
-          let i = Hashtbl.length st.tbl in
-          Hashtbl.add st.tbl x i;
-          P_bind (i, sub_p)
-        | Some i ->
-          (* already bound, check SameQ *)
-          P_check_same (i, sub_p)
-      end
-    | App (Const {cst_name="Alternatives";_}, [| |]) -> P_fail
-    | App (Const {cst_name="Alternatives";_}, [| p |]) -> tr_pattern st p
-    | App (Const {cst_name="Alternatives";_}, a) ->
-      let l = CCList.init (Array.length a) (fun i -> tr_pattern st a.(i)) in
-      P_alt l
-    | App (Const {cst_name="Condition";_}, [| p; cond |]) ->
-      let p = tr_pattern st p in
-      let cond = tr_term st cond in (* replace variables, etc. in condition *)
-      (* TODO: check vars(cond) ⊆ vars(p) *)
-      P_conditional (p, cond)
-    | App (hd, args) ->
-      let hd = tr_pattern st hd in
-      let args = Array.map (tr_pattern st) args in
-      if CCArray.exists matches_slice args
-      then (
-        (* associative match *)
-        let ap = ap_of_pats (Slice.full args) in
-        P_app_assoc (hd, ap)
-      ) else (
-        (* otherwise, match structurally *)
-        P_app (hd, args)
-      )
-    | Reg _ -> assert false
-  (* convert variables in RHS *)
-  and tr_term st t = match t with
-    | Z _ | Q _ | String _ -> t
-    | App (hd, args) ->
-      let hd = tr_term st hd in
-      let args = Array.map (tr_term st) args in
-      app hd args
-    | Reg _  -> assert false
-    | Const {cst_name;_} ->
-      begin match CCHashtbl.get st.tbl cst_name with
-        | None -> t
-        | Some i -> reg i (* lookup *)
-      end
-  (* build an associative pattern tree out of this list of patterns *)
-  and ap_of_pats (a:pattern Slice.t): assoc_pattern =
-    let n = Slice.length a in
-    if n=0 then AP_pure ([],0)
-    else (
-      (* TODO: refine this, e.g. with a "specificity" score that
-         is higher when the pattern is more specific (low for Blank, high
-         for constant applications, literals, etc.) and pick the most
-         specific non-slice pattern as vantage point *)
-      let matches_single p = not (matches_slice p) in
-      (* try to find a vantage point *)
-      begin match Slice.find_idx matches_single a with
-        | Some (i, vantage) ->
-          (* recurse in left and right parts of the pattern *)
-          let left = ap_of_pats (Slice.sub a 0 i) in
-          let right = ap_of_pats (Slice.sub a (i+1) (n-i-1)) in
-          let ap_min_size =
-            pat_assoc_min_size vantage +
-              ap_assoc_min_size left +
-              ap_assoc_min_size right
-          in
-          AP_vantage {
-            ap_vantage=vantage;
-            ap_left=left;
-            ap_right=right;
-            ap_min_size;
-          }
-        | None ->
-          (* pure pattern: only slice-matching patterns *)
-          let l = Slice.copy a |> Array.to_list in
-          let min_size =
-            List.fold_left
-              (fun acc p -> acc+pat_assoc_min_size p) 0 l
-          in
-          AP_pure (l, min_size)
-      end
-    )
-end
-
-(* raise Invalid_rule if cannot compile *)
-let compile_rule (lhs:t) (rhs:t): rewrite_rule =
-  let st = Pat_compile.create() in
-  let pat = Pat_compile.tr_pattern st lhs in
-  let rhs = Pat_compile.tr_term st rhs in
-  {rr_pat=pat; rr_pat_as_expr=lhs; rr_rhs=rhs }
-
-exception Invalid_binding_seq of string
-
-let invalid_binding_seq msg = raise (Invalid_binding_seq msg)
-
-let compile_binding_seq_body (s:t Slice.t) (ret:t): binding_seq =
-  let st = Pat_compile.create() in
-  (* evaluation order matters *)
-  let body =
-    Slice.fold_left
-      (fun acc sub ->
-         begin match sub with
-           | App (Const {cst_name="MatchBind";_}, [| pat; rhs |]) ->
-             let pat = Pat_compile.tr_pattern st pat in
-             let rhs = Pat_compile.tr_term st rhs in
-             Comp_match (pat,rhs) :: acc
-           | App (Const {cst_name="MatchBind1";_}, [| pat; rhs |]) ->
-             let pat = Pat_compile.tr_pattern st pat in
-             let rhs = Pat_compile.tr_term st rhs in
-             Comp_match1 (pat,rhs) :: acc
-           | _ ->
-             let t = Pat_compile.tr_term st sub in
-             Comp_test t :: acc
-         end)
-      []
-      s
-  in
-  let ret = Pat_compile.tr_term st ret in
-  { comp_yield=ret; comp_body=List.rev body }
-
-let compile_binding_seq ~ret (args:t array): (binding_seq,string) Result.result =
-  try
-    let n = Array.length args in
-    match args, ret with
-      | [||], _ -> Result.Error "need at least 2 arguments"
-      | _, `First ->
-        let ret = args.(0) in
-        let body = Slice.make args 1 ~len:(n-1) in
-        let c = compile_binding_seq_body body ret in
-        Result.Ok c
-      | _, `Last ->
-        let ret = args.(n-1) in
-        let body = Slice.make args 0 ~len:(n-1) in
-        let c = compile_binding_seq_body body ret in
-        Result.Ok c
-  with
-    | Invalid_binding_seq msg -> Result.Error msg
-
-let def_fun f = Fun f
-
-let def_rule ~lhs ~rhs =
-  try
-    let r = compile_rule lhs rhs in
-    Result.Ok (Rewrite r)
-  with Invalid_rule str ->
-    Result.Error str
-
-exception Eval_fail of string
-
-let () = Printexc.register_printer
-    (function
-      | Eval_fail s ->
-        Some ("evaluation failed:\n" ^ s)
-      | _ -> None)
-
-let eval_fail msg = raise (Eval_fail msg)
-let eval_failf msg = Fmt.ksprintf msg ~f:eval_fail
-
-module Subst : sig
-  type t
-  val empty : t
-  val add : int -> expr -> t -> t
-  val mem : int -> t -> bool
-  val get : int -> t -> expr option
-  val get_exn : int -> t -> expr
-  val apply : t -> expr -> expr
-  val pp : t Fmt.printer
-end = struct
-  module IntMap = CCMap.Make(CCInt)
-  type t = expr IntMap.t
-  let empty = IntMap.empty
-  let add = IntMap.add
-  let mem = IntMap.mem
-  let get = IntMap.get
-
-  let pp out (s:t) =
-    Format.fprintf out "{@[<hv>%a@]}"
-      (IntMap.print ~start:"" ~stop:"" Fmt.int pp_full_form) s
-
-  let get_exn i s =
-    try IntMap.find i s
-    with Not_found ->
-      invalid_arg (Fmt.sprintf "could not find %d in %a" i pp s)
-
-  let rec apply (s:t) (t:expr): expr = match t with
-    | Reg i ->
-      begin match IntMap.get i s with
-        | None -> assert false
-        | Some u -> u
-      end
-    | Const _ | Z _ | Q _ | String _ -> t
-    | App (hd, args) ->
-      app_flatten (apply s hd) (Array.map (apply s) args)
-end
-
-let equal_with (subst:Subst.t) a b: bool =
-  let rec eq_aux a b = match a, b with
-    | Z n1, Z n2 -> Z.equal n1 n2
-    | Z z, Q q
-    | Q q, Z z -> Q.equal q (Q.of_bigint z)
-    | Q n1, Q n2 -> Q.equal n1 n2
-    | String s1, String s2 -> s1=s2
-    | Const c1, Const c2 -> c1.cst_id = c2.cst_id
-    | App (f1,a1), App (f2,a2) ->
-      Array.length a1=Array.length a2 &&
-      eq_aux f1 f2 &&
-      CCArray.equal eq_aux a1 a2
-    | Reg i, Reg j when i=j -> true
-    | Reg i, _ ->
-      (* lookup *)
-      begin match Subst.get i subst with
-        | None -> false
-        | Some a' -> eq_aux a' b
-      end
-    | _, Reg j ->
-      (* lookup *)
-      begin match Subst.get j subst with
-        | None -> false
-        | Some b' -> eq_aux a b'
-      end
-    | Z _, _ | Q _, _ | String _, _ | Const _, _ | App _, _
-      -> false
-  in
-  eq_aux a b
-
-let equal = equal_with Subst.empty
-
-(* hash up to a given depth *)
-let rec hash_limit n t =
-  if n=0 then 0x42
-  else match t with
-    | Reg i -> Hash.int i
-    | Z n -> Z.hash n
-    | Q n -> Q.to_string n |> Hash.string
-    | String s -> Hash.string s
-    | Const c -> Cst.hash c
-    | App (f, a) ->
-      Hash.combine3 0x11
-        (hash_limit (n-1) f)
-        (Hash.array (hash_limit (n-1)) a)
-
-let hash t = hash_limit 5 t
-
-module Tbl = CCHashtbl.Make(struct
-    type t = expr
-    let equal = equal
-    let hash = hash
-  end)
-
-(* set of definitions and rules we can use for rewriting *)
-type rewrite_set =
-  | RS_empty
-  | RS_add_rules of rewrite_rule list * rewrite_set
-  | RS_add_defs of def list * rewrite_set
-
-let rs_of_st st: rewrite_set =
-  RS_add_rules (st.st_local_rules, RS_add_rules (st.st_rules, RS_empty))
-
-let rs_of_cst st c: rewrite_set =
-  RS_add_rules (c.cst_local_rules,
-    RS_add_defs (c.cst_rules, rs_of_st st))
-
-let pp_slice out s =
-  Format.fprintf out "[@[%a@]]"
-    (Slice.print pp_full_form) s
-
-let trace_on_ : bool ref = ref false
-
-(* tracing evaluation *)
-let trace_eval_ k =
-  if !trace_on_
-  then (
-    k (fun msg ->
-      Format.kfprintf (fun out -> Format.fprintf out "@.") Format.std_formatter msg)
-  )
-
-let set_eval_trace b = trace_on_ := b
-
-(* @raise No_head if there is no head *)
-let rec pattern_head (p:pattern): const = match p with
-  | P_const c -> c
-  | P_z _ | P_q _ | P_string _
-  | P_blank | P_blank_sequence | P_blank_sequence_null | P_fail
-    -> raise No_head
-  | P_app_assoc (f,_) | P_app (f,_)
-    -> pattern_head f
-  | P_bind (_,p')
-  | P_conditional (p',_)
-  | P_check_same (_,p') -> pattern_head p'
-  | P_alt [] -> raise No_head
-  | P_alt (x::tail) ->
-    begin match pattern_head x with
-      | c -> c
-      | exception No_head -> pattern_head (P_alt tail)
-    end
-
-(* return all the matches of [pat] against [e], modifying [st]
-   every time in a backtracking way *)
-let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequence.t =
-  (* TODO: AC matching… *)
-  let rec match_pair (subst:Subst.t) (pat:pattern) (e:t) yield: unit =
-    trace_eval_ (fun k->k "@[<2>match @[%a@]@ with: @[%a@]@ subst: @[%a@]@]"
-      pp_pattern pat pp_full_form e Subst.pp subst);
-    begin match pat, e with
-      | P_z a, Z b -> if Z.equal a b then yield subst
-      | P_q a, Q b -> if Q.equal a b then yield subst
-      | P_q a, Z b -> if Q.equal a (Q.of_bigint b) then yield subst
-      | P_z a, Q b -> if Q.equal (Q.of_bigint a) b then yield subst
-      | P_string a, String b -> if a=b then yield subst
-      | P_const c, Const d -> if Cst.equal c d then yield subst
-      | P_blank, _ -> yield subst
-      | P_bind (i, P_blank), _ ->
-        (* easy case: bind [i] *)
-        assert (not (Subst.mem i subst));
-        let subst = Subst.add i e subst in
-        yield subst
-      | P_bind (i, sub_pat), _ ->
-        match_pair subst sub_pat e
-          (fun subst ->
-             assert (not (Subst.mem i subst));
-             (* bind [i] *)
-             let subst = Subst.add i e subst in
-             yield subst)
-      | P_check_same (i, sub_pat), _ ->
-        match_pair subst sub_pat e
-          (fun subst ->
-             (* get current binding for [i] *)
-             let other = Subst.get_exn i subst in
-             trace_eval_
-               (fun k->k "(@[<2>check_same@ %a@ %a@])" pp_full_form e pp_full_form other);
-             if equal e other then yield subst)
-      | P_app (hd, args), App (hd', args')
-        when Array.length args = Array.length args' ->
-        match_pair subst hd hd'
-          (fun subst -> match_arrays subst args args' 0 yield)
-      | P_app_assoc (hd, tree), App (hd', args) ->
-        (* associative matching *)
-        match_pair subst hd hd'
-          (fun subst -> match_assoc subst tree (Slice.full args) yield)
-      | P_conditional (p', cond), _ ->
-        match_pair subst p' e
-          (fun subst ->
-             if check_cond subst cond then yield subst)
-      | P_fail, _ -> ()
-      | P_alt l, _ -> match_alt subst l e yield
-      | P_z _, _
-      | P_q _, _
-      | P_const _, _
-      | P_string _, _
-      | P_app_assoc _, _
-      | P_app _, _
-      | P_blank_sequence, _
-      | P_blank_sequence_null, _
-        -> () (* fail *)
-    end
-  (* match arrays pairwise *)
-  and match_arrays subst a b (i:int) yield: unit =
-    if i = Array.length a then (
-      assert (i = Array.length b);
-      yield subst
-    ) else
-      match_pair subst a.(i) b.(i)
-        (fun subst ->
-           match_arrays subst a b (i+1) yield
-    )
-  (* try alternatives *)
-  and match_alt subst (l:pattern list) e yield: unit =
-    List.iter (fun pat -> match_pair subst pat e yield) l
-  (* check if [cond --> true] *)
-  and check_cond (subst:Subst.t)(cond:t): bool =
-    let cond' = Subst.apply subst cond in
-    begin match eval_rec st cond' with
-      | Const {cst_name="True";_} -> true
-      | Const {cst_name="False";_} -> false
-      | cond' ->
-        eval_failf
-          "@[<2>expected True/False,@ but condition `@[%a@]`@ \
-           reduces to `@[%a@]`@ in subst %a@]"
-          pp_full_form cond pp_full_form cond' Subst.pp subst
-    end
-  (* match tree [ap] to slice [slice] *)
-  and match_assoc subst (ap:assoc_pattern) (slice:t Slice.t) yield: unit =
-    match ap with
-      | AP_vantage apv -> match_ap_vantage subst apv slice yield
-      | AP_pure (l,_) -> match_ap_pure subst l slice yield
-  and match_ap_vantage subst (apv:assoc_pattern_vantage) slice yield =
-    trace_eval_ (fun k->k "@[<2>match_ap_vantage @[%a@]@ slice @[%a@]@]"
-      pp_pattern apv.ap_vantage pp_slice slice);
-    (* check that there are enough elements *)
-    let n = Slice.length slice in
-    if apv.ap_min_size > n then ()
-    else (
-      (* the range in which we can match [ap.ap_vantage] safely *)
-      let min, max =
-        ap_assoc_min_size apv.ap_left,
-        n - ap_assoc_min_size apv.ap_right
-      in
-      for vantage_idx = min to max-1 do
-        (* try with this index *)
-        trace_eval_ (fun k->k
-            "@[match_ap_vantage@ at idx %d,@ pat @[%a@]@ \
-             (min %d, max %d, slice @[%a@])@]"
-          vantage_idx pp_pattern apv.ap_vantage min max pp_slice slice);
-        match_pair subst apv.ap_vantage (Slice.get slice vantage_idx)
-          (fun subst ->
-             let slice_left = Slice.sub slice 0 vantage_idx in
-             match_assoc subst apv.ap_left slice_left
-               (fun subst ->
-                  let slice_right =
-                    Slice.sub slice (vantage_idx+1) (n-vantage_idx-1)
-                  in
-                  match_assoc subst apv.ap_right slice_right yield))
-      done
-    )
-  and match_ap_pure subst (l:pattern list) slice yield =
-    let n = Slice.length slice in
-    begin match l, n with
-      | [], 0 -> yield subst
-      | [], _ -> () (* fail to match some elements *)
-      | [p], _ ->
-        (* match [p] with the whole slice *)
-        match_pat_slice subst p slice yield
-      | p1 :: tail, _ ->
-        (* cut [slice] into two parts, one to be matched with [p1],
-           the rest with [tail]
-           TODO a bit too naive, use info about min length *)
-        for i=0 to n do
-          let slice1 = Slice.sub slice 0 i in
-          match_pat_slice subst p1 slice1
-            (fun subst ->
-               let slice2 = Slice.sub slice i (n-i) in
-               match_ap_pure subst tail slice2 yield)
-        done
-    end
-
-  (* match [p] with the whole slice, if possible *)
-  and match_pat_slice subst (p:pattern) slice yield =
-    let n = Slice.length slice in
-    begin match p with
-      | P_blank_sequence ->
-        if n>0 then yield subst (* yield if non empty slice *)
-      | P_blank_sequence_null -> yield subst (* always matches *)
-      | P_alt [] -> ()
-      | P_alt (p1::tail) ->
-        (* try alternatives *)
-        match_pat_slice subst p1 slice yield;
-        match_pat_slice subst (P_alt tail) slice yield
-      | P_check_same (i, p') ->
-        (* check that [i] corresponds to [Sequence[slice]] *)
-        let e_slice = lazy (sequence_of_slice slice) in
-        match_pat_slice subst p' slice
-          (fun subst ->
-             (* get current binding for [i] *)
-             let other = Subst.get_exn i subst in
-             trace_eval_
-               (fun k->k "(@[<2>check_same@ %a@ %a@])"
-                   pp_full_form (Lazy.force e_slice) pp_full_form other);
-             if equal (Lazy.force e_slice) other then yield subst)
-      | P_bind (i, p') ->
-        (* bind [i] to [Sequence[slice]] *)
-        match_pat_slice subst p' slice
-          (fun subst ->
-             let subst = Subst.add i (sequence_of_slice slice) subst in
-             yield subst)
-      | P_conditional (p', cond) ->
-        match_pat_slice subst p' slice
-          (fun subst ->
-             if check_cond subst cond then yield subst)
-      | P_fail -> ()
-      | P_blank | P_q _ | P_z _ | P_string _ | P_app _
-      | P_const _ | P_app_assoc _
-        ->
-        if n=1 then (
-          (* non-sequence pattern, match against the only element *)
-          match_pair subst p (Slice.get slice 0) yield
-        )
-    end
-  in
-  match_pair subst pat e
-
-and eval_rec (st:eval_state) e =
-  (* trace_eval_ (fun k->k "@[<2>eval_rec @[%a@]@]" pp_full_form e); *)
-  match e with
-  | App (Const {cst_name="CompoundExpression";_}, ([| |] | [| _ |])) -> assert false
-  | App (Const {cst_name="CompoundExpression";_}, args) ->
-    (* sequence of `a;b;c…`. Return same as last expression *)
-    let rec aux i =
-      if i+1 = Array.length args
-      then eval_rec st args.(i)
-      else (
-        let _ = eval_rec st args.(i) in
-        aux (i+1)
-      )
-    in
-    aux 0
-  | App (Const {cst_name="ReplaceAll";_}, [| _; _ |]) ->
-    (* FIXME: how to efficiently rewrite only once?
-        maybe parametrize [eval_rec] with max num of rewrite steps? *)
-    eval_failf "not implemented: ReplaceAll"
-  | App (Const {cst_name="ReplaceRepeated";_}, [| a; b |]) ->
-    (* first, eval [b] *)
-    let b = eval_rec st b in
-    (* rewrite [a] with rules in [b], until fixpoint *)
-    let rules = term_as_rules st b in
-    trace_eval_
-      (fun k->k "(@[replace_repeated@ %a@ rules: (@[%a@])@])"
-          pp_full_form a (Fmt.list ~start:"" ~stop:"" pp_rule) rules);
-    (* add rules to definitions of symbols, etc. and on [st.st_undo]
-       so the changes are reversible *)
-    let lev = Undo.save st.st_undo in
-    List.iter
-      (fun r -> match pattern_head r.rr_pat with
-         | c ->
-           Cst.add_local_rule st.st_undo r c
-         | exception No_head ->
-           let old_rules = st.st_rules in
-           Undo.push st.st_undo (fun () -> st.st_rules <- old_rules);
-           st.st_local_rules <- r :: st.st_local_rules)
-      rules;
-    CCFun.finally2
-      ~h:(fun () -> Undo.restore st.st_undo lev) (* restore old state *)
-      eval_rec st a
-  | App (Const {cst_name="Comprehension";_}, args) when Array.length args>0 ->
-    (* sequence binding_seq. First evaluate all terms but the first
-       one, then compile into a binding_seq *)
-    let args =
-      Array.mapi (fun i arg -> if i>0 then eval_rec st arg else arg) args
-    in
-    begin match compile_binding_seq ~ret:`First args with
-      | Result.Ok c -> eval_comprehension st c
-      | Result.Error msg ->
-        eval_failf "@[<2>could not evaluate@ `%a`@ reason: %s@]" pp e msg
-    end
-  | App (Const {cst_name="Let";_}, args) when Array.length args>0 ->
-    (* sequence of bindings. First evaluate all terms but the first
-       one, then compile into a binding_seq *)
-    let args =
-      Array.mapi (fun i arg -> if i+1<Array.length args then eval_rec st arg else arg) args
-    in
-    begin match compile_binding_seq ~ret:`Last args with
-      | Result.Ok c -> eval_let st c
-      | Result.Error msg ->
-        eval_failf "@[<2>could not evaluate@ `%a`@ reason: %s@]" pp e msg
-    end
-  | App (Const {cst_name="SetDelayed";_}, [| a; b |]) ->
-    (* lazy set: add rewrite rule [a :> b] to the definitions of [head a] *)
-    begin match head a with
-      | c ->
-        let rule = compile_rule a b in
-        Cst.add_def (Rewrite rule) c
-      | exception No_head ->
-        eval_failf "cannot assign to %a" pp_full_form a
-    end;
-    null
-  | App (Const {cst_name="Set";_}, [| a; b |]) ->
-    (* eager set: eval [b], then add [a :> b] to the defs of [head a] *)
-    let b = eval_rec st b in
-    begin match head a with
-      | c ->
-        let rule = compile_rule a b in
-        Cst.add_def (Rewrite rule) c;
-      | exception No_head ->
-        eval_failf "cannot assign to %a" pp_full_form a
-    end;
-    b
-  | App (App (Const {cst_name="Function";_}, [| body |]) as hd, args) ->
-    (* evaluate args, then apply function *)
-    let args = eval_args_of st hd args in
-    eval_beta_reduce st body args
-  | App (hd, args) ->
-    let hd = eval_rec st hd in
-    (* evaluate arguments, but only if [hd] allows it *)
-    let args = eval_args_of st hd args in
-    let t' = app_flatten hd args in
-    begin match t' with
-      | App (Const c as hd,
-          [| App (Const {cst_name="List";_} as list_, args) |])
-        when Cst.get_field field_listable c ->
-        (* distribute [hd] on the list and evaluate it *)
-        let args = Array.map (fun a -> eval_rec st (app hd [| a |])) args in
-        (* return the list of results *)
-        app_flatten list_ args
-      | App (Const c, _) ->
-        (* try every definition of [c] *)
-        try_defs st t' (rs_of_cst st c)
-      | _ ->
-        (* just try the global rewrite rules *)
-        try_defs st t' (rs_of_st st)
-    end
-  | Reg _ -> e (* cannot evaluate *)
-  | Z _
-  | Q _
-  | String _ ->
-    (* try global rules *)
-    try_defs st e (rs_of_st st)
-  | Const c ->
-    (* [c] might have a definition *)
-    try_defs st e (rs_of_cst st c)
-
-and term_as_rule st e : rewrite_rule = match e with
-  | App (Const {cst_name="Rule";_}, [| lhs; rhs |]) ->
-    let rhs = eval_rec st rhs in
-    compile_rule lhs rhs
-  | App (Const {cst_name="RuleDelayed";_}, [| lhs; rhs |]) ->
-    compile_rule lhs rhs
-  | _ -> eval_failf "cannot interpret `@[%a@]` as a rule" pp_full_form e
-
-and term_as_rules st e: rewrite_rule list = match e with
-  | App (Const {cst_name="List";_}, args) ->
-    CCList.init (Array.length args) (fun i -> term_as_rule st args.(i))
-  | _ -> [term_as_rule st e]
-
-(* eval arguments [args], depending on whether the attributes
-   of [hd] allow it *)
-and eval_args_of (st:eval_state) hd args = match hd with
-  | Const c when Cst.get_field field_hold_all c ->
-    (* hold: stop evaluation *)
-    args
-  | Const c when Cst.get_field field_hold_first c ->
-    Array.mapi
-      (fun i a -> if i=0 then a else eval_rec st a)
-      args
-  | Const c when Cst.get_field field_hold_rest c ->
-    Array.mapi
-      (fun i a -> if i>0 then a else eval_rec st a)
-      args
-  | _ ->
-    Array.map (eval_rec st) args
-
-(* try rules [rules] and definitions [defs] one by one, until one matches *)
-and try_defs (st:eval_state) t (rs:rewrite_set) = match rs with
-  | RS_empty -> t
-  | RS_add_defs ([], rs')
-  | RS_add_rules ([], rs') -> try_defs st t rs'
-  | RS_add_rules (r :: rules_trail, rs') ->
-    try_rule st t r (RS_add_rules (rules_trail, rs'))
-  | RS_add_defs (Rewrite r :: trail, rs') ->
-    try_rule st t r (RS_add_defs (trail, rs'))
-  | RS_add_defs (Fun f :: trail, rs') ->
-    begin match f st t with
-      | None -> try_defs st t (RS_add_defs (trail, rs'))
-      | Some t' ->
-        st.st_iter_count <- st.st_iter_count + 1;
-        eval_rec st t'
-    end
-
-and try_rule st t rule (rs:rewrite_set) =
-  let subst_opt =
-    match_ st Subst.empty rule.rr_pat t |> Sequence.head
-  in
-  begin match subst_opt with
-    | None -> try_defs st t rs
-    | Some subst ->
-      let t' = Subst.apply subst rule.rr_rhs in
-      st.st_iter_count <- st.st_iter_count + 1;
-      eval_rec st t'
-  end
-
-(* beta-reduction of given function expression *)
-and eval_beta_reduce st fun_body args =
-  let rec replace (t:expr): expr = match t with
-    | Reg _ -> assert false
-    | App (Const {cst_name="Function"; _}, _) ->
-      t (* do not enter functions *)
-    | App (Const {cst_name="Slot";_}, [| Z n |]) ->
-      (* slot substitution *)
-      let i = Z.to_int n in
-      if i < 0 then eval_failf "invalid slot `%d`: must be >= 0" i;
-      if i > Array.length args then (
-        eval_failf "invalid slot `%d`: not enough arguments" i;
-      );
-      (* dereference argument *)
-      if i=0
-      then sequence_of_array args
-      else args.(i-1)
-    | Const _ | Z _ | Q _ | String _ -> t
-    | App (hd, args) ->
-      app_flatten (replace hd) (Array.map replace args)
-  in
-  let t = replace fun_body in
-  eval_rec st t
-
-and eval_bindings st subst (l:binding_seq_body_item list): Subst.t Sequence.t =
-  let open Sequence.Infix in
-  match l with
-    | [] -> Sequence.return subst
-    | op :: tail ->
-      eval_binding st subst op >>= fun subst -> eval_bindings st subst tail
-
-and eval_binding st subst (op:binding_seq_body_item): Subst.t Sequence.t =
-  let open Sequence.Infix in
-  let eval_subst subst t = Subst.apply subst t |> eval_rec st in
-  match op with
-    | Comp_test t ->
-      let t' = Subst.apply subst t |> eval_rec st in
-      begin match t' with
-        | Const {cst_name="True";_} -> Sequence.return subst
-        | _ -> Sequence.empty
-      end
-    | Comp_match (pat, rhs) ->
-      match_ st subst pat (eval_subst subst rhs)
-    | Comp_match1 (pat, rhs) ->
-      let rhs' = eval_subst subst rhs in
-      (* match each subterm of [rhs] with [pat] *)
-      begin match rhs' with
-        | App (_, args) ->
-          Sequence.of_array args
-          >>= fun sub_rhs ->
-          match_ st subst pat sub_rhs
-        | _ -> Sequence.empty
-      end
-
-(* evaluate a comprehension *)
-and eval_comprehension st (c:binding_seq) =
-  let eval_subst subst t = Subst.apply subst t |> eval_rec st in
-  (* recurse through the body *)
-  begin
-    eval_bindings st Subst.empty c.comp_body
-    |> Sequence.map (fun subst -> eval_subst subst c.comp_yield)
-    |> Sequence.to_list
-    |> Array.of_list
-    |> app_flatten sequence
-  end
-
-(* let is like a binding_seq, but we only return the first result *)
-and eval_let st (c:binding_seq) =
-  let eval_subst subst t = Subst.apply subst t |> eval_rec st in
-  (* recurse through the body *)
-  begin
-    eval_bindings st Subst.empty c.comp_body
-    |> Sequence.map (fun subst -> eval_subst subst c.comp_yield)
-    |> Sequence.head
-    |> (function
-      | Some t -> t
-      | None -> eval_failf "no match for `Let`")
-  end
-
-let create_eval_state ~buf () : eval_state = {
-  st_iter_count=0;
-  st_rules=[];
-  st_local_rules=[];
-  st_undo=Undo.create();
-  st_effects=buf;
-}
-
-let eval e =
-  let st = create_eval_state ~buf:None () in
-  eval_rec st e
-
-let eval_full e : t * eval_side_effect list =
-  let q = Stack.create() in
-  let st = create_eval_state ~buf:(Some q) () in
-  let e' = eval_rec st e in
-  let effects = Stack.fold (fun acc d -> d::acc) [] q in
-  (* also check if there is a custom display *)
-  let e_display = match e' with
-    | Const {cst_display=Some f;_}
-    | App (Const {cst_display=Some f;_}, _) ->
-      f e' |> List.map (fun d -> Print_mime d)
-    | _ -> []
-  in
-  e', e_display @ effects
-
-(* primitive API *)
-
-let prim_eval = eval_rec
-let prim_fail _ = eval_fail
-let prim_failf _ msg = eval_failf msg
-
-let prim_write_doc st = match st.st_effects with
-  | None -> (fun _ -> ())
-  | Some q -> fun msg -> Stack.push (Print_doc (Lazy.force msg)) q
-
-let prim_print st m = prim_write_doc st (Lazy.from_val [Document.paragraph m])
-
-let prim_printf st = match st.st_effects with
-  | None -> (fun msg -> Format.ikfprintf (fun _ -> ()) Format.str_formatter msg)
-  | Some _ ->
-    fun msg -> Fmt.ksprintf msg ~f:(fun msg -> prim_print st msg)
-
-let prim_write_mime st = match st.st_effects with
-  | None -> (fun _ -> ())
-  | Some q -> fun (lazy m) -> Stack.push (Print_mime m) q
 
 

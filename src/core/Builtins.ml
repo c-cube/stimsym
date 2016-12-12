@@ -31,7 +31,7 @@ let make ?(doc:Document.t=[]) ?printer ?display ?(fields=[]) ?(funs:fun_def list
              let d_protected eval t =
                try d c eval t with Eval_does_not_apply -> None
              in
-             E.Cst.add_def (E.def_fun d_protected) c)
+             E.Cst.add_def (Eval.def_fun d_protected) c)
           funs;
         CCOpt.iter (fun (i,p) -> E.Cst.set_printer i p c) printer;
         CCOpt.iter (fun f -> E.Cst.set_display f c) display;
@@ -680,7 +680,7 @@ let function_ =
 let if_ =
   let eval _ eval_st t = match t with
     | E.App (E.Const _, [| a; b; c |]) ->
-      begin match Expr.prim_eval eval_st a with
+      begin match Eval.prim_eval eval_st a with
         | Expr.Const {Expr.cst_name="True";_} -> Some b
         | Expr.Const {Expr.cst_name="False";_} -> Some c
         | _ -> None
@@ -710,7 +710,7 @@ let and_ =
           (fun acc e -> match acc with
              | And_false -> acc
              | And_lst (l_acc, changed) ->
-               begin match Expr.prim_eval eval_st e with
+               begin match Eval.prim_eval eval_st e with
                  | Expr.Const {Expr.cst_name="True";_} -> And_lst (l_acc,true)
                  | Expr.Const {Expr.cst_name="False";_} -> And_false
                  | e' ->
@@ -748,7 +748,7 @@ let or_ =
           (fun acc e -> match acc with
              | Or_true -> acc
              | Or_lst (l_acc, changed) ->
-               begin match E.prim_eval eval_st e with
+               begin match Eval.prim_eval eval_st e with
                  | E.Const {E.cst_name="True";_} -> Or_true
                  | E.Const {E.cst_name="False";_} -> Or_lst (l_acc, true)
                  | e' ->
@@ -779,7 +779,7 @@ let not_ =
   let eval self eval_st t = match t with
     | E.App (E.Const self', [| a |]) ->
       assert (Expr.Cst.equal self self');
-      begin match Expr.prim_eval eval_st a with
+      begin match Eval.prim_eval eval_st a with
         | Expr.Const {Expr.cst_name="True";_} -> Some false_
         | Expr.Const {Expr.cst_name="False";_} -> Some true_
         | a' ->
@@ -838,7 +838,7 @@ let range =
       else aux_decr (E.z i :: acc) Z.(i + step) j step
     in
     let l = match Z.sign step with
-      | 0 -> E.prim_failf arg "invalid `step` argument in Range: 0"
+      | 0 -> Eval.prim_failf arg "invalid `step` argument in Range: 0"
       | n when n>0 -> aux_incr [] i j step
       | _ -> aux_decr [] i j step
     in
@@ -1123,7 +1123,7 @@ let true_q =
 let print =
   let eval _ arg e = match e with
     | E.App (_, [| t |]) ->
-      E.prim_printf arg "%a@." E.pp t;
+      Eval.prim_printf arg "%a@." E.pp t;
       Some null
     | _ -> raise Eval_does_not_apply
   in
@@ -1138,7 +1138,7 @@ let all_builtins () = !all_
 let doc =
   let eval _ arg e = match e with
     | E.App (_, [| E.Const {E.cst_doc=doc;_} |]) ->
-      E.prim_write_doc arg (Lazy.from_val doc);
+      Eval.prim_write_doc arg (Lazy.from_val doc);
       Some null
     | E.App (_, [||]) ->
       let all_docs = lazy (
@@ -1147,7 +1147,7 @@ let doc =
         |> Document.list |> CCList.return
         |> Document.indent "symbols" |> CCList.return
       ) in
-      E.prim_write_doc arg all_docs;
+      Eval.prim_write_doc arg all_docs;
       Some null
     | _ -> raise Eval_does_not_apply
   in

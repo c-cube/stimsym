@@ -5,7 +5,7 @@
 
     The main data structure *)
 
-module Properties : Bit_set.S
+module Properties = Base_types.Properties
 
 val field_protected : Properties.field
 (** Cannot modify the evaluation function of this constant *)
@@ -19,16 +19,12 @@ val field_one_identity : Properties.field
 val field_listable : Properties.field (* thread through lists *)
 val field_no_duplicates : Properties.field (* no duplicate arguments *)
 
-type def_style =
-  | Def_eager
-  | Def_lazy
-
 (* (partial) definition of a symbol *)
-type def
+type def = Base_types.def
 
-type rewrite_rule
+type rewrite_rule = Base_types.rewrite_rule
 
-type const = private {
+type const = Base_types.const = {
   cst_name: string;
   cst_id: int;
   mutable cst_properties: Properties.t;
@@ -39,7 +35,7 @@ type const = private {
   mutable cst_display : mime_printer option;
 }
 
-and t = private
+and t = Base_types.expr =
   | Const of const
   | App of t * t array
   | Z of Z.t
@@ -48,9 +44,10 @@ and t = private
   | Reg of int
 
 (* custom printer for a constant *)
-and const_printer = const -> (int -> t CCFormat.printer) -> t array CCFormat.printer
+and const_printer =
+  Base_types.const -> (int -> t CCFormat.printer) -> t array CCFormat.printer
 
-and mime_content = {
+and mime_content = Base_types.mime_content = {
   mime_ty: string;
   mime_data: string;
   mime_base64: bool;
@@ -62,12 +59,7 @@ and mime_printer = t -> mime_content list
 exception Print_default
 (** Used in {!const_printer} to indicate that default printing should be preferred *)
 
-type prim_fun_args
-
-type pattern
-
-type eval_state
-(** Evaluation state *)
+type prim_fun_args = Base_types.prim_fun_args
 
 type prim_fun = prim_fun_args -> t -> t option
 (** takes a context for loading variables, a term [t], return [Some t']
@@ -107,12 +99,6 @@ val equal : t -> t -> bool
 val hash : t -> int
 (** Hash *)
 
-val def_rule : lhs:t -> rhs:t -> (def,string) Result.result
-(** [def_rule lhs rhs] makes a proper rewrite rule *)
-
-val def_fun : prim_fun -> def
-(** Make a definition from a primitive function *)
-
 module Tbl : CCHashtbl.S with type key = t
 
 (** {2 Constants} *)
@@ -128,11 +114,15 @@ module Cst : sig
 
   val equal : t -> t -> bool
 
+  val hash : t -> int
+
   val set_field : Properties.field -> bool -> t -> unit
 
   val get_field : Properties.field -> t -> bool
 
   val add_def : def -> t -> unit
+
+  val add_local_rule : Base_types.undo_state -> rewrite_rule -> const -> unit
 
   val set_printer : int -> const_printer -> t -> unit
 
@@ -140,6 +130,8 @@ module Cst : sig
 
   val set_doc : Document.t -> t -> unit
 end
+
+val null : t
 
 (** {2 IO} *)
 
@@ -155,36 +147,6 @@ val pp : t CCFormat.printer
 val to_string : t -> string
 (** Nice multi-line printer using {!pp} *)
 
-(** {2 Evaluation} *)
-
-exception Eval_fail of string
-
-type eval_side_effect =
-  | Print_doc of Document.t
-  | Print_mime of mime_content
-
-val eval : t -> t
-
-val eval_full : t -> t * eval_side_effect list
-(** @returns the normal form, and messages printed in the mean time *)
-
 (**/**)
-val set_eval_trace: bool -> unit
-
-val prim_eval : prim_fun_args -> t -> t
-(** Evaluation function to be called by primitives *)
-
-val prim_fail : prim_fun_args -> string -> 'a
-(** To be called by primitives on failure *)
-
-val prim_failf : prim_fun_args -> ('a, Format.formatter, unit, 'b) format4 -> 'a
-
-val prim_write_doc : prim_fun_args -> Document.t lazy_t -> unit
-
-val prim_print : prim_fun_args -> string -> unit
-
-val prim_printf : prim_fun_args -> ('a, Format.formatter, unit, unit) format4 -> 'a
-
-val prim_write_mime : prim_fun_args -> mime_content lazy_t -> unit
-
+val reg : int -> t
 (**/**)

@@ -59,7 +59,7 @@ let run_ count str : C.Kernel.exec_status =
       Log.log (CCFormat.sprintf "parsed: @[%a@]@." Expr.pp_full_form e);
       begin
         try
-          let e', effects = Expr.eval_full e in
+          let e', effects = Eval.eval_full e in
           let res =
             if Expr.equal Builtins.null e'
             then None
@@ -67,8 +67,8 @@ let run_ count str : C.Kernel.exec_status =
           and actions =
             List.map
               (function
-                | Expr.Print_doc d -> C.Kernel.doc d
-                | Expr.Print_mime {Expr.mime_ty;mime_data;mime_base64} ->
+                | Eval.Print_doc d -> C.Kernel.doc d
+                | Eval.Print_mime {Expr.mime_ty;mime_data;mime_base64} ->
                   C.Kernel.mime ~base64:mime_base64 ~ty:mime_ty mime_data)
               effects
           in
@@ -76,7 +76,7 @@ let run_ count str : C.Kernel.exec_status =
         with
           | Stack_overflow ->
             Result.Error "stack overflow."
-          | Expr.Eval_fail msg ->
+          | Eval.Eval_fail msg ->
             Result.Error
               (CCFormat.sprintf "evaluation failed: %s@." msg)
       end

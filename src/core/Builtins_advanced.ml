@@ -143,7 +143,7 @@ module Sat_solve = struct
       in
       Sat model
     | _ ->
-      E.prim_failf st.cnf_arg "could not parse minisat's output:\n`%s`\n"
+      Eval.prim_failf st.cnf_arg "could not parse minisat's output:\n`%s`\n"
         (String.concat "\n" out)
 
   let call_ (st:cnf_state) (pb:clause list): res =
@@ -174,7 +174,7 @@ module Sat_solve = struct
     else
       try call_ st pb
       with e ->
-        E.prim_failf st.cnf_arg
+        Eval.prim_failf st.cnf_arg
           "error while calling minisat:@ %s" (Printexc.to_string e)
 
   let eval _ arg e = match e with

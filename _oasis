@@ -23,7 +23,8 @@ Library stimsym
   Path:             src/core/
   Modules:          Expr, Builtins, Parser, Lexer, Parse_loc,
                     Hash, Slice, Bit_set, Builtins_advanced,
-                    Document, Completion
+                    Document, Completion, Pattern, Eval, Subst
+  InternalModules:  Base_types
   BuildDepends:     bytes, result, containers, sequence, zarith,
                     unix, containers.unix, containers.data
 

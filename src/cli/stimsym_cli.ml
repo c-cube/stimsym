@@ -55,20 +55,20 @@ let rec main_loop ~config () =
           );
           begin
             try
-              let e', docs = Expr.eval_full e in
+              let e', docs = Eval.eval_full e in
               if not (Expr.equal e' Builtins.null) then (
                 Format.printf "@[%a@]@." Expr.pp e';
               );
               List.iter
                 (function
-                  | Expr.Print_doc doc ->
+                  | Eval.Print_doc doc ->
                     Format.printf "%a@.%a@.%a@." pp_rule 50 Document.pp doc pp_rule 50
-                  | Expr.Print_mime m -> display_mime m)
+                  | Eval.Print_mime m -> display_mime m)
                 docs
             with
               | Stack_overflow ->
                 Format.printf "stack overflow.@.";
-              | Expr.Eval_fail msg ->
+              | Eval.Eval_fail msg ->
                 Format.printf "evaluation failed:@ %s@." msg;
           end
         | exception e ->
@@ -85,7 +85,7 @@ let () =
   Arg.parse
     [ "-v", Arg.Set verbose, " enable verbose output";
       "--verbose", Arg.Set verbose, " enable verbose output";
-      "--trace", Arg.Unit (fun () -> Expr.set_eval_trace true), " enable tracing of evaluation";
+      "--trace", Arg.Unit (fun () -> Eval.set_eval_trace true), " enable tracing of evaluation";
     ]
     (fun _ -> ())
     "./cli [options]
