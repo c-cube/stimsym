@@ -200,8 +200,9 @@ module Sat_solve = struct
             |> Array.map
               (fun (a,sign) ->
                  E.app B.rule [| a.a_expr; if sign then B.true_ else B.false_ |])
+            |> E.app B.list
           in
-          E.app (E.const_of_string "Sat") m
+          E.app (E.const_of_string "Sat") [| m |]
       in
       Some res
     | _ -> raise B.Eval_does_not_apply
@@ -218,7 +219,7 @@ let sat_solve =
           as parameters. Formulas are reduced to CNF before calling \
           Minisat.";
       `P "If Minisat is not installed, this does not reduce.";
-      `P "Returns either `Sat[m___]` where `m` is the model, as a \
+      `P "Returns either `Sat[{m___}]` where `m` is the model, as a \
           list of bindings `Atom -> True` or `Atom -> False`, \
           or Unsat[].";
       `I ("example", [
@@ -229,6 +230,11 @@ let sat_solve =
           `P "The following call will return `Sat[A -> False,B->True]`, \
               containing a model for each atom appearing in the formulas.";
           `Pre "`SatSolve[A || B,!A]`";
+        ]);
+      `I ("example", [
+          `P "Find a model of `a&&b` and extract the value of `a` in the \
+              model using `Let`:";
+          `Pre "Let[`{___,a->r_,___}<<-SatSolve[a&&b],r_]`";
         ]);
       `I ("requires", [`P "`minisat` must be on the $PATH"]);
     ]
