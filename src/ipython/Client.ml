@@ -142,6 +142,8 @@ let html_of_doc : Document.t -> [<Html_types.div] H.elt =
       | `S s -> mk_header ~depth [H.pcdata s]
       | `P s -> H.p [H.pcdata s]
       | `Pre s -> H.pre [H.pcdata s]
+      | `L l ->
+        H.ul (List.map (fun sub -> H.li [aux ~depth sub]) l)
       | `I (s,sub) ->
         let depth = depth+1 in
         H.div (
@@ -259,7 +261,7 @@ let shutdown_request (t:t) msg _ : 'a Lwt.t =
 let handle_invalid_message () =
   Lwt.fail (Failure "Invalid message on shell socket")
 
-let complete_request t msg (r:complete_request): unit Lwt.t =
+let complete_request t _msg (r:complete_request): unit Lwt.t =
   let%lwt st = t.kernel.Kernel.complete ~pos:r.cursor_pos r.line in
   let reply = {
     matches=st.Kernel.completion_matches;
