@@ -234,7 +234,7 @@ let sat_solve =
       `I ("example", [
           `P "Find a model of `a&&b` and extract the value of `a` in the \
               model using `Let`:";
-          `Pre "Let[`{___,a->r_,___}<<-SatSolve[a&&b],r_]`";
+          `Pre "`Let[{___,a->r_,___}<<-SatSolve[a&&b],r]`";
         ]);
       `I ("requires", [`P "`minisat` must be on the $PATH"]);
     ]
