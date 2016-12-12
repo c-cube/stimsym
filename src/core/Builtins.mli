@@ -62,6 +62,7 @@ val comprehension : t
 val let_ : t
 
 val equal : t
+val not_equal : t
 val less : t
 val greater : t
 val less_equal : t

@@ -56,6 +56,7 @@
 
 %token O_PLUS
 %token O_EQUAL
+%token O_NOT_EQUAL
 %token O_LESS
 %token O_LESS_EQUAL
 %token O_GREATER
@@ -162,6 +163,7 @@ not_expr:
 
 %inline ineq_op:
   | O_EQUAL { B.equal }
+  | O_NOT_EQUAL { B.not_equal }
   | O_LESS { B.less }
   | O_LESS_EQUAL { B.less_equal }
   | O_GREATER { B.greater }

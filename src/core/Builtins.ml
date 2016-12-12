@@ -800,6 +800,7 @@ let mk_ineq_ name desc infix : t =
   make name ~printer ~doc:[`S name; `P desc; `I ("infix", [`P infix_str])]
 
 let equal = mk_ineq_ "Equal" "value identity" "=="
+let not_equal = mk_ineq_ "NotEqual" "negation of `==`" "!="
 let less = mk_ineq_ "Less" "value comparison" "<"
 let less_equal = mk_ineq_ "LessEqual" "value comparison" "<="
 let greater = mk_ineq_ "Greater" "value comparison" ">"
@@ -808,7 +809,7 @@ let greater_equal = mk_ineq_ "GreaterEqual" "value comparison" ">="
 module Ineq = struct
   type num = Q.t
 
-  type op = Eq | Less | Lesseq | Gt | Geq
+  type op = Eq | Neq | Less | Lesseq | Gt | Geq
 
   type chain = num * (op * num) list
 
@@ -820,6 +821,7 @@ module Ineq = struct
         | _ -> raise Exit
       and as_op e : op = match e with
         | E.Const {E.cst_name="Equal";_} -> Eq
+        | E.Const {E.cst_name="NotEqual";_} -> Neq
         | E.Const {E.cst_name="Less";_} -> Less
         | E.Const {E.cst_name="LessEqual";_} -> Lesseq
         | E.Const {E.cst_name="Greater";_} -> Gt
@@ -845,6 +847,7 @@ module Ineq = struct
 
   let eval_tup a op b = match op with
     | Eq -> Q.equal a b
+    | Neq -> not (Q.equal a b)
     | Less -> Q.lt a b
     | Lesseq -> Q.leq a b
     | Gt -> Q.gt a b

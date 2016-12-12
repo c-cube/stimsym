@@ -80,6 +80,7 @@ rule token = parse
   | space* "<<-"  space* { cntspace lexbuf; O_MATCH_BIND1 }
   | space* "::" space*  { cntspace lexbuf; O_COMPREHENSION }
   | space* "=="  space* { cntspace lexbuf; O_EQUAL }
+  | space* "!="  space* { cntspace lexbuf; O_NOT_EQUAL }
   | space* "<"  space*  { cntspace lexbuf; O_LESS }
   | space* "<="  space* { cntspace lexbuf; O_LESS_EQUAL }
   | space* ">"  space*  { cntspace lexbuf; O_GREATER }
