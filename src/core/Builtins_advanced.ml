@@ -231,11 +231,16 @@ let sat_solve =
               containing a model for each atom appearing in the formulas.";
           `Pre "`SatSolve[A || B,!A]`";
         ]);
-      `I ("example", [
-          `P "Find a model of `a&&b` and extract the value of `a` in the \
-              model using `Let`:";
-          `Pre "`Let[{___,a->r_,___}<<-SatSolve[a&&b],r]`";
-        ]);
+      `I ("example", [`L [
+          [`P "Find a model of `a&&b` and extract the value of `a` in the \
+               model using `Let`:";
+           `Pre "`Let[{___,a->r_,___}<<-SatSolve[a&&b],r]`"];
+          [`P "also check that the model reduces the formula to `True`:";
+           `Pre "`Let[Sat[m_]<-SatSolve[a&&b], a&&b//. m]`"];
+          [`P "convert the model into (possibly negated) atoms:";
+           `Pre "Let[Sat[m_]<-SatSolve[a&&b,!c], m//.{(x_->False):>!x, (x_->True):>x}]";
+           `P "(yield `{a,b,!c}`)"]
+        ]]);
       `I ("requires", [`P "`minisat` must be on the $PATH"]);
     ]
 
