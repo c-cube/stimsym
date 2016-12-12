@@ -366,6 +366,7 @@ let suite_eval =
     mk_eval __LINE__ "Nest[#+1&,a,3]" "Plus[3,a]";
     mk_eval __LINE__ "Let[x_<-1,f[x]]" "f[1]";
     mk_eval __LINE__ "Let[x_<-1,y_<<-{1,2,3},x+y==3,f[y]]" "f[2]";
+    mk_eval __LINE__ "Let[{___,___}<-{},1]" "1";
     mk_eval __LINE__
       "Inits[l_] := {x :: {x___,___}<-l}; Inits[{1,2,3,4}]"
       "List[1,1,2,1,2,3,1,2,3,4]";

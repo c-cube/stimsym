@@ -926,7 +926,7 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:t): Subst.t Sequ
         (* cut [slice] into two parts, one to be matched with [p1],
            the rest with [tail]
            TODO a bit too naive, use info about min length *)
-        for i=0 to n-1 do
+        for i=0 to n do
           let slice1 = Slice.sub slice 0 i in
           match_pat_slice subst p1 slice1
             (fun subst ->
