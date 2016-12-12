@@ -56,6 +56,9 @@ let print ?(sep=", ") pp_item fmt a =
   in
   _print ~sep pp_item fmt a.arr a.i a.j
 
+let iter f a =
+  for k = a.i to a.j-1 do f a.arr.(k) done
+
 let fold_left f acc a =
   let acc = ref acc in
   for k = a.i to a.j-1 do

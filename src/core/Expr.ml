@@ -14,6 +14,7 @@ let field_orderless = Properties.mk_field()
 let field_flatten = Properties.mk_field()
 let field_one_identity = Properties.mk_field()
 let field_listable = Properties.mk_field ()
+let field_no_duplicates = Properties.mk_field()
 let () = Properties.freeze()
 
 (* TODO: remove? *)

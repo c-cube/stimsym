@@ -39,6 +39,8 @@ val find_idx : ('a -> bool) -> 'a t -> (int * 'a) option
 (** [find_idx p x] returns [Some (i,x)] where [x] is the [i]-th element of [l],
     and [p x] holds. Otherwise returns [None] *)
 
+val iter : ('a -> unit) -> 'a t -> unit
+
 val fold_left : ('b -> 'a -> 'b) -> 'b -> 'a t -> 'b
 
 val print : ?sep:string -> (Format.formatter -> 'a -> unit) ->

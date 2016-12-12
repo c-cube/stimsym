@@ -17,6 +17,7 @@ val field_orderless : Properties.field
 val field_flatten : Properties.field
 val field_one_identity : Properties.field
 val field_listable : Properties.field (* thread through lists *)
+val field_no_duplicates : Properties.field (* no duplicate arguments *)
 
 type def_style =
   | Def_eager

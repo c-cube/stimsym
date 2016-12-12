@@ -67,6 +67,11 @@ val match_bind1 : t
 val comprehension : t
 val let_ : t
 
+val set_attributes : t
+val remove_attributes : t
+val get_attributes : t
+val clear_attributes : t
+
 val equal : t
 val not_equal : t
 val less : t

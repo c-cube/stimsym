@@ -70,6 +70,7 @@ let prec_list = 100
 
 let prec_const = 200
 
+let null = make "Null"
 let hold =
   make "Hold" ~fields:[E.field_hold_all]
     ~doc:[
@@ -875,6 +876,139 @@ let mk_ineq_ name desc infix : t =
   let printer = prec_const, print_const infix in
   make name ~printer ~doc:[`S name; `P desc; `I ("infix", [`P infix_str])]
 
+module Attrs = struct
+  type attr = {
+    view: attr_view;
+    field: E.Properties.field;
+  }
+  and attr_view =
+    | Hold_all
+    | Hold_first
+    | Hold_rest
+    | Orderless
+    | Flatten
+    | One_identity
+    | Listable
+    | No_duplicates
+
+  exception Wrong
+
+  let mk_ view field = {view; field}
+
+  let tbl =
+    [ mk_ Hold_all E.field_hold_all, E.const_of_string "HoldAll";
+      mk_ Hold_first E.field_hold_first, E.const_of_string "HoldFirst";
+      mk_ Hold_rest E.field_hold_rest, E.const_of_string "HoldRest";
+      mk_ Orderless E.field_orderless, E.const_of_string "Orderless";
+      mk_ Flatten E.field_flatten, E.const_of_string "Flatten";
+      mk_ One_identity E.field_one_identity, E.const_of_string "One_identity";
+      mk_ Listable E.field_listable, E.const_of_string "Listable";
+      mk_ No_duplicates E.field_no_duplicates, E.const_of_string "NoDuplicates";
+    ]
+
+  let to_e e =
+    try List.assoc e tbl
+    with Not_found -> assert false
+
+  let of_e (e:t): attr = match e with
+    | E.Const c ->
+      let r =
+        CCList.find_map
+          (function
+            | (attr,E.Const c') when E.Cst.equal c c' -> Some attr
+            | _ -> None)
+          tbl
+      in
+      begin match r with
+        | None -> raise Wrong
+        | Some a -> a
+      end
+    | _ -> raise Wrong
+
+  let get c : attr array =
+    tbl
+    |> List.map fst
+    |> List.filter (fun {field;_} -> E.Cst.get_field field c)
+    |> Array.of_list
+
+  let set c (b:bool) (l:attr array) =
+    Array.iter (fun {field;_} -> E.Cst.set_field field b c) l
+
+  let terms_as_cst_attrs (args:t array): (E.const * attr array) option =
+    if Array.length args=0 then None
+    else try
+        let c = match args.(0) with
+          | E.Const c -> c
+          | _ -> raise Wrong
+        in
+        let args =
+          Array.init (Array.length args-1)
+            (fun i -> of_e args.(i+1))
+        in
+        Some (c,args)
+      with Wrong -> None
+
+  let doc : Document.t = [
+    `S "Attributes";
+    `I ("demo", [
+        `Pre "> GetAttributes[Plus]";
+         `Pre  "{Orderless,Flatten,One_identity}";
+         `Pre "> GetAttributes[Times]";
+         `Pre "{Orderless,Flatten,One_identity}";
+         `Pre "> SetAttributes[f,Listable]";
+         `Pre "> GetAttributes[f]";
+         `Pre "{Listable}";
+         `Pre "> f[{1,2,3}]";
+         `Pre "{f[1],f[2],f[3]}";
+      ]);
+  ]
+end
+
+let set_attributes =
+  let eval _ _ = function
+    | E.App (_, args) ->
+      begin match Attrs.terms_as_cst_attrs args with
+        | Some (c, attrs) -> Attrs.set c true attrs; Some null
+        | None -> raise Eval_does_not_apply
+      end
+    | _ -> raise Eval_does_not_apply
+  in
+  make "SetAttributes" ~funs:[eval] ~doc:Attrs.doc
+
+let remove_attributes =
+  let eval _ _ = function
+    | E.App (_, args) ->
+      begin match Attrs.terms_as_cst_attrs args with
+        | Some (c, attrs) -> Attrs.set c false attrs; Some null
+        | None -> raise Eval_does_not_apply
+      end
+    | _ -> raise Eval_does_not_apply
+  in
+  make "RemoveAttributes" ~funs:[eval]  ~doc:Attrs.doc
+
+let get_attributes =
+  let eval _ _ = function
+    | E.App (_, [| E.Const c |]) ->
+      Attrs.get c
+      |> Array.map (fun a -> Attrs.to_e a)
+      |> E.app list |> CCOpt.return
+    | _ -> raise Eval_does_not_apply
+  in
+  make "GetAttributes" ~funs:[eval] ~doc:Attrs.doc
+
+let clear_attributes =
+  let eval _ _ = function
+    | E.App (_, [| E.Const c |]) ->
+      if E.Cst.get_field E.field_protected c then None
+      else (
+        Attrs.get c
+        |> Attrs.set c false;
+        Some null
+      )
+    | _ -> raise Eval_does_not_apply
+  in
+  make "ClearAttributes" ~funs:[eval] ~doc:Attrs.doc
+
 let equal = mk_ineq_ "Equal" "value identity" "=="
 let not_equal = mk_ineq_ "NotEqual" "negation of `==`" "!="
 let less = mk_ineq_ "Less" "value comparison" "<"
@@ -986,7 +1120,6 @@ let true_q =
   in
   make "TrueQ" ~funs:[eval]
 
-let null = make "Null"
 let print =
   let eval _ arg e = match e with
     | E.App (_, [| t |]) ->
