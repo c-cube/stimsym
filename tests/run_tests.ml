@@ -375,6 +375,18 @@ let suite_eval =
        Perms[{x_,r___}] := { {l1,x,l2} :: {l1___,l2___} <<- Perms[{r}]}; \
        Perms[{1,2,3}] === {{1,2,3},{2,1,3},{2,3,1},{1,3,2},{3,1,2},{3,2,1}}"
       "True";
+    mk_eval __LINE__ "IntegerQ[1]" "True";
+    mk_eval __LINE__ "IntegerQ[1/2]" "False";
+    mk_eval __LINE__ "IntegerQ[a]" "False";
+    mk_eval __LINE__ "RationalQ[1]" "True";
+    mk_eval __LINE__ "RationalQ[1/2]" "True";
+    mk_eval __LINE__ "RationalQ[a]" "False";
+    mk_eval __LINE__ "TrueQ[True]" "True";
+    mk_eval __LINE__ "TrueQ[1]" "False";
+    mk_eval __LINE__ "TrueQ[1/2]" "False";
+    mk_eval __LINE__ "TrueQ[a]" "False";
+    mk_eval __LINE__ "f[Plus[a,Plus[b,c]]]" "f[Plus[a,b,c]]";
+    mk_eval __LINE__ "f[Sequence[a,Sequence[b,c]]]" "f[a,b,c]";
   ]
 
 (** {2 Main} *)
