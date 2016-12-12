@@ -256,7 +256,7 @@ module Graph = struct
 
   let pp_dot out (g:t): unit =
     let fmt = Format.formatter_of_out_channel out in
-    let attrs_v v = [`Label (E.to_string v)] in
+    let attrs_v v = [`Label (E.to_string v); `Shape "box"] in
     let attrs_e _ = [] in
     Format.fprintf fmt "%a@."
       (CCGraph.Dot.pp_seq
