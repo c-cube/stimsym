@@ -11,7 +11,7 @@
   let slot_int s =
     assert (s.[0] = '#');
     if String.length s>1
-    then int_of_string (String.sub s 1 1)
+    then if s.[1] = '#' then 0 else int_of_string (String.sub s 1 1)
     else 1 (* default *)
 }
 
@@ -42,7 +42,7 @@ let upper_alpha = ['A' - 'Z']
 let alpha_numeric = lower_alpha | upper_alpha | numeric | '_'
 let symbol = (lower_alpha | upper_alpha) (lower_alpha | upper_alpha | numeric)*
 
-let slot = '#' ['0' - '9']?
+let slot = '#' ['0' - '9' '#']?
 
 let space = ['\n' '\t' ' '] | comment
 
