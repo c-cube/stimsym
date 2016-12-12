@@ -271,15 +271,22 @@ let const_of_string_with ~f name =
   c
 
 let app_flatten hd args =
+  let as_sub = match hd with
+    | Const c when Cst.get_field field_flatten c ->
+      (function
+        | App (Const {cst_name="Sequence";_}, sub) -> Some sub
+        | App (Const c', sub) when Cst.equal c c' -> Some sub
+        | _ -> None)
+    | _ ->
+      (function
+        | App (Const {cst_name="Sequence";_}, sub) -> Some sub
+        | _ -> None)
+  in
   (* splicing *)
   let must_splice, res_len =
     Array.fold_left
-      (fun (must_split,len) arg -> match hd, arg with
-         | _, App (Const {cst_name="Sequence";_}, sub) ->
-           true, len+Array.length sub
-         | Const c, App (Const c', sub)
-           when Cst.equal c c' && Cst.get_field field_flatten c ->
-           (* same symbol, also "flatten" *)
+      (fun (must_split,len) arg -> match as_sub arg with
+         | Some sub ->
            true, len+Array.length sub
          | _ -> must_split, len+1)
       (false,0) args
@@ -290,12 +297,8 @@ let app_flatten hd args =
     (* make a flattened array *)
     let len' =
       Array.fold_left
-        (fun offset arg -> match hd, arg with
-           | _, App (Const {cst_name="Sequence";_}, sub) ->
-             Array.blit sub 0 args_flat offset (Array.length sub);
-             offset + Array.length sub
-           | Const c, App (Const c', sub)
-             when Cst.equal c c' && Cst.get_field field_flatten c ->
+        (fun offset arg -> match as_sub arg with
+           | Some sub ->
              Array.blit sub 0 args_flat offset (Array.length sub);
              offset + Array.length sub
            | _ ->
