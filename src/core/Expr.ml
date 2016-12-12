@@ -1037,7 +1037,7 @@ and eval_rec (st:eval_state) e =
     (* sequence of bindings. First evaluate all terms but the first
        one, then compile into a binding_seq *)
     let args =
-      Array.mapi (fun i arg -> if i>0 then eval_rec st arg else arg) args
+      Array.mapi (fun i arg -> if i+1<Array.length args then eval_rec st arg else arg) args
     in
     begin match compile_binding_seq ~ret:`Last args with
       | Result.Ok c -> eval_let st c
