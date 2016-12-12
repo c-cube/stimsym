@@ -295,18 +295,20 @@ let comprehension =
       `P "Sequence comprehension. It returns the sequence of all possibles \
           solutions to the definition.";
       (* TODO: have finer grained documents, with lists, etc. *)
-      `Pre "General form: `Comprehension[t,body1,…,bodyn]` where `t` \n\
-          is the returned term, and each `body` element is one of:\n\
-            - `pat <- expr` (see `MatchBind`), \
-            matching `pat` against expression `expr`. \n\
-            Each resulting substitution is used to evaluate the following \
-            body elements;\n\
-            - `pat <<- expr` (see `MatchBind`), \
-            matching `pat` against immediate arguments of expression `expr`;\n\
-            - `If[expr]`, meaning evaluation proceeds iff `expr` evaluates \
-            to `True.";
+      `P "General form: `Comprehension[t,body1,…,bodyn]` where `t` \
+          is the returned term, and each `body` element is one of:";
+      `L [
+        [`P "`pat <- expr` (see `MatchBind`), \
+             matching `pat` against expression `expr`. \
+             Each resulting substitution is used to evaluate the following \
+             body elements;"];
+        [`P "`pat <<- expr` (see `MatchBind`), \
+             matching `pat` against immediate arguments of expression `expr`;"];
+        [`P "`expr`, meaning evaluation proceeds iff `expr` evaluates \
+             to `True."];
+      ];
       `I ("infix", [
-          `P "The following is short for `Comprehension[t,body1,body2,…,bodyn]`";
+          `P "The following is short for `Comprehension[t,body1,body2,…,bodyn]`:";
           `Pre "`t :: body1,body2,…,bodyn`";
         ]);
       `I ("example", [
@@ -319,8 +321,8 @@ let comprehension =
         ]);
       `I ("example", [
           `P "computing all prefixes of a list:";
-          `Pre "`Inits[l_] := {{x} :: {x___,___} <- l};\n\
-                Inits[{1,2,3,4}]";
+          `Pre "`Inits[l_] := {{x} :: {x___,___} <- l}`";
+          `Pre "`Inits[{1,2,3,4}]`";
           `P "the result is `{{},{1},{1,2},{1,2,3},{1,2,3,4}}`";
         ]);
       `I ("example", [
@@ -895,10 +897,21 @@ let print =
       `P "`Print[e]` evaluates `e`, prints it and returns `Null`";
     ]
 
+let all_builtins () = !all_
+
 let doc =
   let eval _ arg e = match e with
     | E.App (_, [| E.Const {E.cst_doc=doc;_} |]) ->
       E.prim_write_doc arg (Lazy.from_val doc);
+      Some null
+    | E.App (_, [||]) ->
+      let all_docs = lazy (
+        all_builtins ()
+        |> List.map (fun e -> [`Pre (Fmt.sprintf "%a" E.pp_full_form e)])
+        |> Document.list |> CCList.return
+        |> Document.indent "symbols" |> CCList.return
+      ) in
+      E.prim_write_doc arg all_docs;
       Some null
     | _ -> raise Eval_does_not_apply
   in
@@ -911,8 +924,6 @@ let doc =
           `Pre "`Doc[Nest]`";
         ]);
     ]
-
-let all_builtins () = !all_
 
 let complete_symbol s : t list =
   if String.length s = 0 then []
