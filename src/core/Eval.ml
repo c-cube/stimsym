@@ -150,215 +150,215 @@ let equal_with (subst:Subst.t) a b: bool =
 
 (* return all the matches of [pat] against [e], modifying [st]
    every time in a backtracking way *)
-let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t): Subst.t Sequence.t =
-  (* TODO: AC matching… *)
-  let rec match_pair (subst:Subst.t) (pat:pattern) (e:E.t) yield: unit =
-    trace_eval_ (fun k->k "@[<2>match @[%a@]@ with: @[%a@]@ subst: @[%a@]@]"
-      Pattern.pp pat E.pp_full_form e Subst.pp subst);
-    begin match pat, e with
-      | P_z a, Z b -> if Z.equal a b then yield subst
-      | P_q a, Q b -> if Q.equal a b then yield subst
-      | P_q a, Z b -> if Q.equal a (Q.of_bigint b) then yield subst
-      | P_z a, Q b -> if Q.equal (Q.of_bigint a) b then yield subst
-      | P_string a, String b -> if a=b then yield subst
-      | P_const c, Const d -> if E.Cst.equal c d then yield subst
-      | P_blank None, _ -> yield subst
-      | P_blank (Some c), App (Const c', _) ->
-        if E.Cst.equal c c' then yield subst
-      | P_blank (Some _), _ -> ()
-      | P_bind (i, P_blank None), _ ->
-        (* easy case: bind [i] *)
-        assert (not (Subst.mem i subst));
-        let subst = Subst.add i e subst in
-        yield subst
-      | P_bind (i, sub_pat), _ ->
-        match_pair subst sub_pat e
-          (fun subst ->
-             assert (not (Subst.mem i subst));
-             (* bind [i] *)
-             let subst = Subst.add i e subst in
-             yield subst)
-      | P_check_same (i, sub_pat), _ ->
-        match_pair subst sub_pat e
-          (fun subst ->
-             (* get current binding for [i] *)
-             let other = Subst.get_exn i subst in
-             trace_eval_
-               (fun k->k "(@[<2>check_same@ %a@ %a@])" E.pp_full_form e E.pp_full_form other);
-             if E.equal e other then yield subst)
-      | P_app (hd, args), App (hd', args')
-        when Array.length args = Array.length args' ->
-        match_pair subst hd hd'
-          (fun subst -> match_arrays subst args args' 0 yield)
-      | P_app_assoc (hd, tree), App (hd', args) ->
-        (* associative matching *)
-        match_pair subst hd hd'
-          (fun subst -> match_assoc subst tree (Slice.full args) yield)
-      | P_conditional (p', cond), _ ->
-        match_pair subst p' e
-          (fun subst ->
-             if check_cond subst cond then yield subst)
-      | P_test (p', test), _ ->
-        (* match [p'] with [e], then check if [test[e] --> True] *)
-        match_pair subst p' e
-          (fun subst ->
-             if check_cond Subst.empty (E.app test [| e |])
-             then yield subst)
-      | P_fail, _ -> ()
-      | P_alt l, _ -> match_alt subst l e yield
-      | P_z _, _
-      | P_q _, _
-      | P_const _, _
-      | P_string _, _
-      | P_app_assoc _, _
-      | P_app _, _
-      | P_blank_sequence _, _
-      | P_blank_sequence_null _, _
-        -> () (* fail *)
-    end
-  (* match arrays pairwise *)
-  and match_arrays subst a b (i:int) yield: unit =
-    if i = Array.length a then (
-      assert (i = Array.length b);
+let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t)(yield:Subst.t -> unit): unit =
+  trace_eval_ (fun k->k "@[<2>match @[%a@]@ with: @[%a@]@ subst: @[%a@]@]"
+    Pattern.pp pat E.pp_full_form e Subst.pp subst);
+  begin match pat, e with
+    | P_z a, Z b -> if Z.equal a b then yield subst
+    | P_q a, Q b -> if Q.equal a b then yield subst
+    | P_q a, Z b -> if Q.equal a (Q.of_bigint b) then yield subst
+    | P_z a, Q b -> if Q.equal (Q.of_bigint a) b then yield subst
+    | P_string a, String b -> if a=b then yield subst
+    | P_const c, Const d -> if E.Cst.equal c d then yield subst
+    | P_blank None, _ -> yield subst
+    | P_blank (Some c), App (Const c', _) ->
+      if E.Cst.equal c c' then yield subst
+    | P_blank (Some _), _ -> ()
+    | P_bind (i, P_blank None), _ ->
+      (* easy case: bind [i] *)
+      assert (not (Subst.mem i subst));
+      let subst = Subst.add i e subst in
       yield subst
-    ) else
-      match_pair subst a.(i) b.(i)
+    | P_bind (i, sub_pat), _ ->
+      match_ st subst sub_pat e
         (fun subst ->
-           match_arrays subst a b (i+1) yield
-    )
-  (* try alternatives *)
-  and match_alt subst (l:pattern list) e yield: unit =
-    List.iter (fun pat -> match_pair subst pat e yield) l
-  (* check if [cond --> true] *)
-  and check_cond (subst:Subst.t)(cond:E.t): bool =
-    let cond' = Subst.apply subst cond in
-    begin match eval_rec st cond' with
-      | Const {cst_name="True";_} -> true
-      | Const {cst_name="False";_} -> false
-      | cond' ->
-        eval_failf
-          "@[<2>expected True/False,@ but condition `@[%a@]`@ \
-           reduces to `@[%a@]`@ in subst %a@]"
-          E.pp_full_form cond E.pp_full_form cond' Subst.pp subst
-    end
-  (* match tree [ap] to slice [slice] *)
-  and match_assoc subst (ap:assoc_pattern) (slice:E.t Slice.t) yield: unit =
-    match ap with
-      | AP_vantage apv -> match_ap_vantage subst apv slice yield
-      | AP_pure (l,_) -> match_ap_pure subst l slice yield
-  and match_ap_vantage subst (apv:assoc_pattern_vantage) slice yield =
-    trace_eval_ (fun k->k "@[<2>match_ap_vantage @[%a@]@ slice @[%a@]@]"
-      Pattern.pp apv.ap_vantage pp_slice slice);
-    (* check that there are enough elements *)
-    let n = Slice.length slice in
-    if apv.ap_min_size > n then ()
-    else (
-      (* the range in which we can match [ap.ap_vantage] safely *)
-      let min, max =
-        Pattern.ap_assoc_min_size apv.ap_left,
-        n - Pattern.ap_assoc_min_size apv.ap_right
-      in
-      for vantage_idx = min to max-1 do
-        (* try with this index *)
-        trace_eval_ (fun k->k
-            "@[match_ap_vantage@ at idx %d,@ pat @[%a@]@ \
-             (min %d, max %d, slice @[%a@])@]"
-          vantage_idx Pattern.pp apv.ap_vantage min max pp_slice slice);
-        match_pair subst apv.ap_vantage (Slice.get slice vantage_idx)
+           assert (not (Subst.mem i subst));
+           (* bind [i] *)
+           let subst = Subst.add i e subst in
+           yield subst)
+    | P_check_same (i, sub_pat), _ ->
+      match_ st subst sub_pat e
+        (fun subst ->
+           (* get current binding for [i] *)
+           let other = Subst.get_exn i subst in
+           trace_eval_
+             (fun k->k "(@[<2>check_same@ %a@ %a@])" E.pp_full_form e E.pp_full_form other);
+           if E.equal e other then yield subst)
+    | P_app (hd, args), App (hd', args')
+      when Array.length args = Array.length args' ->
+      match_ st subst hd hd'
+        (fun subst -> match_arrays st subst args args' 0 yield)
+    | P_app_assoc (hd, tree), App (hd', args) ->
+      (* associative matching *)
+      match_ st subst hd hd'
+        (fun subst -> match_assoc st subst tree (Slice.full args) yield)
+    | P_conditional (p', cond), _ ->
+      match_ st subst p' e
+        (fun subst ->
+           if check_cond st subst cond then yield subst)
+    | P_test (p', test), _ ->
+      (* match [p'] with [e], then check if [test[e] --> True] *)
+      match_ st subst p' e
+        (fun subst ->
+           if check_cond st Subst.empty (E.app test [| e |])
+           then yield subst)
+    | P_fail, _ -> ()
+    | P_alt l, _ -> match_alt st subst l e yield
+    | P_z _, _
+    | P_q _, _
+    | P_const _, _
+    | P_string _, _
+    | P_app_assoc _, _
+    | P_app _, _
+    | P_blank_sequence _, _
+    | P_blank_sequence_null _, _
+      -> () (* fail *)
+  end
+(* match arrays pairwise *)
+and match_arrays st subst a b (i:int) yield: unit =
+  if i = Array.length a then (
+    assert (i = Array.length b);
+    yield subst
+  ) else
+    match_ st subst a.(i) b.(i)
+      (fun subst ->
+         match_arrays st subst a b (i+1) yield
+  )
+(* try alternatives *)
+and match_alt st subst (l:pattern list) e yield: unit =
+  List.iter (fun pat -> match_ st subst pat e yield) l
+
+(* check if [cond --> true] *)
+and check_cond st (subst:Subst.t)(cond:E.t): bool =
+  let cond' = Subst.apply subst cond in
+  begin match eval_rec st cond' with
+    | Const {cst_name="True";_} -> true
+    | Const {cst_name="False";_} -> false
+    | cond' ->
+      eval_failf
+        "@[<2>expected True/False,@ but condition `@[%a@]`@ \
+         reduces to `@[%a@]`@ in subst %a@]"
+        E.pp_full_form cond E.pp_full_form cond' Subst.pp subst
+  end
+
+(* match tree [ap] to slice [slice] *)
+and match_assoc st subst (ap:assoc_pattern) (slice:E.t Slice.t) yield: unit =
+  match ap with
+    | AP_vantage apv -> match_ap_vantage st subst apv slice yield
+    | AP_pure (l,_) -> match_ap_pure st subst l slice yield
+
+and match_ap_vantage st subst (apv:assoc_pattern_vantage) slice yield =
+  trace_eval_ (fun k->k "@[<2>match_ap_vantage st @[%a@]@ slice @[%a@]@]"
+    Pattern.pp apv.ap_vantage pp_slice slice);
+  (* check that there are enough elements *)
+  let n = Slice.length slice in
+  if apv.ap_min_size > n then ()
+  else (
+    (* the range in which we can match [ap.ap_vantage] safely *)
+    let min, max =
+      Pattern.ap_assoc_min_size apv.ap_left,
+      n - Pattern.ap_assoc_min_size apv.ap_right
+    in
+    for vantage_idx = min to max-1 do
+      (* try with this index *)
+      trace_eval_ (fun k->k
+          "@[match_ap_vantage st@ at idx %d,@ pat @[%a@]@ \
+           (min %d, max %d, slice @[%a@])@]"
+        vantage_idx Pattern.pp apv.ap_vantage min max pp_slice slice);
+      match_ st subst apv.ap_vantage (Slice.get slice vantage_idx)
+        (fun subst ->
+           let slice_left = Slice.sub slice 0 vantage_idx in
+           match_assoc st subst apv.ap_left slice_left
+             (fun subst ->
+                let slice_right =
+                  Slice.sub slice (vantage_idx+1) (n-vantage_idx-1)
+                in
+                match_assoc st subst apv.ap_right slice_right yield))
+    done
+  )
+
+and match_ap_pure st subst (l:pattern list) slice yield =
+  let n = Slice.length slice in
+  begin match l, n with
+    | [], 0 -> yield subst
+    | [], _ -> () (* fail to match some elements *)
+    | [p], _ ->
+      (* match [p] with the whole slice *)
+      match_pat_slice st subst p slice yield
+    | p1 :: tail, _ ->
+      (* cut [slice] into two parts, one to be matched with [p1],
+         the rest with [tail]
+         TODO a bit too naive, use info about min length *)
+      for i=0 to n do
+        let slice1 = Slice.sub slice 0 i in
+        match_pat_slice st subst p1 slice1
           (fun subst ->
-             let slice_left = Slice.sub slice 0 vantage_idx in
-             match_assoc subst apv.ap_left slice_left
-               (fun subst ->
-                  let slice_right =
-                    Slice.sub slice (vantage_idx+1) (n-vantage_idx-1)
-                  in
-                  match_assoc subst apv.ap_right slice_right yield))
+             let slice2 = Slice.sub slice i (n-i) in
+             match_ap_pure st subst tail slice2 yield)
       done
-    )
-  and match_ap_pure subst (l:pattern list) slice yield =
-    let n = Slice.length slice in
-    begin match l, n with
-      | [], 0 -> yield subst
-      | [], _ -> () (* fail to match some elements *)
-      | [p], _ ->
-        (* match [p] with the whole slice *)
-        match_pat_slice subst p slice yield
-      | p1 :: tail, _ ->
-        (* cut [slice] into two parts, one to be matched with [p1],
-           the rest with [tail]
-           TODO a bit too naive, use info about min length *)
-        for i=0 to n do
-          let slice1 = Slice.sub slice 0 i in
-          match_pat_slice subst p1 slice1
-            (fun subst ->
-               let slice2 = Slice.sub slice i (n-i) in
-               match_ap_pure subst tail slice2 yield)
-        done
-    end
+  end
 
-  (* check that [c] is the head of all elements of the slice *)
-  and check_head_slice (c:const) (slice:_ Slice.t): bool =
-    Slice.for_all
-      (function
-        | App (Const c', _) -> E.Cst.equal c c'
-        | _ -> false)
-      slice
+(* check that [c] is the head of all elements of the slice *)
+and check_head_slice (c:const) (slice:_ Slice.t): bool =
+  Slice.for_all
+    (function
+      | App (Const c', _) -> E.Cst.equal c c'
+      | _ -> false)
+    slice
 
-  (* match [p] with the whole slice, if possible *)
-  and match_pat_slice subst (p:pattern) slice yield =
-    let n = Slice.length slice in
-    begin match p with
-      | P_blank_sequence None ->
-        if n>0 then yield subst (* yield if non empty slice *)
-      | P_blank_sequence (Some c) ->
-        if n>0 && check_head_slice c slice then yield subst
-      | P_blank_sequence_null None -> yield subst (* always matches *)
-      | P_blank_sequence_null (Some c) ->
-        if check_head_slice c slice then yield subst
-      | P_alt [] -> ()
-      | P_alt (p1::tail) ->
-        (* try alternatives *)
-        match_pat_slice subst p1 slice yield;
-        match_pat_slice subst (P_alt tail) slice yield
-      | P_check_same (i, p') ->
-        (* check that [i] corresponds to [Sequence[slice]] *)
-        let e_slice = lazy (sequence_of_slice slice) in
-        match_pat_slice subst p' slice
-          (fun subst ->
-             (* get current binding for [i] *)
-             let other = Subst.get_exn i subst in
-             trace_eval_
-               (fun k->k "(@[<2>check_same@ %a@ %a@])"
-                   E.pp_full_form (Lazy.force e_slice) E.pp_full_form other);
-             if E.equal (Lazy.force e_slice) other then yield subst)
-      | P_bind (i, p') ->
-        (* bind [i] to [Sequence[slice]] *)
-        match_pat_slice subst p' slice
-          (fun subst ->
-             let subst = Subst.add i (sequence_of_slice slice) subst in
-             yield subst)
-      | P_conditional (p', cond) ->
-        match_pat_slice subst p' slice
-          (fun subst ->
-             if check_cond subst cond then yield subst)
-      | P_test (p', test) ->
-        match_pat_slice subst p' slice
-          (fun subst ->
-             if Slice.for_all
-                 (fun arg -> check_cond Subst.empty (E.app test [| arg |]))
-                 slice
-             then yield subst)
-      | P_fail -> ()
-      | P_blank _ | P_q _ | P_z _ | P_string _ | P_app _
-      | P_const _ | P_app_assoc _
-        ->
-        if n=1 then (
-          (* non-sequence pattern, match against the only element *)
-          match_pair subst p (Slice.get slice 0) yield
-        )
-    end
-  in
-  match_pair subst pat e
+(* match [p] with the whole slice, if possible *)
+and match_pat_slice st subst (p:pattern) slice yield =
+  let n = Slice.length slice in
+  begin match p with
+    | P_blank_sequence None ->
+      if n>0 then yield subst (* yield if non empty slice *)
+    | P_blank_sequence (Some c) ->
+      if n>0 && check_head_slice c slice then yield subst
+    | P_blank_sequence_null None -> yield subst (* always matches *)
+    | P_blank_sequence_null (Some c) ->
+      if check_head_slice c slice then yield subst
+    | P_alt [] -> ()
+    | P_alt (p1::tail) ->
+      (* try alternatives *)
+      match_pat_slice st subst p1 slice yield;
+      match_pat_slice st subst (P_alt tail) slice yield
+    | P_check_same (i, p') ->
+      (* check that [i] corresponds to [Sequence[slice]] *)
+      let e_slice = lazy (sequence_of_slice slice) in
+      match_pat_slice st subst p' slice
+        (fun subst ->
+           (* get current binding for [i] *)
+           let other = Subst.get_exn i subst in
+           trace_eval_
+             (fun k->k "(@[<2>check_same@ %a@ %a@])"
+                 E.pp_full_form (Lazy.force e_slice) E.pp_full_form other);
+           if E.equal (Lazy.force e_slice) other then yield subst)
+    | P_bind (i, p') ->
+      (* bind [i] to [Sequence[slice]] *)
+      match_pat_slice st subst p' slice
+        (fun subst ->
+           let subst = Subst.add i (sequence_of_slice slice) subst in
+           yield subst)
+    | P_conditional (p', cond) ->
+      match_pat_slice st subst p' slice
+        (fun subst ->
+           if check_cond st subst cond then yield subst)
+    | P_test (p', test) ->
+      match_pat_slice st subst p' slice
+        (fun subst ->
+           if Slice.for_all
+               (fun arg -> check_cond st Subst.empty (E.app test [| arg |]))
+               slice
+           then yield subst)
+    | P_fail -> ()
+    | P_blank _ | P_q _ | P_z _ | P_string _ | P_app _
+    | P_const _ | P_app_assoc _
+      ->
+      if n=1 then (
+        (* non-sequence pattern, match against the only element *)
+        match_ st subst p (Slice.get slice 0) yield
+      )
+  end
 
 and eval_rec (st:eval_state) e =
   (* trace_eval_ (fun k->k "@[<2>eval_rec @[%a@]@]" E.pp_full_form e); *)
