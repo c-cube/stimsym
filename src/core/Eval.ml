@@ -39,12 +39,9 @@ type rewrite_set =
   | RS_add_rules of rewrite_rule list * rewrite_set
   | RS_add_defs of def list * rewrite_set
 
-let rs_of_st st: rewrite_set =
-  RS_add_rules (st.st_local_rules, RS_add_rules (st.st_rules, RS_empty))
+let rs_of_st st: rewrite_set = RS_add_rules (st.st_rules, RS_empty)
 
-let rs_of_cst st c: rewrite_set =
-  RS_add_rules (c.cst_local_rules,
-    RS_add_defs (c.cst_rules, rs_of_st st))
+let rs_of_cst st c: rewrite_set = RS_add_defs (c.cst_rules, rs_of_st st)
 
 let pp_slice out s =
   Format.fprintf out "[@[%a@]]"
@@ -617,7 +614,6 @@ and rewrite_rec st ~(steps:[`Once|`Repeated]) (rules:rewrite_rule list)(e:expr):
 let create_eval_state ~buf () : eval_state = {
   st_iter_count=0;
   st_rules=[];
-  st_local_rules=[];
   st_effects=buf;
 }
 

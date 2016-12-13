@@ -29,7 +29,6 @@ type const = Base_types.const = {
   cst_id: int;
   mutable cst_properties: Properties.t;
   mutable cst_rules: def list;
-  mutable cst_local_rules: rewrite_rule list;
   mutable cst_doc: Document.t;
   mutable cst_printer: (int * const_printer) option;
   mutable cst_display : mime_printer option;

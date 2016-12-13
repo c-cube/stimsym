@@ -55,7 +55,6 @@ let const_of_string name =
         cst_properties=Properties.empty;
         cst_id= bank.const_id;
         cst_rules=[];
-        cst_local_rules=[];
         cst_doc=[];
         cst_printer=None;
         cst_display=None;
