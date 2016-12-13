@@ -10,7 +10,7 @@ type t = Expr.t
 
 exception Eval_does_not_apply
 
-let all_ = ref []
+let all_ : E.t list ref = ref []
 let log_ : (string -> unit) ref = ref (fun _ -> ())
 let log s = !log_ s
 let logf s = Printf.ksprintf log s
@@ -922,19 +922,23 @@ module Attrs = struct
     | Listable
     | No_duplicates
 
-  exception Wrong
+  exception Not_a_const of E.t
+  exception Not_an_attr of E.t
 
-  let mk_ view field = {view; field}
+  let mk_pair view field = {view; field}
+
+  let make_const name =
+    make name ~doc:[`S name; `P "Attribute. See `GetAttributes`"]
 
   let tbl =
-    [ mk_ Hold_all E.field_hold_all, E.const_of_string "HoldAll";
-      mk_ Hold_first E.field_hold_first, E.const_of_string "HoldFirst";
-      mk_ Hold_rest E.field_hold_rest, E.const_of_string "HoldRest";
-      mk_ Orderless E.field_orderless, E.const_of_string "Orderless";
-      mk_ Flatten E.field_flatten, E.const_of_string "Flatten";
-      mk_ One_identity E.field_one_identity, E.const_of_string "One_identity";
-      mk_ Listable E.field_listable, E.const_of_string "Listable";
-      mk_ No_duplicates E.field_no_duplicates, E.const_of_string "NoDuplicates";
+    [ mk_pair Hold_all E.field_hold_all, make_const "HoldAll";
+      mk_pair Hold_first E.field_hold_first, make_const "HoldFirst";
+      mk_pair Hold_rest E.field_hold_rest, make_const "HoldRest";
+      mk_pair Orderless E.field_orderless, make_const "Orderless";
+      mk_pair Flatten E.field_flatten, make_const "Flatten";
+      mk_pair One_identity E.field_one_identity, make_const "One_identity";
+      mk_pair Listable E.field_listable, make_const "Listable";
+      mk_pair No_duplicates E.field_no_duplicates, make_const "NoDuplicates";
     ]
 
   let to_e e =
@@ -951,10 +955,10 @@ module Attrs = struct
           tbl
       in
       begin match r with
-        | None -> raise Wrong
+        | None -> raise (Not_an_attr e)
         | Some a -> a
       end
-    | _ -> raise Wrong
+    | _ -> raise (Not_an_attr e)
 
   let get c : attr array =
     tbl
@@ -967,17 +971,30 @@ module Attrs = struct
 
   let terms_as_cst_attrs (args:t array): (E.const * attr array) option =
     if Array.length args=0 then None
-    else try
-        let c = match args.(0) with
-          | E.Const c -> c
-          | _ -> raise Wrong
-        in
-        let args =
-          Array.init (Array.length args-1)
-            (fun i -> of_e args.(i+1))
-        in
-        Some (c,args)
-      with Wrong -> None
+    else (
+      let c = match args.(0) with
+        | E.Const c -> c
+        | _ -> raise (Not_a_const args.(0))
+      in
+      let args =
+        Array.init (Array.length args-1)
+          (fun i -> of_e args.(i+1))
+      in
+      Some (c,args)
+    )
+
+  let term_as_cst_attrs arg (e:E.t): (E.const * attr array) option =
+    match e with
+      | E.App (_, args) ->
+        begin try terms_as_cst_attrs args
+          with
+            | Not_a_const e ->
+              Eval.prim_failf arg "expected first parameter `%a` to be a constant"
+                E.pp_full_form e
+            | Not_an_attr e ->
+              Eval.prim_failf arg "expected `%a` to be an attribute" E.pp_full_form e
+        end
+      | _ -> None
 
   let doc : Document.t = [
     `S "Attributes";
@@ -996,24 +1013,16 @@ module Attrs = struct
 end
 
 let set_attributes =
-  let eval _ _ = function
-    | E.App (_, args) ->
-      begin match Attrs.terms_as_cst_attrs args with
-        | Some (c, attrs) -> Attrs.set c true attrs; Some null
-        | None -> raise Eval_does_not_apply
-      end
-    | _ -> raise Eval_does_not_apply
+  let eval _ arg e = match Attrs.term_as_cst_attrs arg e with
+    | Some (c, attrs) -> Attrs.set c true attrs; Some null
+    | None -> raise Eval_does_not_apply
   in
   make "SetAttributes" ~funs:[eval] ~doc:Attrs.doc
 
 let remove_attributes =
-  let eval _ _ = function
-    | E.App (_, args) ->
-      begin match Attrs.terms_as_cst_attrs args with
-        | Some (c, attrs) -> Attrs.set c false attrs; Some null
-        | None -> raise Eval_does_not_apply
-      end
-    | _ -> raise Eval_does_not_apply
+  let eval _ arg e = match Attrs.term_as_cst_attrs arg e with
+    | Some (c, attrs) -> Attrs.set c false attrs; Some null
+    | None -> raise Eval_does_not_apply
   in
   make "RemoveAttributes" ~funs:[eval]  ~doc:Attrs.doc
 
