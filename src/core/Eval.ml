@@ -67,7 +67,7 @@ let rec pattern_head (p:pattern): const = match p with
     -> raise E.No_head
   | P_blank (Some c) | P_blank_sequence (Some c) | P_blank_sequence_null (Some c) ->
     c
-  | P_app_slice (f,_) | P_app (f,_)
+  | P_app_slice (f,_) | P_app_slice_unordered (f,_) | P_app (f,_)
     -> pattern_head f
   | P_bind (_,p')
   | P_conditional (p',_)
@@ -158,9 +158,13 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t)(yield:Subst
       match_ st subst hd hd'
         (fun subst -> match_arrays st subst args args' 0 yield)
     | P_app_slice (hd, tree), App (hd', args) ->
-      (* associative matching *)
+      (* slice matching *)
       match_ st subst hd hd'
-        (fun subst -> match_assoc st subst tree (Slice.full args) yield)
+        (fun subst -> match_slices st subst tree (Slice.full args) yield)
+    | P_app_slice_unordered (hd, tree), App (hd', args) ->
+      (* commutative slice matching *)
+      match_ st subst hd hd'
+        (fun subst -> match_slices_unordered st subst tree (Array.to_list args) yield)
     | P_conditional (p', cond), _ ->
       match_ st subst p' e
         (fun subst ->
@@ -178,6 +182,7 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t)(yield:Subst
     | P_const _, _
     | P_string _, _
     | P_app_slice _, _
+    | P_app_slice_unordered _, _
     | P_app _, _
     | P_blank_sequence _, _
     | P_blank_sequence_null _, _
@@ -213,7 +218,7 @@ and check_cond st (subst:Subst.t)(cond:E.t): bool =
   end
 
 (* match tree [ap] to slice [slice] *)
-and match_assoc st subst (ap:slice_pattern) (slice:E.t Slice.t) yield: unit =
+and match_slices st subst (ap:slice_pattern) (slice:E.t Slice.t) yield: unit =
   match ap with
     | SP_vantage apv -> match_sp_vantage st subst apv slice yield
     | SP_pure (l,_) -> match_sp_pure st subst l slice yield
@@ -239,12 +244,12 @@ and match_sp_vantage st subst (apv:slice_pattern_vantage) slice yield =
       match_ st subst apv.sp_vantage (Slice.get slice vantage_idx)
         (fun subst ->
            let slice_left = Slice.sub slice 0 vantage_idx in
-           match_assoc st subst apv.sp_left slice_left
+           match_slices st subst apv.sp_left slice_left
              (fun subst ->
                 let slice_right =
                   Slice.sub slice (vantage_idx+1) (n-vantage_idx-1)
                 in
-                match_assoc st subst apv.sp_right slice_right yield))
+                match_slices st subst apv.sp_right slice_right yield))
     done
   )
 
@@ -267,6 +272,63 @@ and match_sp_pure st subst (l:pattern list) slice yield =
              let slice2 = Slice.sub slice i (n-i) in
              match_sp_pure st subst tail slice2 yield)
       done
+  end
+
+(* match tree [ap] to slice [slice] *)
+and match_slices_unordered st subst (p:slice_unordered_pattern) (slice:E.t list) yield: unit =
+  match p with
+    | SUP_vantage (p,next,min_size) ->
+      match_sup_vantage st subst p next min_size slice yield
+    | SUP_pure (pats,_) ->
+      match_sup_pure st subst pats slice yield
+
+and match_sup_vantage st subst p next min_size slice yield =
+  (* check that there are enough elements *)
+  let n = List.length slice in
+  if min_size > n then ()
+  else (
+    (* try to match [p] against all elements of [slice], one by one.
+       [left]: elements we tried against [e] already, kept for [next]
+       [right]: elements still not tried *)
+    let rec aux left right = match right with
+      | [] -> ()
+      | e :: right_tail ->
+        trace_eval_ (fun k->k
+            "@[match_sup_vantage st@ pat @[%a@]@ at @[%a@]@]"
+            Pattern.pp p (Fmt.Dump.list E.pp_full_form) right);
+        (* try [e] *)
+        match_ st subst p e
+          (fun subst ->
+             match_slices_unordered st subst next
+               (List.rev_append left right_tail) yield);
+        (* avoid [e] *)
+        aux (e :: left) right_tail
+    in
+    aux [] slice
+  )
+
+and match_sup_pure st subst (l:pattern list) slice yield =
+  begin match l, slice with
+    | [], [] -> yield subst
+    | [], _ -> () (* fail to match some elements *)
+    | [p], _ ->
+      (* match [p] with the whole slice *)
+      match_pat_slice st subst p (Slice.of_list slice) yield
+    | p1 :: tail, _ ->
+      (* match [p1] with a subset of [slice]. This is going to be expensive.
+         TODO: use min size information… *)
+      let rec aux left_in left_out right = match right with
+        | [] ->
+          (* match [left_in] with [p1]; then match [left_out] with [tail] *)
+          match_pat_slice st subst p1 (Slice.of_list left_in)
+            (fun subst ->
+               match_sup_pure st subst tail left_out yield)
+        | e :: right_tail ->
+          (* try with [e] in the list *)
+          aux (e::left_in) left_out right_tail;
+          aux left_in (e::left_out) right_tail;
+      in
+      aux [] [] slice
   end
 
 (* check that [c] is the head of all elements of the slice *)
@@ -323,7 +385,7 @@ and match_pat_slice st subst (p:pattern) slice yield =
            then yield subst)
     | P_fail -> ()
     | P_blank _ | P_q _ | P_z _ | P_string _ | P_app _
-    | P_const _ | P_app_slice _
+    | P_const _ | P_app_slice _ | P_app_slice_unordered _
       ->
       if n=1 then (
         (* non-sequence pattern, match against the only element *)

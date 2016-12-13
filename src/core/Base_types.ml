@@ -62,6 +62,7 @@ and pattern =
     (* match, then check syntactic equality with content of register *)
   | P_alt of pattern list
   | P_app_slice of pattern * slice_pattern (* for slices *)
+  | P_app_slice_unordered of pattern * slice_unordered_pattern
   | P_conditional of pattern * expr (* pattern if condition *)
   | P_test of pattern * expr (* `p?t` pattern + test on value *)
 
@@ -76,6 +77,10 @@ and slice_pattern_vantage = {
   sp_vantage: pattern; (* match this unary pattern first *)
   sp_right: slice_pattern; (* matches right slice *)
 }
+
+and slice_unordered_pattern =
+  | SUP_vantage of pattern * slice_unordered_pattern * int (* pattern to match first, rec, min size *)
+  | SUP_pure of pattern list * int (* only sequence/null; min size *)
 
 and binding_seq_body_item =
   | Comp_match of pattern * expr

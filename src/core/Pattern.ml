@@ -20,6 +20,9 @@ let rec pp out (p:pattern) = match p with
   | P_app_slice (head, arg) ->
     Format.fprintf out "@[<2>%a[@[%a@]]@]"
       pp head pp_slice_pattern arg
+  | P_app_slice_unordered (head, arg) ->
+    Format.fprintf out "@[<2>%a[@[%a@]]@]"
+      pp head pp_sup arg
   | P_z n -> Z.pp_print out n
   | P_q n -> Q.pp_print out n
   | P_string s -> Format.fprintf out "%S" s
@@ -48,6 +51,13 @@ and pp_slice_pattern out = function
       pp_slice_pattern apv.sp_left
       pp apv.sp_vantage pp_slice_pattern apv.sp_right
   | SP_pure (l,_) ->
+    Format.fprintf out "[@[<hv>%a@]]"
+      (Fmt.list ~start:"" ~stop:"" pp) l
+
+and pp_sup out = function
+  | SUP_vantage (p, sub, _) ->
+    Format.fprintf out "[@[<2>vantage(@[%a@]),@,%a@]]" pp p pp_sup sub
+  | SUP_pure (l,_) ->
     Format.fprintf out "[@[<hv>%a@]]"
       (Fmt.list ~start:"" ~stop:"" pp) l
 
@@ -87,8 +97,11 @@ let rec matches_slice (p:pattern): bool = match p with
   | P_test (sub_p,_)
   | P_check_same (_, sub_p) -> matches_slice sub_p
   | P_blank _ -> false
-  | P_q _ | P_z _ | P_string _ | P_app _ | P_const _ | P_fail | P_app_slice _
+  | P_q _ | P_z _ | P_string _ | P_app _ | P_const _ | P_fail
+  | P_app_slice _ | P_app_slice_unordered _
     -> false
+
+let matches_single p = not (matches_slice p)
 
 (* 0 or 1, depending on whether the pattern can be Null *)
 let rec pat_slice_min_size (p:pattern): int = match p with
@@ -102,12 +115,16 @@ let rec pat_slice_min_size (p:pattern): int = match p with
   | P_test (sub_p,_)
   | P_check_same (_, sub_p) -> pat_slice_min_size sub_p
   | P_blank _ | P_q _ | P_z _ | P_string _ | P_app _ | P_const _
-  | P_fail | P_app_slice _
+  | P_fail | P_app_slice _ | P_app_slice_unordered _
     -> 1
 
 let sp_slice_min_size (ap:slice_pattern): int = match ap with
   | SP_vantage apv -> apv.sp_min_size
   | SP_pure (_,i) -> i
+
+let sup_slice_min_size (ap:slice_unordered_pattern): int = match ap with
+  | SUP_vantage (_,_,i) -> i
+  | SUP_pure (_,i) -> i
 
 module Pat_compile = struct
   type state = {
@@ -122,7 +139,7 @@ module Pat_compile = struct
     surrounding=Stack.create();
   }
 
-  (* convert LHS into a proper pattern *)
+  (* convert [t] into a proper pattern *)
   let rec tr_pattern st t = match t with
     | Const c -> P_const c
     | String s -> P_string s
@@ -173,19 +190,26 @@ module Pat_compile = struct
       let test = tr_term st test in
       P_test (p, test)
     | App (hd, args) ->
-      let hd = tr_pattern st hd in
+      let hd_pat = tr_pattern st hd in
       let args = Array.map (tr_pattern st) args in
       if CCArray.exists matches_slice args
-      then (
-        (* associative match *)
-        let ap = ap_of_pats (Slice.full args) in
-        P_app_slice (hd, ap)
-      ) else (
+      then match hd with
+        | Const c when E.Cst.get_field E.field_orderless c ->
+          (* unordered slice match *)
+          assert (args <> [||]);
+          let sup = sup_of_pats (Array.to_list args) in
+          P_app_slice_unordered (hd_pat, sup)
+        | _ ->
+          (* regular slice match *)
+          let ap = ap_of_pats (Slice.full args) in
+          P_app_slice (hd_pat, ap)
+      else (
         (* otherwise, match structurally *)
-        P_app (hd, args)
+        P_app (hd_pat, args)
       )
     | Reg _ -> assert false
-  (* convert variables in RHS *)
+
+  (* convert variables in [t] into registers *)
   and tr_term st t = match t with
     | Z _ | Q _ | String _ -> t
     | App (hd, args) ->
@@ -198,6 +222,7 @@ module Pat_compile = struct
         | None -> t
         | Some i -> E.reg i (* lookup *)
       end
+
   (* build an associative pattern tree out of this list of patterns *)
   and ap_of_pats (a:pattern Slice.t): slice_pattern =
     let n = Slice.length a in
@@ -207,7 +232,6 @@ module Pat_compile = struct
          is higher when the pattern is more specific (low for Blank, high
          for constant applications, literals, etc.) and pick the most
          specific non-slice pattern as vantage point *)
-      let matches_single p = not (matches_slice p) in
       (* try to find a vantage point *)
       begin match Slice.find_idx matches_single a with
         | Some (i, vantage) ->
@@ -235,6 +259,23 @@ module Pat_compile = struct
           SP_pure (l, min_size)
       end
     )
+
+  (* build an associative pattern tree out of this list of patterns *)
+  and sup_of_pats (l:pattern list): slice_unordered_pattern =
+    begin match CCList.find_idx matches_single l with
+      | Some (i, vantage) ->
+        let l' = CCList.Idx.remove l i in
+        let sup = sup_of_pats l' in
+        let min_size = pat_slice_min_size vantage + sup_slice_min_size sup in
+        SUP_vantage (vantage, sup, min_size)
+      | None ->
+        (* pure pattern: only slice-matching patterns *)
+        let min_size =
+          List.fold_left
+            (fun acc p -> acc+pat_slice_min_size p) 0 l
+        in
+        SUP_pure (l, min_size)
+    end
 end
 
 (* raise Invalid_rule if cannot compile *)

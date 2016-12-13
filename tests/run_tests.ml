@@ -409,6 +409,8 @@ let suite_eval =
     mk_eval __LINE__ "f[a] /. f[x_] :> f[f[x]]" "f[f[a]]";
     mk_eval __LINE__ "Plus[a]" "a";
     mk_eval __LINE__ "Times[a]" "a";
+    mk_eval __LINE__ "a+b+c /. (b+___)->top" "top";
+    mk_eval __LINE__ "a+b+c+d+b /. (b+d+r___):>{r}" "List[a,c,b]";
   ]
 
 (** {2 Main} *)

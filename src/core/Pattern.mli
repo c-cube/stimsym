@@ -23,6 +23,8 @@ val compile_rule : expr -> expr -> rewrite_rule
 
 val sp_slice_min_size : slice_pattern -> int
 
+val sup_slice_min_size : slice_unordered_pattern -> int
+
 val compile_binding_seq :
   ret:[< `First | `Last ] ->
   expr array ->

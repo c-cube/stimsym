@@ -17,6 +17,8 @@ val of_slice : ('a array * int * int) -> 'a t
     [i] the offset in [arr], and [len] the number of elements of the slice.
     @raise Invalid_argument if the slice isn't valid (See {!make}) *)
 
+val of_list : 'a list -> 'a t
+
 val to_slice : 'a t -> ('a array * int * int)
 (** Convert into a triple [(arr, i, len)] where [len] is the length of
     the subarray of [arr] starting at offset [i] *)

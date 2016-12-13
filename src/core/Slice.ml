@@ -25,6 +25,10 @@ let to_slice a = a.arr, a.i, a.j-a.i
 
 let full arr = { arr; i=0; j=Array.length arr; }
 
+let of_list l =
+  let a = Array.of_list l in
+  full a
+
 let get a i =
   let j = a.i + i in
   if i<0 || j>=a.j then invalid_arg "Slice.get";
