@@ -484,13 +484,20 @@ and eval_rec (st:eval_state) e =
       | App (Const c as hd,
           [| App (Const {cst_name="List";_} as list_, args) |])
         when E.Cst.get_field E.field_listable c ->
+        (* TODO: should work even with multiple arguments, some of which are lists *)
         (* distribute [hd] on the list and evaluate it *)
         let args = Array.map (fun a -> eval_rec st (E.app hd [| a |])) args in
         (* return the list of results *)
         E.app_flatten list_ args
-      | App (Const c, _) ->
-        (* try every definition of [c] *)
-        try_defs st t' (rs_of_cst st c)
+      | App (hd, _) ->
+        begin
+          try
+            let c = Expr.head hd in
+            (* try every definition of [c] in addition to global rules *)
+            try_defs st t' (rs_of_cst st c)
+          with Expr.No_head ->
+            try_defs st t' (rs_of_st st)
+        end
       | _ ->
         (* just try the global rewrite rules *)
         try_defs st t' (rs_of_st st)
