@@ -20,6 +20,7 @@ val make :
   ?display:Expr.mime_printer ->
   ?fields:Expr.Properties.field list ->
   ?funs:fun_def list ->
+  ?rules:(Expr.const -> t * t) list ->
   string -> t
 (** [make s] makes a new constant and sets some options/handlers on it *)
 
@@ -57,6 +58,7 @@ val not_ : t
 val plus : t
 val times : t
 val factorial : t
+val power : t
 val list : t
 
 val random : t

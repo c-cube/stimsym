@@ -414,7 +414,10 @@ let suite_eval =
     mk_eval __LINE__
       "SetAttributes[fcom,Orderless]; fcom[0,r___] := fcom[r]; fcom[1,2,0,3,a]"
       "fcom[1,2,3,a]";
-
+    mk_eval __LINE__ "Power[f_,n_?IntegerQ][x_]:=Nest[f,x,n]; Power[f,3][a]" "f[f[f[a]]]";
+    mk_eval __LINE__ "Power[f,5][a]" "f[f[f[f[f[a]]]]]";
+    mk_eval __LINE__ "Power[2,10]" "1024";
+    mk_eval __LINE__ "Power[1/2,10]" "1/1024";
   ]
 
 (** {2 Main} *)

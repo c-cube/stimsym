@@ -19,7 +19,11 @@ let logf s = Printf.ksprintf log s
    into [None] (fail) or [Some t'] *)
 type fun_def = E.const -> E.prim_fun_args -> E.t -> E.t option
 
-let make ?(doc:Document.t=[]) ?printer ?display ?(fields=[]) ?(funs:fun_def list =[]) name =
+let make ?(doc:Document.t=[])
+    ?printer ?display ?(fields=[])
+    ?(funs:fun_def list = [])
+    ?(rules:(E.const -> t * t) list = [])
+    name =
   let c =
     E.const_of_string_with name
       ~f:(fun c ->
@@ -33,6 +37,16 @@ let make ?(doc:Document.t=[]) ?printer ?display ?(fields=[]) ?(funs:fun_def list
              in
              E.Cst.add_def (Eval.def_fun d_protected) c)
           funs;
+        List.iter
+          (fun mk_rule ->
+             let lhs, rhs = mk_rule c in
+             match Eval.def_rule ~lhs ~rhs with
+               | Result.Ok r -> E.Cst.add_def r c
+               | Result.Error msg ->
+                 failwith (Fmt.sprintf
+                     "rule `@[%a := %a@]`@ is not valid: %s"
+                     E.pp_full_form lhs E.pp_full_form rhs msg))
+          rules;
         CCOpt.iter (fun (i,p) -> E.Cst.set_printer i p c) printer;
         CCOpt.iter (fun f -> E.Cst.set_display f c) display;
         E.Cst.set_doc doc c)
@@ -61,6 +75,7 @@ let prec_ineq = 30
 
 let prec_plus = 40
 let prec_times = 41
+let prec_power = 42
 let prec_factorial = 45
 
 let prec_pattern_test = 70
@@ -212,6 +227,47 @@ let times =
           Interpreted on numbers.";
       `I ("neutral element", [`P "1"]);
       `I ("infix", [`P "`a b c d`"]);
+    ]
+
+let power =
+  (* fast exponentiation on Q *)
+  let rec q_pow x n : Q.t =
+    if n=0 then Q.one
+    else if n=1 then x
+    else if n mod 2 = 0 then (
+      let x2 = q_pow x (n/2) in
+      Q.mul x2 x2
+    ) else Q.mul x (q_pow x (n-1))
+  in
+  let eval_aux e n = match e with
+    | E.Z x -> E.z (Z.pow x n)
+    | E.Q x -> E.q (q_pow x n)
+    | _ -> assert false
+  in
+  let eval self _ (e:E.t): E.t option = match e with
+    | E.App (E.Const _, [| (E.Q _ | E.Z _) as x; E.Z n |]) when Z.sign n >= 0 ->
+      let n = try Z.to_int n with _ -> raise Eval_does_not_apply in
+      Some (eval_aux x n)
+    | _ -> raise Eval_does_not_apply
+  (* rule: (f_^n_?IntegerQ)[x_] := Nest[f,x,n] *)
+  and rule_power_fun _ =
+    E.of_string_full_form_exn
+      "Power[Pattern[f,Blank[]],\
+       PatternTest[Pattern[n,Blank[]],IntegerQ]][Pattern[x,Blank[]]]",
+    E.of_string_full_form_exn "Nest[f,x,n]"
+  in
+  make "Power"
+    ~funs:[eval]
+    ~rules:[rule_power_fun]
+    ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
+    ~printer:(prec_times, print_infix_ prec_power "^" "1")
+    ~doc:[
+      `S "Power";
+      `P "Power operator, interpreted on numbers if the second argument \
+          is an integer.";
+      `P "`(f^n)[x]` is interpreted as `Nest[f,x,n]`";
+      `I ("infix", [`P "`a^b`"]);
+      `I ("example", [`P "`2^10` yield 1024"]);
     ]
 
 let factorial =
