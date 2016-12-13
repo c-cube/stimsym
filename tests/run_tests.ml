@@ -411,6 +411,10 @@ let suite_eval =
     mk_eval __LINE__ "Times[a]" "a";
     mk_eval __LINE__ "a+b+c /. (b+___)->top" "top";
     mk_eval __LINE__ "a+b+c+d+b /. (b+d+r___):>{r}" "List[a,c,b]";
+    mk_eval __LINE__
+      "SetAttributes[fcom,Orderless]; fcom[0,r___] := fcom[r]; fcom[1,2,0,3,a]"
+      "fcom[1,2,3,a]";
+
   ]
 
 (** {2 Main} *)
