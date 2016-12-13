@@ -77,6 +77,7 @@ rule token = parse
   |        ':'          {                  O_PATTERN }
   | space* ';' space*   { cntspace lexbuf; O_SEMI_COLON }
   | space* '+' space*   { cntspace lexbuf; O_PLUS }
+  | space* '^' space*   { cntspace lexbuf; O_POWER }
   | space* "<-"  space*  { cntspace lexbuf; O_MATCH_BIND }
   | space* "<<-"  space* { cntspace lexbuf; O_MATCH_BIND1 }
   | space* "::" space*  { cntspace lexbuf; O_COMPREHENSION }

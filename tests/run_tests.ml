@@ -148,6 +148,9 @@ let suite_parser =
     test_parser __LINE__
       "f[_]?(#===f[a]&)"
       "PatternTest[f[Blank[]],Function[SameQ[Slot[1],f[a]]]]";
+    test_parser __LINE__ "a^b" "Power[a,b]";
+    test_parser __LINE__ "x a^b" "Times[x,Power[a,b]]";
+    test_parser __LINE__ "x a^b c" "Times[x,Power[a,b],c]";
   ]
 
 (** {2 Printer} *)

@@ -56,6 +56,7 @@
 %token O_COMPREHENSION
 
 %token O_PLUS
+%token O_POWER
 %token O_EQUAL
 %token O_NOT_EQUAL
 %token O_LESS
@@ -196,8 +197,13 @@ prod_expr:
       | _ -> E.app_l B.times l }
 
 prod_expr_l:
-  | e=factorial_expr { [e] }
-  | a=factorial_expr SPACE b=prod_expr_l { a::b }
+  | e=power_expr { [e] }
+  | a=power_expr SPACE b=prod_expr_l { a::b }
+
+power_expr:
+  | e=factorial_expr { e }
+  | e=factorial_expr O_POWER n=app_expr_nospace
+    { E.app B.power [| e; n |] }
 
 factorial_expr:
   | e=app_expr_nospace { e }
