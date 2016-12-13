@@ -142,25 +142,30 @@ let app_flatten hd args =
          | _ -> must_split, len+1)
       (false,0) args
   in
-  if must_splice
-  then (
-    let args_flat = Array.make res_len null in
-    (* make a flattened array *)
-    let len' =
-      Array.fold_left
-        (fun offset arg -> match as_sub arg with
-           | Some sub ->
-             Array.blit sub 0 args_flat offset (Array.length sub);
-             offset + Array.length sub
-           | _ ->
-             args_flat.(offset) <- arg;
-             offset + 1)
-        0 args
-    in
-    assert (len' = res_len);
-    App (hd, args_flat)
-  ) else
-    App (hd, args)
+  let new_args = if must_splice then (
+      let args_flat = Array.make res_len null in
+      (* make a flattened array *)
+      let len' =
+        Array.fold_left
+          (fun offset arg -> match as_sub arg with
+             | Some sub ->
+               Array.blit sub 0 args_flat offset (Array.length sub);
+               offset + Array.length sub
+             | _ ->
+               args_flat.(offset) <- arg;
+               offset + 1)
+          0 args
+      in
+      assert (len' = res_len);
+      args_flat
+    ) else args
+  in
+  begin match hd, new_args with
+    | Const c, [| arg |] when Cst.get_field field_one_identity c ->
+      arg (* f[x]==x *)
+    | _ ->
+      App (hd, new_args)
+  end
 
 (** {2 Comparisons} *)
 
