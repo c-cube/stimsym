@@ -63,6 +63,8 @@ let prec_plus = 40
 let prec_times = 41
 let prec_factorial = 45
 
+let prec_pattern_test = 70
+
 let prec_pattern = 90
 let prec_blank = 95
 let prec_slot = 96
@@ -462,6 +464,17 @@ let pattern =
     | _ -> raise E.Print_default
   in
   make "Pattern" ~printer:(prec_pattern,pp) ~fields:[E.field_hold_all; E.field_protected]
+
+let pattern_test =
+  let pp = print_infix_bin_ prec_pattern_test "?" in
+  make "PatternTest"
+    ~fields:[E.field_hold_rest] ~printer:(prec_pattern_test,pp)
+    ~doc:[
+      `S "PatternTest";
+      `P "`PatternTest[p,t]` matches an expression `e` \
+          iff `p` matches `e` and `t[e]` evaluates to True.";
+      `I ("infix", [ `Pre "`pat?test`" ]);
+    ]
 
 let same_q =
   let eval _ _ e = match e with

@@ -144,6 +144,10 @@ let suite_parser =
     test_parser __LINE__
       "{f[x] :: x_<<-{1}, y_<-b, t}"
       "List[Comprehension[f[x],MatchBind1[Pattern[x,Blank[]],List[1]],MatchBind[Pattern[y,Blank[]],b],t]]";
+    test_parser __LINE__ "_?IntegerQ" "PatternTest[Blank[],IntegerQ]";
+    test_parser __LINE__
+      "f[_]?(#===f[a]&)"
+      "PatternTest[f[Blank[]],Function[SameQ[Slot[1],f[a]]]]";
   ]
 
 (** {2 Printer} *)

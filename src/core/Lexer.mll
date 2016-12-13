@@ -73,6 +73,7 @@ rule token = parse
   | space* "/." space*  { cntspace lexbuf; O_REPLACE_ALL }
   | space* "//." space* { cntspace lexbuf; O_REPLACE_REPEATED }
   | space* "/;" space*  { cntspace lexbuf; O_CONDITION }
+  | space* "?" space*   { cntspace lexbuf; O_TEST }
   |        ':'          {                  O_PATTERN }
   | space* ';' space*   { cntspace lexbuf; O_SEMI_COLON }
   | space* '+' space*   { cntspace lexbuf; O_PLUS }

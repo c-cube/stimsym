@@ -44,6 +44,7 @@
 %token O_REPLACE_REPEATED
 %token O_PATTERN
 %token O_CONDITION
+%token O_TEST
 %token O_BLANK
 %token O_BLANK_SEQ
 %token O_BLANK_NULL_SEQ
@@ -89,7 +90,7 @@ comprehension_expr:
   | e=compound_expr { e }
   | e=compound_expr
     O_COMPREHENSION
-    l=separated_nonempty_list(COMMA,set_expr)
+    l=separated_nonempty_list(COMMA, set_expr)
     { E.app_l B.comprehension (e::l) }
 
 compound_expr:
@@ -203,12 +204,17 @@ factorial_expr:
   | e=factorial_expr O_BANG { E.app_l B.factorial [e] }
 
 app_expr_nospace:
-  | e=atomic_expr_nospace { e }
+  | e=test_expr_nospace { e }
   | hd=app_expr_nospace
       LEFT_BRACKET
         args=separated_list(COMMA,expr)
       RIGHT_BRACKET
     { E.app_l hd args }
+
+test_expr_nospace:
+  | e=atomic_expr_nospace { e }
+  | e=app_expr_nospace O_TEST t=app_expr_nospace
+    { E.app B.pattern_test [| e; t |] }
 
 %inline blank:
   | O_BLANK t=SYMBOL { E.app_l B.blank [E.const_of_string t] }
