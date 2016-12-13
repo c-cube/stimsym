@@ -17,9 +17,9 @@ let rec pp out (p:pattern) = match p with
   | P_app (head, args) ->
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
       pp head (Fmt.array ~start:"" ~stop:"" ~sep:"," pp) args
-  | P_app_assoc (head, arg) ->
+  | P_app_slice (head, arg) ->
     Format.fprintf out "@[<2>%a[@[%a@]]@]"
-      pp head pp_assoc_pattern arg
+      pp head pp_slice_pattern arg
   | P_z n -> Z.pp_print out n
   | P_q n -> Q.pp_print out n
   | P_string s -> Format.fprintf out "%S" s
@@ -42,12 +42,12 @@ and pp_blank_arg out = function
   | None -> ()
   | Some {cst_name;_} -> Fmt.string out cst_name
 
-and pp_assoc_pattern out = function
-  | AP_vantage apv ->
+and pp_slice_pattern out = function
+  | SP_vantage apv ->
     Format.fprintf out "[@[<2>%a,@,vantage(@[%a@]),@,%a@]]"
-      pp_assoc_pattern apv.ap_left
-      pp apv.ap_vantage pp_assoc_pattern apv.ap_right
-  | AP_pure (l,_) ->
+      pp_slice_pattern apv.sp_left
+      pp apv.sp_vantage pp_slice_pattern apv.sp_right
+  | SP_pure (l,_) ->
     Format.fprintf out "[@[<hv>%a@]]"
       (Fmt.list ~start:"" ~stop:"" pp) l
 
@@ -87,27 +87,27 @@ let rec matches_slice (p:pattern): bool = match p with
   | P_test (sub_p,_)
   | P_check_same (_, sub_p) -> matches_slice sub_p
   | P_blank _ -> false
-  | P_q _ | P_z _ | P_string _ | P_app _ | P_const _ | P_fail | P_app_assoc _
+  | P_q _ | P_z _ | P_string _ | P_app _ | P_const _ | P_fail | P_app_slice _
     -> false
 
 (* 0 or 1, depending on whether the pattern can be Null *)
-let rec pat_assoc_min_size (p:pattern): int = match p with
+let rec pat_slice_min_size (p:pattern): int = match p with
   | P_blank_sequence _ -> 1
   | P_blank_sequence_null _ -> 0
   | P_alt [] -> assert false
   | P_alt (x::l) ->
-    List.fold_left (fun n p -> min n (pat_assoc_min_size p)) (pat_assoc_min_size x) l
+    List.fold_left (fun n p -> min n (pat_slice_min_size p)) (pat_slice_min_size x) l
   | P_bind (_, sub_p)
   | P_conditional (sub_p, _)
   | P_test (sub_p,_)
-  | P_check_same (_, sub_p) -> pat_assoc_min_size sub_p
+  | P_check_same (_, sub_p) -> pat_slice_min_size sub_p
   | P_blank _ | P_q _ | P_z _ | P_string _ | P_app _ | P_const _
-  | P_fail | P_app_assoc _
+  | P_fail | P_app_slice _
     -> 1
 
-let ap_assoc_min_size (ap:assoc_pattern): int = match ap with
-  | AP_vantage apv -> apv.ap_min_size
-  | AP_pure (_,i) -> i
+let sp_slice_min_size (ap:slice_pattern): int = match ap with
+  | SP_vantage apv -> apv.sp_min_size
+  | SP_pure (_,i) -> i
 
 module Pat_compile = struct
   type state = {
@@ -179,7 +179,7 @@ module Pat_compile = struct
       then (
         (* associative match *)
         let ap = ap_of_pats (Slice.full args) in
-        P_app_assoc (hd, ap)
+        P_app_slice (hd, ap)
       ) else (
         (* otherwise, match structurally *)
         P_app (hd, args)
@@ -199,9 +199,9 @@ module Pat_compile = struct
         | Some i -> E.reg i (* lookup *)
       end
   (* build an associative pattern tree out of this list of patterns *)
-  and ap_of_pats (a:pattern Slice.t): assoc_pattern =
+  and ap_of_pats (a:pattern Slice.t): slice_pattern =
     let n = Slice.length a in
-    if n=0 then AP_pure ([],0)
+    if n=0 then SP_pure ([],0)
     else (
       (* TODO: refine this, e.g. with a "specificity" score that
          is higher when the pattern is more specific (low for Blank, high
@@ -214,25 +214,25 @@ module Pat_compile = struct
           (* recurse in left and right parts of the pattern *)
           let left = ap_of_pats (Slice.sub a 0 i) in
           let right = ap_of_pats (Slice.sub a (i+1) (n-i-1)) in
-          let ap_min_size =
-            pat_assoc_min_size vantage +
-              ap_assoc_min_size left +
-              ap_assoc_min_size right
+          let sp_min_size =
+            pat_slice_min_size vantage +
+              sp_slice_min_size left +
+              sp_slice_min_size right
           in
-          AP_vantage {
-            ap_vantage=vantage;
-            ap_left=left;
-            ap_right=right;
-            ap_min_size;
+          SP_vantage {
+            sp_vantage=vantage;
+            sp_left=left;
+            sp_right=right;
+            sp_min_size;
           }
         | None ->
           (* pure pattern: only slice-matching patterns *)
           let l = Slice.copy a |> Array.to_list in
           let min_size =
             List.fold_left
-              (fun acc p -> acc+pat_assoc_min_size p) 0 l
+              (fun acc p -> acc+pat_slice_min_size p) 0 l
           in
-          AP_pure (l, min_size)
+          SP_pure (l, min_size)
       end
     )
 end

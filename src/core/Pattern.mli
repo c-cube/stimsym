@@ -21,7 +21,7 @@ val matches_slice : t -> bool
 
 val compile_rule : expr -> expr -> rewrite_rule
 
-val ap_assoc_min_size : assoc_pattern -> int
+val sp_slice_min_size : slice_pattern -> int
 
 val compile_binding_seq :
   ret:[< `First | `Last ] ->

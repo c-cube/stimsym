@@ -61,20 +61,20 @@ and pattern =
   | P_check_same of int * pattern
     (* match, then check syntactic equality with content of register *)
   | P_alt of pattern list
-  | P_app_assoc of pattern * assoc_pattern (* for slices *)
+  | P_app_slice of pattern * slice_pattern (* for slices *)
   | P_conditional of pattern * expr (* pattern if condition *)
   | P_test of pattern * expr (* `p?t` pattern + test on value *)
 
-and assoc_pattern =
-  | AP_vantage of assoc_pattern_vantage
-  | AP_pure of pattern list * int (* only sequence/sequencenull; min size *)
+and slice_pattern =
+  | SP_vantage of slice_pattern_vantage
+  | SP_pure of pattern list * int (* only sequence/sequencenull; min size *)
 
 (* a subtree used for associative pattern matching *)
-and assoc_pattern_vantage = {
-  ap_min_size: int; (* minimum length of matched slice *)
-  ap_left: assoc_pattern; (* matches left slice *)
-  ap_vantage: pattern; (* match this unary pattern first *)
-  ap_right: assoc_pattern; (* matches right slice *)
+and slice_pattern_vantage = {
+  sp_min_size: int; (* minimum length of matched slice *)
+  sp_left: slice_pattern; (* matches left slice *)
+  sp_vantage: pattern; (* match this unary pattern first *)
+  sp_right: slice_pattern; (* matches right slice *)
 }
 
 and binding_seq_body_item =

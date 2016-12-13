@@ -67,7 +67,7 @@ let rec pattern_head (p:pattern): const = match p with
     -> raise E.No_head
   | P_blank (Some c) | P_blank_sequence (Some c) | P_blank_sequence_null (Some c) ->
     c
-  | P_app_assoc (f,_) | P_app (f,_)
+  | P_app_slice (f,_) | P_app (f,_)
     -> pattern_head f
   | P_bind (_,p')
   | P_conditional (p',_)
@@ -157,7 +157,7 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t)(yield:Subst
       when Array.length args = Array.length args' ->
       match_ st subst hd hd'
         (fun subst -> match_arrays st subst args args' 0 yield)
-    | P_app_assoc (hd, tree), App (hd', args) ->
+    | P_app_slice (hd, tree), App (hd', args) ->
       (* associative matching *)
       match_ st subst hd hd'
         (fun subst -> match_assoc st subst tree (Slice.full args) yield)
@@ -177,7 +177,7 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t)(yield:Subst
     | P_q _, _
     | P_const _, _
     | P_string _, _
-    | P_app_assoc _, _
+    | P_app_slice _, _
     | P_app _, _
     | P_blank_sequence _, _
     | P_blank_sequence_null _, _
@@ -213,42 +213,42 @@ and check_cond st (subst:Subst.t)(cond:E.t): bool =
   end
 
 (* match tree [ap] to slice [slice] *)
-and match_assoc st subst (ap:assoc_pattern) (slice:E.t Slice.t) yield: unit =
+and match_assoc st subst (ap:slice_pattern) (slice:E.t Slice.t) yield: unit =
   match ap with
-    | AP_vantage apv -> match_ap_vantage st subst apv slice yield
-    | AP_pure (l,_) -> match_ap_pure st subst l slice yield
+    | SP_vantage apv -> match_sp_vantage st subst apv slice yield
+    | SP_pure (l,_) -> match_sp_pure st subst l slice yield
 
-and match_ap_vantage st subst (apv:assoc_pattern_vantage) slice yield =
-  trace_eval_ (fun k->k "@[<2>match_ap_vantage st @[%a@]@ slice @[%a@]@]"
-    Pattern.pp apv.ap_vantage pp_slice slice);
+and match_sp_vantage st subst (apv:slice_pattern_vantage) slice yield =
+  trace_eval_ (fun k->k "@[<2>match_sp_vantage st @[%a@]@ slice @[%a@]@]"
+    Pattern.pp apv.sp_vantage pp_slice slice);
   (* check that there are enough elements *)
   let n = Slice.length slice in
-  if apv.ap_min_size > n then ()
+  if apv.sp_min_size > n then ()
   else (
-    (* the range in which we can match [ap.ap_vantage] safely *)
+    (* the range in which we can match [ap.sp_vantage] safely *)
     let min, max =
-      Pattern.ap_assoc_min_size apv.ap_left,
-      n - Pattern.ap_assoc_min_size apv.ap_right
+      Pattern.sp_slice_min_size apv.sp_left,
+      n - Pattern.sp_slice_min_size apv.sp_right
     in
     for vantage_idx = min to max-1 do
       (* try with this index *)
       trace_eval_ (fun k->k
-          "@[match_ap_vantage st@ at idx %d,@ pat @[%a@]@ \
+          "@[match_sp_vantage st@ at idx %d,@ pat @[%a@]@ \
            (min %d, max %d, slice @[%a@])@]"
-        vantage_idx Pattern.pp apv.ap_vantage min max pp_slice slice);
-      match_ st subst apv.ap_vantage (Slice.get slice vantage_idx)
+        vantage_idx Pattern.pp apv.sp_vantage min max pp_slice slice);
+      match_ st subst apv.sp_vantage (Slice.get slice vantage_idx)
         (fun subst ->
            let slice_left = Slice.sub slice 0 vantage_idx in
-           match_assoc st subst apv.ap_left slice_left
+           match_assoc st subst apv.sp_left slice_left
              (fun subst ->
                 let slice_right =
                   Slice.sub slice (vantage_idx+1) (n-vantage_idx-1)
                 in
-                match_assoc st subst apv.ap_right slice_right yield))
+                match_assoc st subst apv.sp_right slice_right yield))
     done
   )
 
-and match_ap_pure st subst (l:pattern list) slice yield =
+and match_sp_pure st subst (l:pattern list) slice yield =
   let n = Slice.length slice in
   begin match l, n with
     | [], 0 -> yield subst
@@ -265,7 +265,7 @@ and match_ap_pure st subst (l:pattern list) slice yield =
         match_pat_slice st subst p1 slice1
           (fun subst ->
              let slice2 = Slice.sub slice i (n-i) in
-             match_ap_pure st subst tail slice2 yield)
+             match_sp_pure st subst tail slice2 yield)
       done
   end
 
@@ -323,7 +323,7 @@ and match_pat_slice st subst (p:pattern) slice yield =
            then yield subst)
     | P_fail -> ()
     | P_blank _ | P_q _ | P_z _ | P_string _ | P_app _
-    | P_const _ | P_app_assoc _
+    | P_const _ | P_app_slice _
       ->
       if n=1 then (
         (* non-sequence pattern, match against the only element *)
