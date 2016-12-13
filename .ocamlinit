@@ -1,13 +1,17 @@
 #use "topfind";;
 #require "containers";;
+#require "containers.unix";;
+#require "containers.data";;
 #require "sequence";;
 #require "zarith";;
 #directory "_build/src/core";;
-#load "rewrite.cma";;
+#load "stimsym.cma";;
 
-open Rewrite;;
+open Stimsym;;
 
-#install_printer Expr.pp_full_form;;
+#install_printer Expr.pp;;
+
+module E = Expr;;
 
 print_endline "define expr_of_string";;
 let expr_of_string s =
