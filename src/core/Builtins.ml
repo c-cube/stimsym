@@ -419,7 +419,16 @@ let blank =
     ~doc:[
       `S "Blank";
       `P "Blank pattern, `_`. Matches anything.\
-          Can also be used with a name: `a_` binds `a` to anything."
+          Can also be used with a name: `a_` binds `a` to anything.";
+      `P "`Blank[f]` matches anything with head `f`. \
+          It will match `f[a,b,c]` but not `f` or `g` or `g[a]`.";
+      `I ("infix", [
+          `P "`_` is `Blank[]`, matches anything";
+          `P "`x_` is `Pattern[x,Blank[]]`, matches anything and binds it to `x`";
+          `P "`_f` is `Blank[f]`, matches any application of symbol `f`";
+          `P "`x_f` is `Pattern[x,Blank[f]]`, \
+              matches any application of symbol `f` and binds to `x`";
+        ]);
     ]
 
 let blank_seq =
@@ -433,7 +442,11 @@ let blank_seq =
       `S "BlankSequence";
       `P "Pattern that matches a non-empty sequence.\
           For instance, `a__` will match Sequence[1,2] but not Sequence[].";
-      `I ("infix", [`P "`__`"]);
+      `I ("infix",
+        [ `P "`__` matches any non-empty sequence";
+          `P "`__f` matches any non-empty sequence of applications of `f`";
+          `P "`x__` matches any non-empty sequence and binds to `x`";
+        ]);
       ]
 
 let blank_null_seq =
@@ -446,7 +459,12 @@ let blank_null_seq =
     ~doc:[
       `S "BlankNullSequence";
       `P "Pattern that matches any sequence.";
-      `I ("infix", [`P "`___`"]);
+      `I ("infix",
+        [`P "`___`, `___f`, `x___`"]);
+      `I ("see", [
+          `P "Blank";
+          `P "BlankSequence";
+        ]);
       ]
 
 let pattern =
