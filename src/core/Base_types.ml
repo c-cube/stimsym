@@ -53,9 +53,9 @@ and pattern =
   | P_q of Q.t
   | P_string of string
   | P_app of pattern * pattern array
-  | P_blank
-  | P_blank_sequence (* >= 1 elements *)
-  | P_blank_sequence_null (* >= 0 elements *)
+  | P_blank of const option (* anything, or anything with the given head *)
+  | P_blank_sequence of const option (* >= 1 elements *)
+  | P_blank_sequence_null of const option (* >= 0 elements *)
   | P_fail
   | P_bind of int * pattern
     (* match, then bind register *)
@@ -64,6 +64,7 @@ and pattern =
   | P_alt of pattern list
   | P_app_assoc of pattern * assoc_pattern (* for slices *)
   | P_conditional of pattern * expr (* pattern if condition *)
+  | P_test of pattern * expr (* `p?t` pattern + test on value *)
 
 and assoc_pattern =
   | AP_vantage of assoc_pattern_vantage

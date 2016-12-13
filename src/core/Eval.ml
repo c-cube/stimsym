@@ -66,12 +66,15 @@ let set_eval_trace b = trace_on_ := b
 let rec pattern_head (p:pattern): const = match p with
   | P_const c -> c
   | P_z _ | P_q _ | P_string _
-  | P_blank | P_blank_sequence | P_blank_sequence_null | P_fail
+  | P_blank None | P_blank_sequence None | P_blank_sequence_null None | P_fail
     -> raise E.No_head
+  | P_blank (Some c) | P_blank_sequence (Some c) | P_blank_sequence_null (Some c) ->
+    c
   | P_app_assoc (f,_) | P_app (f,_)
     -> pattern_head f
   | P_bind (_,p')
   | P_conditional (p',_)
+  | P_test (p',_)
   | P_check_same (_,p') -> pattern_head p'
   | P_alt [] -> raise E.No_head
   | P_alt (x::tail) ->
@@ -159,8 +162,11 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t): Subst.t Se
       | P_z a, Q b -> if Q.equal (Q.of_bigint a) b then yield subst
       | P_string a, String b -> if a=b then yield subst
       | P_const c, Const d -> if E.Cst.equal c d then yield subst
-      | P_blank, _ -> yield subst
-      | P_bind (i, P_blank), _ ->
+      | P_blank None, _ -> yield subst
+      | P_blank (Some c), App (Const c', _) ->
+        if E.Cst.equal c c' then yield subst
+      | P_blank (Some _), _ -> ()
+      | P_bind (i, P_blank None), _ ->
         (* easy case: bind [i] *)
         assert (not (Subst.mem i subst));
         let subst = Subst.add i e subst in
@@ -192,6 +198,12 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t): Subst.t Se
         match_pair subst p' e
           (fun subst ->
              if check_cond subst cond then yield subst)
+      | P_test (p', test), _ ->
+        (* match [p'] with [e], then check if [test[e] --> True] *)
+        match_pair subst p' e
+          (fun subst ->
+             if check_cond Subst.empty (E.app test [| e |])
+             then yield subst)
       | P_fail, _ -> ()
       | P_alt l, _ -> match_alt subst l e yield
       | P_z _, _
@@ -200,8 +212,8 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t): Subst.t Se
       | P_string _, _
       | P_app_assoc _, _
       | P_app _, _
-      | P_blank_sequence, _
-      | P_blank_sequence_null, _
+      | P_blank_sequence _, _
+      | P_blank_sequence_null _, _
         -> () (* fail *)
     end
   (* match arrays pairwise *)
@@ -284,13 +296,25 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t): Subst.t Se
         done
     end
 
+  (* check that [c] is the head of all elements of the slice *)
+  and check_head_slice (c:const) (slice:_ Slice.t): bool =
+    Slice.for_all
+      (function
+        | App (Const c', _) -> E.Cst.equal c c'
+        | _ -> false)
+      slice
+
   (* match [p] with the whole slice, if possible *)
   and match_pat_slice subst (p:pattern) slice yield =
     let n = Slice.length slice in
     begin match p with
-      | P_blank_sequence ->
+      | P_blank_sequence None ->
         if n>0 then yield subst (* yield if non empty slice *)
-      | P_blank_sequence_null -> yield subst (* always matches *)
+      | P_blank_sequence (Some c) ->
+        if n>0 && check_head_slice c slice then yield subst
+      | P_blank_sequence_null None -> yield subst (* always matches *)
+      | P_blank_sequence_null (Some c) ->
+        if check_head_slice c slice then yield subst
       | P_alt [] -> ()
       | P_alt (p1::tail) ->
         (* try alternatives *)
@@ -317,8 +341,15 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t): Subst.t Se
         match_pat_slice subst p' slice
           (fun subst ->
              if check_cond subst cond then yield subst)
+      | P_test (p', test) ->
+        match_pat_slice subst p' slice
+          (fun subst ->
+             if Slice.for_all
+                 (fun arg -> check_cond Subst.empty (E.app test [| arg |]))
+                 slice
+             then yield subst)
       | P_fail -> ()
-      | P_blank | P_q _ | P_z _ | P_string _ | P_app _
+      | P_blank _ | P_q _ | P_z _ | P_string _ | P_app _
       | P_const _ | P_app_assoc _
         ->
         if n=1 then (

@@ -396,6 +396,8 @@ let suite_eval =
     mk_eval __LINE__ "Floor[1/2]" "0";
     mk_eval __LINE__ "Floor[-1/2]" "-1";
     mk_eval __LINE__ "Ceil[0]==Floor[0]==0" "True";
+    mk_eval __LINE__ "{f[],g[]} //. {_f -> a}" "List[a,g[]]";
+    mk_eval __LINE__ "f[PatternTest[x_,IntegerQ]] := a; {f[b],f[1],f[1/2]}" "List[f[b],a,f[1/2]]";
   ]
 
 (** {2 Main} *)

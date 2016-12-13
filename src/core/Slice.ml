@@ -65,3 +65,9 @@ let fold_left f acc a =
     acc := f !acc a.arr.(k);
   done;
   !acc
+
+exception Local_exit
+
+let for_all p a =
+  try iter (fun x->if not (p x) then raise Local_exit) a; true
+  with Local_exit -> false

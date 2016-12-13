@@ -7,6 +7,7 @@ open Base_types
 
 type t
 val empty : t
+val is_empty : t -> bool
 val add : int -> expr -> t -> t
 val mem : int -> t -> bool
 val get : int -> t -> expr option

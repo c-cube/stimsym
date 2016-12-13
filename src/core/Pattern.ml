@@ -23,9 +23,9 @@ let rec pp out (p:pattern) = match p with
   | P_z n -> Z.pp_print out n
   | P_q n -> Q.pp_print out n
   | P_string s -> Format.fprintf out "%S" s
-  | P_blank -> Fmt.string out "Blank[]"
-  | P_blank_sequence -> Fmt.string out "BlankSequence[]"
-  | P_blank_sequence_null -> Fmt.string out "BlankNullSequence[]"
+  | P_blank c -> Fmt.fprintf out "Blank[%a]" pp_blank_arg c
+  | P_blank_sequence c -> Fmt.fprintf out "BlankSequence[%a]" pp_blank_arg c
+  | P_blank_sequence_null c -> Fmt.fprintf out "BlankNullSequence[%a]" pp_blank_arg c
   | P_fail -> Fmt.string out "Fail[]"
   | P_alt ([] | [_]) -> assert false
   | P_alt l ->
@@ -34,7 +34,13 @@ let rec pp out (p:pattern) = match p with
   | P_bind (i,p) -> Format.fprintf out "Pattern[%d,@[%a@]]" i pp p
   | P_check_same (i,p) -> Format.fprintf out "CheckSame[%d,@[%a@]]" i pp p
   | P_conditional (p,cond) ->
-    Format.fprintf out "Condition[%a,%a]" pp p E.pp_full_form cond
+    Format.fprintf out "Condition[@[%a,@,%a@]]" pp p E.pp_full_form cond
+  | P_test (p,test) ->
+    Fmt.fprintf out "PatternTest[@[%a,@,%a@]]" pp p E.pp_full_form test
+
+and pp_blank_arg out = function
+  | None -> ()
+  | Some {cst_name;_} -> Fmt.string out cst_name
 
 and pp_assoc_pattern out = function
   | AP_vantage apv ->
@@ -74,26 +80,28 @@ let invalid_rule msg = raise (Invalid_rule msg)
 let invalid_rulef msg = Fmt.ksprintf msg ~f:invalid_rule
 
 let rec matches_slice (p:pattern): bool = match p with
-  | P_blank_sequence | P_blank_sequence_null -> true
+  | P_blank_sequence _ | P_blank_sequence_null _ -> true
   | P_alt l -> List.exists matches_slice l
   | P_bind (_, sub_p)
   | P_conditional (sub_p, _)
+  | P_test (sub_p,_)
   | P_check_same (_, sub_p) -> matches_slice sub_p
-  | P_blank -> false
+  | P_blank _ -> false
   | P_q _ | P_z _ | P_string _ | P_app _ | P_const _ | P_fail | P_app_assoc _
     -> false
 
 (* 0 or 1, depending on whether the pattern can be Null *)
 let rec pat_assoc_min_size (p:pattern): int = match p with
-  | P_blank_sequence -> 1
-  | P_blank_sequence_null -> 0
+  | P_blank_sequence _ -> 1
+  | P_blank_sequence_null _ -> 0
   | P_alt [] -> assert false
   | P_alt (x::l) ->
     List.fold_left (fun n p -> min n (pat_assoc_min_size p)) (pat_assoc_min_size x) l
   | P_bind (_, sub_p)
   | P_conditional (sub_p, _)
+  | P_test (sub_p,_)
   | P_check_same (_, sub_p) -> pat_assoc_min_size sub_p
-  | P_blank | P_q _ | P_z _ | P_string _ | P_app _ | P_const _
+  | P_blank _ | P_q _ | P_z _ | P_string _ | P_app _ | P_const _
   | P_fail | P_app_assoc _
     -> 1
 
@@ -120,9 +128,12 @@ module Pat_compile = struct
     | String s -> P_string s
     | Z n -> P_z n
     | Q n -> P_q n
-    | App (Const {cst_name="Blank";_},[||]) -> P_blank
-    | App (Const {cst_name="BlankSequence";_},[||]) -> P_blank_sequence
-    | App (Const {cst_name="BlankNullSequence";_},[||]) -> P_blank_sequence_null
+    | App (Const {cst_name="Blank";_},[||]) -> P_blank None
+    | App (Const {cst_name="Blank";_},[|Const c|]) -> P_blank (Some c)
+    | App (Const {cst_name="BlankSequence";_},[||]) -> P_blank_sequence None
+    | App (Const {cst_name="BlankSequence";_},[|Const c|]) -> P_blank_sequence (Some c)
+    | App (Const {cst_name="BlankNullSequence";_},[||]) -> P_blank_sequence_null None
+    | App (Const {cst_name="BlankNullSequence";_},[|Const c|]) -> P_blank_sequence_null (Some c)
     | App (Const {cst_name="Pattern";_},
         [| Const {cst_name=x;_}; sub |]) ->
       (* [x] on the stack -> failure, would lead to cyclical subst *)
@@ -131,7 +142,7 @@ module Pat_compile = struct
       );
       (* compute pattern itself *)
       let sub_p = match sub with
-        | App (Const {cst_name="Blank";_}, [||]) -> P_blank (* trivial case *)
+        | App (Const {cst_name="Blank";_}, [||]) -> P_blank None (* trivial case *)
         | _ ->
           Stack.push x st.surrounding;
           CCFun.finally2 ~h:(fun () -> ignore (Stack.pop st.surrounding))
@@ -157,6 +168,10 @@ module Pat_compile = struct
       let cond = tr_term st cond in (* replace variables, etc. in condition *)
       (* TODO: check vars(cond) ⊆ vars(p) *)
       P_conditional (p, cond)
+    | App (Const {cst_name="PatternTest";_}, [| p; test |]) ->
+      let p = tr_pattern st p in
+      let test = tr_term st test in
+      P_test (p, test)
     | App (hd, args) ->
       let hd = tr_pattern st hd in
       let args = Array.map (tr_pattern st) args in

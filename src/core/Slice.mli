@@ -43,6 +43,8 @@ val iter : ('a -> unit) -> 'a t -> unit
 
 val fold_left : ('b -> 'a -> 'b) -> 'b -> 'a t -> 'b
 
+val for_all : ('a -> bool) -> 'a t -> bool
+
 val print : ?sep:string -> (Format.formatter -> 'a -> unit) ->
   Format.formatter -> 'a t -> unit
 (** Print an array of items with printing function *)
