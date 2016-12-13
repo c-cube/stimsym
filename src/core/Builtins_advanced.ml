@@ -178,19 +178,14 @@ module Sat_solve = struct
           "error while calling minisat:@ %s" (Printexc.to_string e)
 
   let eval _ arg e = match e with
-    | E.App (_, args) ->
+    | E.App (_, [| form |]) ->
       let st = {
         cnf_arg=arg;
         cnf_count=1;
         cnf_tbl=E_tbl.create 64;
         cnf_rev=Hashtbl.create 64;
       } in
-      let clauses =
-        CCArray.to_seq args
-        |> Sequence.map as_form
-        |> Sequence.flat_map_l (cnf st)
-        |> Sequence.to_rev_list
-      in
+      let clauses = cnf st (as_form form) in
       B.logf "call solver with %d clauses\n" (List.length clauses);
       let res = match call st clauses with
         | Unsat -> E.app (E.const_of_string "Unsat") [| |]
@@ -215,21 +210,22 @@ let sat_solve =
     ~funs:[Sat_solve.eval]
     ~doc:[
       `S "SatSolve";
-      `P "Call a SAT solver on the conjunction of formulas given \
-          as parameters. Formulas are reduced to CNF before calling \
-          Minisat.";
+      `P "`SatSolve[form]` calls a SAT solver on the formula given \
+          as parameter. The formula is reduced to CNF automatically \
+          before calling Minisat.";
       `P "If Minisat is not installed, this does not reduce.";
       `P "Returns either `Sat[{m___}]` where `m` is the model, as a \
           list of bindings `Atom -> True` or `Atom -> False`, \
           or Unsat[].";
+      (* TODO: update once we have typing? *)
       `I ("example", [
           `P "The following call will return `Unsat[]`.";
-          `Pre "`SatSolve[A || B,!A || !B,!B]`";
+          `Pre "`SatSolve[(A || B)&& (!A || !B) && !B]`";
         ]);
       `I ("example", [
           `P "The following call will return `Sat[A -> False,B->True]`, \
               containing a model for each atom appearing in the formulas.";
-          `Pre "`SatSolve[A || B,!A]`";
+          `Pre "`SatSolve[And[A || B,!A]]`";
         ]);
       `I ("example", [`L [
           [`P "Find a model of `a&&b` and extract the value of `a` in the \
