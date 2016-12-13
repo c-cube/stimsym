@@ -90,34 +90,6 @@ let sequence = E.const_of_string "Sequence"
 let sequence_of_array (a:E.t array) = E.app sequence a
 let sequence_of_slice (a:E.t Slice.t) = sequence_of_array (Slice.copy a)
 
-(** {2 Undo Stack}
-
-    Used for local operations *)
-module Undo : sig
-  type t = undo_state
-  type level
-  val create : unit -> t
-  val push : t -> (unit -> unit) -> unit
-  val save : t -> level
-  val restore : t -> level -> unit
-end = struct
-  type t = undo_state
-  type level = int
-
-  let create() : t = CCVector.create()
-
-  let push = CCVector.push
-
-  let save v = CCVector.length v
-
-  let restore v lev =
-    assert (lev < CCVector.length v);
-    while lev < CCVector.length v do
-      let op = CCVector.pop_exn v in
-      op ();
-    done
-end
-
 let equal_with (subst:Subst.t) a b: bool =
   let rec eq_aux a b = match a, b with
     | Z n1, Z n2 -> Z.equal n1 n2
@@ -377,10 +349,16 @@ and eval_rec (st:eval_state) e =
       )
     in
     aux 0
-  | App (Const {cst_name="ReplaceAll";_}, [| _; _ |]) ->
-    (* FIXME: how to efficiently rewrite only once?
-        maybe parametrize [eval_rec] with max num of rewrite steps? *)
-    eval_failf "not implemented: ReplaceAll"
+  | App (Const {cst_name="ReplaceAll";_}, [| a; b |]) ->
+    (* first, eval [b] *)
+    let b = eval_rec st b in
+    (* rewrite [a] with rules in [b], until fixpoint *)
+    let rules = term_as_rules st b in
+    trace_eval_
+      (fun k->k "(@[replace_all@ %a@ rules: (@[%a@])@])"
+          E.pp_full_form a (Fmt.list ~start:"" ~stop:"" Pattern.pp_rule) rules);
+    let a = rewrite_rec st ~steps:`Once rules a in
+    eval_rec st a
   | App (Const {cst_name="ReplaceRepeated";_}, [| a; b |]) ->
     (* first, eval [b] *)
     let b = eval_rec st b in
@@ -389,21 +367,8 @@ and eval_rec (st:eval_state) e =
     trace_eval_
       (fun k->k "(@[replace_repeated@ %a@ rules: (@[%a@])@])"
           E.pp_full_form a (Fmt.list ~start:"" ~stop:"" Pattern.pp_rule) rules);
-    (* add rules to definitions of symbols, etc. and on [st.st_undo]
-       so the changes are reversible *)
-    let lev = Undo.save st.st_undo in
-    List.iter
-      (fun r -> match pattern_head r.rr_pat with
-         | c ->
-           E.Cst.add_local_rule st.st_undo r c
-         | exception E.No_head ->
-           let old_rules = st.st_rules in
-           Undo.push st.st_undo (fun () -> st.st_rules <- old_rules);
-           st.st_local_rules <- r :: st.st_local_rules)
-      rules;
-    CCFun.finally2
-      ~h:(fun () -> Undo.restore st.st_undo lev) (* restore old state *)
-      eval_rec st a
+    let a = rewrite_rec st ~steps:`Repeated rules a in
+    eval_rec st a
   | App (Const {cst_name="Comprehension";_}, args) when Array.length args>0 ->
     (* sequence binding_seq. First evaluate all terms but the first
        one, then compile into a binding_seq *)
@@ -619,11 +584,40 @@ and eval_let st (c:binding_seq) =
       | None -> eval_failf "no match for `Let`")
   end
 
+(* rewrite term [e] recursively using [rules].
+   Do not evaluate. *)
+and rewrite_rec st ~(steps:[`Once|`Repeated]) (rules:rewrite_rule list)(e:expr): expr =
+  let rec aux (e:expr): expr = match e with
+    | Reg _ -> e
+    | Z _ | Q _ | String _ | Const _ ->
+      try_rewrite_with e rules
+    | App (hd, args) ->
+      let hd = aux hd in
+      let args = Array.map aux args in
+      let e = E.app hd args in
+      try_rewrite_with e rules
+  and try_rewrite_with e (l:rewrite_rule list): expr = match l with
+    | [] -> e
+    | r :: tail ->
+      let subst_opt =
+        match_ st Subst.empty r.rr_pat e |> Sequence.head
+      in
+      begin match subst_opt with
+        | None -> try_rewrite_with e tail
+        | Some subst ->
+          let e' = Subst.apply subst r.rr_rhs in
+          begin match steps with
+            | `Once -> e'
+            | `Repeated -> aux e' (* rewrite again *)
+          end
+      end
+  in
+  aux e
+
 let create_eval_state ~buf () : eval_state = {
   st_iter_count=0;
   st_rules=[];
   st_local_rules=[];
-  st_undo=Undo.create();
   st_effects=buf;
 }
 

@@ -406,6 +406,7 @@ let suite_eval =
       "List[f[g[1],g[],h],check,f[],f[a,g[]]]";
     mk_eval __LINE__ "f[___g] := check; {f[g[1],g[],h],f[g[],g[]],f[],f[a,g[]]}"
       "List[f[g[1],g[],h],check,check,f[a,g[]]]";
+    mk_eval __LINE__ "f[a] /. f[x_] :> f[f[x]]" "f[f[a]]";
   ]
 
 (** {2 Main} *)

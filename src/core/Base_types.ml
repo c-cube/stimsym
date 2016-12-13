@@ -101,13 +101,9 @@ and eval_state = {
   (* permanent list of rules *)
   mutable st_local_rules: rewrite_rule list;
   (* backtrackable list of rules *)
-  st_undo: undo_state;
-  (* undo stack, for local operations *)
   st_effects: (eval_side_effect Stack.t) option;
   (* temporary messages *)
 }
-
-and undo_state = (unit -> unit) CCVector.vector
 
 (* custom display for expressions *)
 and mime_printer = expr -> mime_content list

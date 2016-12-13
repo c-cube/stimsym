@@ -108,16 +108,6 @@ module Cst = struct
       c.cst_rules <- [d] (* shadowing *)
     | _ -> c.cst_rules <- d :: c.cst_rules
 
-  let add_local_rule (u:undo_state) rule c = match rule with
-    | {rr_pat=P_const c'; _} when equal c c' ->
-      let old_local_rules = c.cst_local_rules in
-      c.cst_local_rules <- [rule];
-      CCVector.push u (fun () -> c.cst_local_rules <- old_local_rules)
-    | _ ->
-      let old_local_rules = c.cst_local_rules in
-      c.cst_local_rules <- rule :: c.cst_local_rules;
-      CCVector.push u (fun () -> c.cst_local_rules <- old_local_rules)
-
   let set_doc d c = c.cst_doc <- d
 
   let set_printer i f c = c.cst_printer <- Some (i,f)

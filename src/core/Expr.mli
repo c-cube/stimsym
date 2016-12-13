@@ -122,8 +122,6 @@ module Cst : sig
 
   val add_def : def -> t -> unit
 
-  val add_local_rule : Base_types.undo_state -> rewrite_rule -> const -> unit
-
   val set_printer : int -> const_printer -> t -> unit
 
   val set_display : mime_printer -> t -> unit
