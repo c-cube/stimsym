@@ -214,6 +214,7 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t)(yield:Subst
     | P_blank_sequence_null _, _
       -> () (* fail *)
   end
+
 (* match arrays pairwise *)
 and match_arrays st subst a b (i:int) yield: unit =
   if i = Array.length a then (
@@ -224,6 +225,7 @@ and match_arrays st subst a b (i:int) yield: unit =
       (fun subst ->
          match_arrays st subst a b (i+1) yield
   )
+
 (* try alternatives *)
 and match_alt st subst (l:pattern list) e yield: unit =
   List.iter (fun pat -> match_ st subst pat e yield) l
