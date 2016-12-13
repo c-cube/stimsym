@@ -144,6 +144,16 @@ val pp : t CCFormat.printer
 val to_string : t -> string
 (** Nice multi-line printer using {!pp} *)
 
+exception Parse_error of string
+
+val of_string_full_form : string -> (t, string) Result.result
+(** parse the given string into a term, in the fullform syntax,
+    or return [Error msg] *)
+
+val of_string_full_form_exn : string -> t
+(** Unsafe version of {!of_string_full_form}.
+    @raise Parse_error if it cannot parse *)
+
 (**/**)
 val reg : int -> t
 (**/**)

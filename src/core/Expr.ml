@@ -272,4 +272,58 @@ let pp out (t:t) =
 
 let to_string t = Fmt.to_string pp t
 
+exception Parse_error of string
+let parse_error msg = raise (Parse_error msg)
+let parse_errorf msg = CCFormat.ksprintf ~f:parse_error msg
+
+let parse_full_form lexbuf: t =
+  let open Lexer_full_form in
+  let r = ref (token lexbuf) in
+  let junk() = r := token lexbuf in
+  let rec parse_top () = match !r with
+    | T_EOI -> parse_error "unexpected EOI"
+    | T_OPEN -> parse_error "unexpected `[`"
+    | T_CLOSE -> parse_error "unexpected `]`"
+    | T_COMMA -> parse_error "unexpected `,`"
+    | T_STRING s -> junk(); string s
+    | T_INT n -> junk(); z (Z.of_string n)
+    | T_RAT n -> junk(); q (Q.of_string n)
+    | T_ATOM x ->
+      let t = const_of_string x in
+      junk();
+      parse_applications t
+
+  and parse_applications f =
+    match !r with
+      | T_OPEN ->
+        junk();
+        let l = parse_list [] in
+        parse_applications (app_l f l)
+      | T_EOI | T_CLOSE | T_COMMA -> f
+      | T_ATOM _ -> parse_errorf "unexpected atom after `%a`" pp_full_form f
+      | T_INT _ -> parse_errorf "unexpected integer after `%a`" pp_full_form f
+      | T_RAT _ -> parse_errorf "unexpected rational after `%a`" pp_full_form f
+      | T_STRING _ -> parse_errorf "unexpected string after `%a`" pp_full_form f
+
+  and parse_list acc = match !r with
+    | T_CLOSE -> junk(); List.rev acc
+    | T_EOI -> parse_errorf "unexpected EOI"
+    | T_COMMA -> parse_errorf "unexpected comma"
+    | _ ->
+      let t = parse_top () in
+      match !r with
+        | T_CLOSE -> junk(); List.rev (t::acc)
+        | T_COMMA -> junk(); parse_list (t :: acc)
+        | _ -> parse_error "was expecting a comma"
+  in
+  parse_top ()
+
+let of_string_full_form_exn s =
+  let lexbuf = Lexing.from_string s in
+  parse_full_form lexbuf
+
+let of_string_full_form s =
+  try Result.Ok (of_string_full_form_exn s)
+  with e -> Result.Error (Printexc.to_string e)
+
 
