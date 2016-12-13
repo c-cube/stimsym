@@ -936,7 +936,7 @@ module Attrs = struct
       mk_pair Hold_rest E.field_hold_rest, make_const "HoldRest";
       mk_pair Orderless E.field_orderless, make_const "Orderless";
       mk_pair Flatten E.field_flatten, make_const "Flatten";
-      mk_pair One_identity E.field_one_identity, make_const "One_identity";
+      mk_pair One_identity E.field_one_identity, make_const "OneIdentity";
       mk_pair Listable E.field_listable, make_const "Listable";
       mk_pair No_duplicates E.field_no_duplicates, make_const "NoDuplicates";
     ]
