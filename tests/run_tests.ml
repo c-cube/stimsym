@@ -402,6 +402,10 @@ let suite_eval =
     mk_eval __LINE__ "Ceil[0]==Floor[0]==0" "True";
     mk_eval __LINE__ "{f[],g[]} //. {_f -> a}" "List[a,g[]]";
     mk_eval __LINE__ "f[PatternTest[x_,IntegerQ]] := a; {f[b],f[1],f[1/2]}" "List[f[b],a,f[1/2]]";
+    mk_eval __LINE__ "f[__g] := check; {f[g[1],g[],h],f[g[],g[]],f[],f[a,g[]]}"
+      "List[f[g[1],g[],h],check,f[],f[a,g[]]]";
+    mk_eval __LINE__ "f[___g] := check; {f[g[1],g[],h],f[g[],g[]],f[],f[a,g[]]}"
+      "List[f[g[1],g[],h],check,check,f[a,g[]]]";
   ]
 
 (** {2 Main} *)
