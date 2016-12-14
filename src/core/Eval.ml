@@ -409,7 +409,8 @@ and eval_rec (st:eval_state) e =
     in
     aux 0
   | App (Const {cst_name="ReplaceAll";_}, [| a; b |]) ->
-    (* first, eval [b] *)
+    (* first, eval both *)
+    let a = eval_rec st a in
     let b = eval_rec st b in
     (* rewrite [a] with rules in [b], until fixpoint *)
     let rules = term_as_rules st b in
@@ -419,7 +420,8 @@ and eval_rec (st:eval_state) e =
     let a = rewrite_rec st ~steps:`Once rules a in
     eval_rec st a
   | App (Const {cst_name="ReplaceRepeated";_}, [| a; b |]) ->
-    (* first, eval [b] *)
+    (* first, eval both *)
+    let a = eval_rec st a in
     let b = eval_rec st b in
     (* rewrite [a] with rules in [b], until fixpoint *)
     let rules = term_as_rules st b in

@@ -421,6 +421,9 @@ let suite_eval =
     mk_eval __LINE__ "Power[f,5][a]" "f[f[f[f[f[a]]]]]";
     mk_eval __LINE__ "Power[2,10]" "1024";
     mk_eval __LINE__ "Power[1/2,10]" "1/1024";
+    mk_eval __LINE__
+      "((f^3)[a]) //. f[x_] :> g[x,x]"
+      "g[g[g[a,a],g[a,a]],g[g[a,a],g[a,a]]]";
   ]
 
 (** {2 Main} *)
