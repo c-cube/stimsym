@@ -192,21 +192,21 @@ module Pat_compile = struct
     | App (hd, args) ->
       let hd_pat = tr_pattern st hd in
       let args = Array.map (tr_pattern st) args in
-      if CCArray.exists matches_slice args
-      then match hd with
-        | Const c when E.Cst.get_field E.field_orderless c ->
+      (* TODO: orderless matching is not necessary slice-oriented,
+         we should mix both *)
+      begin match hd with
+        | Const c when E.Cst.get_field E.field_orderless c && args<>[||]->
           (* unordered slice match *)
-          assert (args <> [||]);
           let sup = sup_of_pats (Array.to_list args) in
           P_app_slice_unordered (hd_pat, sup)
-        | _ ->
-          (* regular slice match *)
+        | _ when CCArray.exists matches_slice args ->
+          (* slice match *)
           let ap = ap_of_pats (Slice.full args) in
           P_app_slice (hd_pat, ap)
-      else (
-        (* otherwise, match structurally *)
-        P_app (hd_pat, args)
-      )
+        | _ ->
+          (* otherwise, match structurally *)
+          P_app (hd_pat, args)
+      end
     | Reg _ -> assert false
 
   (* convert variables in [t] into registers *)
