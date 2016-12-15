@@ -121,6 +121,34 @@ let const_of_string_with ~f name =
   end;
   c
 
+let rec compare a b =
+  let to_int_ = function
+    | Z _ -> 1
+    | Q _ -> 2
+    | String _ -> 3
+    | Const _ -> 4
+    | App _ -> 5
+    | Reg _ -> 6
+  in
+  begin match a, b with
+    | Z a, Z b -> Z.compare a b
+    | Q a, Q b -> Q.compare a b
+    | String a, String b -> String.compare a b
+    | Const a, Const b -> CCInt.compare a.cst_id b.cst_id
+    | App (fa, la), App (fb, lb) ->
+      let c = compare fa fb in
+      if c<>0 then c
+      else CCArray.compare compare la lb
+    | Reg i, Reg j -> CCInt.compare i j
+    | Z _, _
+    | Q _, _
+    | String _, _
+    | Const _, _
+    | App _, _
+    | Reg _, _
+      -> CCInt.compare (to_int_ a) (to_int_ b)
+  end
+
 let app_flatten hd args =
   let as_sub = match hd with
     | Const c when Cst.get_field field_flatten c ->
@@ -142,6 +170,10 @@ let app_flatten hd args =
          | _ -> must_split, len+1)
       (false,0) args
   in
+  let is_orderless = match hd with
+    | Const c -> Cst.get_field field_orderless c
+    | _ -> false
+  in
   let new_args = if must_splice then (
       let args_flat = Array.make res_len null in
       (* make a flattened array *)
@@ -157,8 +189,13 @@ let app_flatten hd args =
           0 args
       in
       assert (len' = res_len);
+      if is_orderless then Array.sort compare args_flat;
       args_flat
-    ) else args
+    ) else (
+      if is_orderless
+      then CCArray.sorted compare args (* sorted copy *)
+      else args
+    )
   in
   begin match hd, new_args with
     | Const c, [| arg |] when Cst.get_field field_one_identity c ->

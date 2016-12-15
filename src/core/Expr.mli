@@ -95,6 +95,9 @@ val app_l : t -> t list -> t
 val equal : t -> t -> bool
 (** Syntactic deep equality ("SameQ") *)
 
+val compare : t -> t -> int
+(** Syntactic ordering, compatible with {!equal} *)
+
 val hash : t -> int
 (** Hash *)
 
