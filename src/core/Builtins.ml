@@ -244,7 +244,7 @@ let power =
     | E.Q x -> E.q (q_pow x n)
     | _ -> assert false
   in
-  let eval self _ (e:E.t): E.t option = match e with
+  let eval _ _ (e:E.t): E.t option = match e with
     | E.App (E.Const _, [| (E.Q _ | E.Z _) as x; E.Z n |]) when Z.sign n >= 0 ->
       let n = try Z.to_int n with _ -> raise Eval_does_not_apply in
       Some (eval_aux x n)
@@ -259,7 +259,6 @@ let power =
   make "Power"
     ~funs:[eval]
     ~rules:[rule_power_fun]
-    ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
     ~printer:(prec_times, print_infix_ prec_power "^" "1")
     ~doc:[
       `S "Power";
