@@ -325,3 +325,56 @@ let graph =
           `Pre "Graph[{i->j :: i_<<- {1,2,3,4}, j_<<-{a,b,c,d}}]";
         ]);
     ]
+
+module Tree_form = struct
+  type t = E.t
+
+  let as_graph g =
+    CCGraph.make_tuple
+      (fun e -> match e with
+        | E.Z _ | E.Q _ | E.String _ | E.Const _ | E.Reg _ -> Sequence.empty
+        | E.App (_, a) ->
+          Sequence.of_array a)
+
+  let pp_dot out (g:t): unit =
+    let fmt = Format.formatter_of_out_channel out in
+    let attrs_v v = match v with
+      | E.Z _ | E.Q _ | E.String _ | E.Const _ | E.Reg _ ->
+        [`Label (E.to_string v); `Shape "box"]
+      | E.App (hd,_) ->
+        [`Label (E.to_string hd); `Shape "box"]
+    in
+    let attrs_e _ = [] in
+    Format.fprintf fmt "%a@."
+      (CCGraph.Dot.pp_seq
+         ~eq:E.equal ~name:"some_graph"
+         ~attrs_v ~attrs_e
+         ~tbl:(CCGraph.mk_table ~eq:E.equal ~hash:E.hash 32)
+         ~graph:(as_graph g))
+       (Sequence.return g)
+
+  let get_png (g:t): E.mime_content =
+    B.logf "get png for tree_form `%s`...\n" (E.to_string_compact g);
+    CCIO.File.with_temp ~prefix:"stimsym_graph" ~suffix:".dot"
+      (fun dot_file ->
+         (* write file, then invoke `dot` *)
+         CCIO.with_out dot_file (fun oc -> pp_dot oc g);
+         let p = CCUnix.call "dot '%s' -Tpng " dot_file in
+         let _ = p#errcode in
+         let data = p#stdout in
+         B.logf "got png (%d bytes)\n" (String.length data);
+         {E.mime_data=data; mime_ty="image/png"; mime_base64=true})
+end
+
+
+let tree_form =
+  B.make "TreeForm" ~display:(fun e -> [Tree_form.get_png e])
+    ~doc:[
+      `S "TreeForm";
+      `P "Displays an expression as a graph.";
+      `P "Sub-nodes are shared.";
+      `I ("example", [
+          `Pre "`TreeForm[Let[t_ <- (f^5)[a], t //. f[x_] :> g[x,h[x]]]]`";
+          `P "displays a nested expression as a graph"
+        ])
+    ]
