@@ -108,7 +108,7 @@ type is_complete_request = {
 
 type is_complete_reply = {
   icr_status <json name="status">: string; (* complete/incomplete/invalid/unknown *)
-  icr_indent <json name="indent">: string;
+  ~icr_indent <json name="indent">: string;
 }
 
 (*********************************************************************)

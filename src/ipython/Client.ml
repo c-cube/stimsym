@@ -296,7 +296,13 @@ let object_info_request _socket _msg _x =
   () (* TODO: doc? *)
 
 let connect_request _socket _msg = ()
-let history_request _socket _msg _x = ()
+
+let history_request t _msg _x =
+  let reply = {history=[]} in
+  let%lwt _ = send_iopub t
+      (Iopub_send_message (M.History_reply reply))
+  in
+  Lwt.return_unit
 
 let run t : unit Lwt.t =
   let () = Sys.catch_break true in
@@ -308,15 +314,19 @@ let run t : unit Lwt.t =
   let handle_message () =
     let open Sockets in
     let%lwt msg = M.recv t.sockets.shell in
-    Log.logf "received message `%s`\n" (M.json_of_content msg.M.content);
+    Log.logf "received message `%s`, content `%s`\n"
+      (M.msg_type_of_content msg.M.content)
+      (M.json_of_content msg.M.content);
     match msg.M.content with
       | M.Kernel_info_request -> kernel_info_request t msg
       | M.Execute_request x -> execute_request t msg x
-      | M.Connect_request -> connect_request t msg; Lwt.return_unit
+      | M.Connect_request ->
+        Log.log "warning: received deprecated connect_request";
+        connect_request t msg; Lwt.return_unit
       | M.Object_info_request x -> object_info_request t msg x; Lwt.return_unit
       | M.Complete_request x -> complete_request t msg x
       | M.Is_complete_request x -> is_complete_request t msg x
-      | M.History_request x -> history_request t msg x; Lwt.return_unit
+      | M.History_request x -> history_request t msg x
       | M.Shutdown_request x -> shutdown_request t msg x
 
       (* messages we should not be getting *)
