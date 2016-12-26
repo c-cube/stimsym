@@ -276,14 +276,26 @@ module Pat_compile = struct
         in
         SUP_pure (l, min_size)
     end
+
+  let extract_cond (e:E.t) : E.t * E.t option = match e with
+    | App (Const {cst_name="Condition";_}, [| a; cond |]) ->
+      a, Some cond
+    | _ -> e, None
 end
 
 (* raise Invalid_rule if cannot compile *)
 let compile_rule (lhs:E.t) (rhs:E.t): rewrite_rule =
   let st = Pat_compile.create() in
   let pat = Pat_compile.tr_pattern st lhs in
+  let rhs, cond = Pat_compile.extract_cond rhs in
   let rhs = Pat_compile.tr_term st rhs in
-  {rr_pat=pat; rr_pat_as_expr=lhs; rr_rhs=rhs }
+  let rr_pat = match cond with
+    | None -> pat
+    | Some cond ->
+      let cond = Pat_compile.tr_term st cond in
+      P_conditional (pat, cond)
+  in
+  {rr_pat; rr_pat_as_expr=lhs; rr_rhs=rhs }
 
 exception Invalid_binding_seq of string
 

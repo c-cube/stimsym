@@ -337,6 +337,10 @@ let suite_eval =
       "{f[a],f[b],f[c],f[d]} //. f[x_] /; ((x===a)||(x===c)) :> g[x]"
       "List[g[a],f[b],g[c],f[d]]";
     mk_eval __LINE__
+      "{f[a],f[b],f[c],f[d]} //. f[x_] :> g[x] /; ((x===a)||(x===c))"
+      "List[g[a],f[b],g[c],f[d]]";
+    mk_eval __LINE__ "{1,2,3} /. x_?IntegerQ:>{x}/; x==2" "List[1,List[2],3]";
+    mk_eval __LINE__
       "f[g[a1,b,c1],h[a2,b,c2]] //. f[g[___,x_,___],h[___,y_,___]] /; x===y :> {x}"
       "List[b]";
     mk_eval __LINE__
