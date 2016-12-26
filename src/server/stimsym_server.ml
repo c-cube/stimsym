@@ -85,6 +85,7 @@ let run_ count str : C.Kernel.exec_status =
         (CCFormat.sprintf "error: %s@." (Printexc.to_string e))
   end
 
+(* auto-completion *)
 let complete pos str = 
   let completion_matches =
     if pos >= String.length str then []
@@ -99,12 +100,17 @@ let complete pos str =
   } in
   c
 
+(* is the block of code complete?
+   TODO: a way of asking the parser if it failed because of EOI/unbalanced []*)
+let is_complete _ = C.Kernel.Is_complete
+
 let () =
   Builtins.log_ := Log.log
 
 let kernel : C.Kernel.t = {
   C.Kernel.
   exec = (fun ~count msg -> Lwt.return (run_ count msg));
+  is_complete;
   complete =
     (fun ~pos msg -> Lwt.return (complete pos msg))
 }

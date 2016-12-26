@@ -107,5 +107,9 @@ true: annot, bin_annot
 <src/**/*.cmx>: inline(100)
 <src/**/*.ml>: warn(+a-4-44-29@8)
 
+<src/**/*.atd>: package(atdgen)
+<src/ipython/*_j.cmx>: for-pack(Ipython)
+<src/ipython/*_t.cmx>: for-pack(Ipython)
+
 true: color(always)
 true: use_ocamlfind

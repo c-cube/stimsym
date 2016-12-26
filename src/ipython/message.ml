@@ -18,6 +18,7 @@ type content =
   | Execute_request of execute_request
   | Object_info_request of object_info_request
   | Complete_request of complete_request
+  | Is_complete_request of is_complete_request
   | History_request of history_request
   (* messages sent to front end *)
   | Connect_reply of connect_reply
@@ -26,8 +27,9 @@ type content =
   | Execute_reply of execute_reply
   | Object_info_reply of object_info_reply
   | Complete_reply of complete_reply
+  | Is_complete_reply of is_complete_reply
   | History_reply of history_reply
-  (* others *)
+  (* other *)
   | Status of status
   | Pyin of pyin
   | Pyout of pyout
@@ -73,6 +75,7 @@ let json_of_content = function
   | Execute_request(x) -> string_of_execute_request x
   | Object_info_request(x) -> string_of_object_info_request x
   | Complete_request(x) -> string_of_complete_request x
+  | Is_complete_request x -> string_of_is_complete_request x
   | History_request(x) -> string_of_history_request x
 
   | Connect_reply(x) -> string_of_connect_reply x
@@ -81,6 +84,7 @@ let json_of_content = function
   | Execute_reply(x) -> string_of_execute_reply x
   | Object_info_reply(x) -> string_of_object_info_reply x
   | Complete_reply(x) -> string_of_complete_reply x
+  | Is_complete_reply(x) -> string_of_is_complete_reply x
   | History_reply(x) -> string_of_history_reply x
 
   | Status(x) -> string_of_status x
@@ -99,6 +103,7 @@ let msg_type_of_content = function
   | Execute_request(_) -> "execute_request"
   | Object_info_request(_) -> "object_info_request"
   | Complete_request(_) -> "complete_request"
+  | Is_complete_request _ -> "is_complete_request"
   | History_request(_) -> "history_request"
 
   | Connect_reply(_) -> "connect_reply"
@@ -107,6 +112,7 @@ let msg_type_of_content = function
   | Execute_reply(_) -> "execute_reply"
   | Object_info_reply(_) -> "object_info_reply"
   | Complete_reply(_) -> "complete_reply"
+  | Is_complete_reply _ -> "is_complete_reply"
   | History_reply(_) -> "history_reply"
 
   | Status(_) -> "status"

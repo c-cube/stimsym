@@ -18,6 +18,7 @@ type content =
   | Execute_request of execute_request
   | Object_info_request of object_info_request
   | Complete_request of complete_request
+  | Is_complete_request of is_complete_request
   | History_request of history_request
   (* messages sent to front end *)
   | Connect_reply of connect_reply
@@ -26,6 +27,7 @@ type content =
   | Execute_reply of execute_reply
   | Object_info_reply of object_info_reply
   | Complete_reply of complete_reply
+  | Is_complete_reply of is_complete_reply
   | History_reply of history_reply
   (* other *)
   | Status of status

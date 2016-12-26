@@ -24,6 +24,10 @@ module Kernel : sig
     completion_end: int;
   }
 
+  type is_complete_reply =
+    | Is_complete
+    | Is_not_complete of string (* indent *)
+
   val doc : Document.t -> exec_action
   val mime : ?base64:bool -> ty:string -> string -> exec_action
 
@@ -31,6 +35,7 @@ module Kernel : sig
 
   type t = {
     exec: count:int -> string -> exec_status Lwt.t;
+    is_complete: string -> is_complete_reply;
     complete: pos:int -> string -> completion_status Lwt.t;
   }
 end

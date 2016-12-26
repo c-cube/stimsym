@@ -28,6 +28,10 @@ module Kernel = struct
     completion_end: int;
   }
 
+  type is_complete_reply =
+    | Is_complete
+    | Is_not_complete of string (* indent *)
+
   let doc x = Doc x
   let mime ?(base64=false) ~ty x = Mime (ty,x,base64)
 
@@ -35,6 +39,7 @@ module Kernel = struct
 
   type t = {
     exec: count:int -> string -> exec_status Lwt.t;
+    is_complete: string -> is_complete_reply;
     complete: pos:int -> string -> completion_status Lwt.t;
   }
 end
@@ -247,7 +252,7 @@ let kernel_info_request (t:t) msg =
                content = M.Kernel_info_reply {
                    protocol_version = [ 5; 0 ];
                    language_version = [ 0; 1; 0 ];
-                   language = "rewrite";
+                   language = "stimsym";
                  }
        })
 
@@ -274,6 +279,19 @@ let complete_request t _msg (r:complete_request): unit Lwt.t =
   in
   Lwt.return_unit
 
+let is_complete_request t _msg (r:is_complete_request): unit Lwt.t =
+  let st = t.kernel.Kernel.is_complete r.icr_code in
+  let reply = match st with
+    | Kernel.Is_complete ->
+      {icr_status="complete"; icr_indent=""}
+    | Kernel.Is_not_complete icr_indent ->
+      {icr_status="incomplete"; icr_indent}
+  in
+  let%lwt _ = send_iopub t
+      (Iopub_send_message (M.Is_complete_reply reply))
+  in
+  Lwt.return_unit
+
 let object_info_request _socket _msg _x =
   () (* TODO: doc? *)
 
@@ -297,13 +315,14 @@ let run t : unit Lwt.t =
       | M.Connect_request -> connect_request t msg; Lwt.return_unit
       | M.Object_info_request x -> object_info_request t msg x; Lwt.return_unit
       | M.Complete_request x -> complete_request t msg x
+      | M.Is_complete_request x -> is_complete_request t msg x
       | M.History_request x -> history_request t msg x; Lwt.return_unit
       | M.Shutdown_request x -> shutdown_request t msg x
 
       (* messages we should not be getting *)
       | M.Connect_reply(_) | M.Kernel_info_reply(_)
       | M.Shutdown_reply(_) | M.Execute_reply(_)
-      | M.Object_info_reply(_) | M.Complete_reply(_)
+      | M.Object_info_reply(_) | M.Complete_reply(_) | M.Is_complete_reply _
       | M.History_reply(_) | M.Status(_) | M.Pyin(_)
       | M.Pyout(_) | M.Stream(_) | M.Display_data(_)
       | M.Clear(_) -> handle_invalid_message ()

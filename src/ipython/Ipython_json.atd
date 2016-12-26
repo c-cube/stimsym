@@ -1,4 +1,4 @@
-(* 
+(*
  * iocaml - an OCaml kernel for IPython
  *
  *   (c) 2014 MicroJamJar Ltd
@@ -100,6 +100,17 @@ type object_info_reply = {
     oi_source <json name="source"> : string;
 }
 
+(** Multi-line input *)
+
+type is_complete_request = {
+  icr_code <json name="code">: string;
+}
+
+type is_complete_reply = {
+  icr_status <json name="status">: string; (* complete/incomplete/invalid/unknown *)
+  icr_indent <json name="indent">: string;
+}
+
 (*********************************************************************)
 (* code completion *)
 (*********************************************************************)
@@ -140,11 +151,13 @@ type history_reply = {
 (* connection information *)
 (*********************************************************************)
 
+(* deprecated *)
+
 type connect_reply = {
-    cr_shell_port <json name="shell_port"> : int; 
-    cr_iopub_port <json name="iopub_port"> : int; 
+    cr_shell_port <json name="shell_port"> : int;
+    cr_iopub_port <json name="iopub_port"> : int;
     cr_stdin_port <json name="stdin_port"> : int;
-    cr_hb_port <json name="hb_port"> : int; 
+    cr_hb_port <json name="hb_port"> : int;
 }
 
 (*********************************************************************)
