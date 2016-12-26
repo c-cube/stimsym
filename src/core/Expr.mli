@@ -102,6 +102,8 @@ val hash : t -> int
 (** Hash *)
 
 module Tbl : CCHashtbl.S with type key = t
+module Map : CCMap.S with type key = t
+module Set : CCSet.S with type elt = t
 
 (** {2 Constants} *)
 

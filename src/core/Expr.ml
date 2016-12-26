@@ -237,11 +237,16 @@ let rec hash_limit n t =
 
 let hash t = hash_limit 5 t
 
-module Tbl = CCHashtbl.Make(struct
-    type t = expr
-    let equal = equal
-    let hash = hash
-  end)
+module As_key = struct
+  type t = expr
+  let equal = equal
+  let hash = hash
+  let compare = compare
+end
+
+module Tbl = CCHashtbl.Make(As_key)
+module Map = CCMap.Make(As_key)
+module Set = CCSet.Make(As_key)
 
 (** {2 IO} *)
 

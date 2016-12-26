@@ -59,7 +59,9 @@ val plus : t
 val times : t
 val factorial : t
 val power : t
+
 val list : t
+val set : t
 
 val random : t
 val floor : t

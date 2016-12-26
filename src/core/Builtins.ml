@@ -363,6 +363,27 @@ let list =
   in
   make ~printer:(prec_list,pp_list) "List"
 
+let set =
+  (* remove duplicates *)
+  let eval _ _ = function
+    | E.App (self, arr) ->
+      let set = Array.fold_left
+          (fun set x -> E.Set.add x set)
+          E.Set.empty arr
+      in
+      (* any duplicates? *)
+      if E.Set.cardinal set < Array.length arr then (
+        Some (E.app_l self (E.Set.to_list set))
+      ) else raise Eval_does_not_apply
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Set"
+    ~fields:[E.field_listable; E.field_orderless] ~funs:[eval]
+    ~doc:[
+      `S "Set";
+      `P "`Set[a,b,c]`: unordered collection without duplicates.";
+    ]
+
 let match_bind =
   let pp _ pp_sub out = function
     | [| pat; rhs |] ->

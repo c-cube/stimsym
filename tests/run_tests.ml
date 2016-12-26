@@ -430,6 +430,8 @@ let suite_eval =
     mk_eval __LINE__
       "((f^3)[a]) //. f[x_] :> g[x,x]"
       "g[g[g[a,a],g[a,a]],g[g[a,a],g[a,a]]]";
+    mk_eval __LINE__ "Set[1,2,3,2,4]" "Set[1,2,3,4]";
+    mk_eval __LINE__ "Set[]" "Set[]";
   ]
 
 (** {2 Main} *)
