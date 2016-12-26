@@ -97,19 +97,19 @@ The following operators rewrite expressions using local rules:
   (where `rules` is either one rule, or a list of rules)
   rewrite `expr` with the rules until no rule applies anymore.
   For example,
-  +
++
 ----
 > g[f[f[f[a]]]] //.  {f[x_]:> x, g[x_] :> h[x]}
 h[a]
 > f[f[f[a]]] //.  {f[x_]:> g[x], g[x_] :> h[x]}
 h[h[h[a]]]
 ----
-+
+
 - `expr /. rules`
   (where `rules` is either one rule, or a list of rules)
   rewrite `expr` with the rules, but each sub-expression is rewritten
   at most once:
-  +
++
 ----
 > f[f[f[a]]] /.  {f[x_]:> g[x], g[x_] :> h[x]}
 g[g[g[a]]]
