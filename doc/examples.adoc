@@ -144,7 +144,7 @@ blank sequence::
 test pattern::
   `p?f` is a pattern that matches any expression `e` against `p`, but
   only if `f[e]` reduces to `True`.
-  Typically, `_?IntegerQ` matches any integer, `_?RationalQ`
+  Typically, +++_?IntegerQ+++ matches any integer, +++_?RationalQ+++
   any rational (or integer).
 
 conditional pattern::
@@ -153,12 +153,12 @@ conditional pattern::
   The test `expr` is expected to reduce to `True` or `False`;
   otherwise the evaluation fails.
   This is more powerful, but more verbose, than a test pattern:
-  `_?IntegerQ` can be expressed as `x_ /; IntegerQ[x]`.
-  +
+  +++_?IntegerQ+++ can be expressed as +++x_ /; IntegerQ[x]+++.
++
 More advanced example involving both a test and a conditional
 (because the condition `a+2==3` does not reduce to a boolean,
-we guard `x_` with an `IntegerQ` test):
-  +
+we guard +++x_+++ with an `IntegerQ` test):
++
 ----
 > {1,2,a,4} /. (x_?IntegerQ /; (x+2 == 3) :> success[x])
 {success[1],2,a,4}
