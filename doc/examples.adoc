@@ -3,6 +3,8 @@
 
 All the examples can be run in `stimsym_cli` or in the notebook.
 
+toc::[]
+
 == The Basics
 
 Stimsym is a **symbolic** language, where we manipulate expressions, not
@@ -304,6 +306,21 @@ f[a,b]
 > Let[x_?IntegerQ <- a, x] (* no answer -> failure! *)
 evaluation failed:
 no match for `Let`
+----
+
+== Anonymous functions
+
+There is a way to denote simple anonymous functions using the postfix `&`
+operator and `#1`, `#2`, … for arguments. `#0` is the whole sequence
+of elements.
+
+----
+> (#1 &)[a,b,c]
+a
+> (f[#1,{#0}]&)[a,b,c]
+f[a,{a,b,c}]
+> (Plus[#0]!&)[1,2,3]  (* sum, then factorial *)
+720
 ----
 
 == Inline Documentation: `Doc`
