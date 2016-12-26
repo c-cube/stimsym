@@ -53,9 +53,11 @@ let suite_parser =
     test_parser __LINE__ "f[a+b+c,d]" "f[Plus[a,b,c],d]";
     test_parser __LINE__ "3/2" "3/2";
     test_parser __LINE__ "6/4" "3/2";
+    test_parser __LINE__ "\"abc\"" "\"abc\"";
+    test_parser __LINE__ "\"abc d\"" "\"abc d\"";
     test_parser_fail __LINE__ "f[a+b+,d]";
     test_parser_fail __LINE__ "+ +";
-    test_parser __LINE__ 
+    test_parser __LINE__
       "f[g[h[i[j[k,l]+m],n,o+p+(q)]]]+r"
       "Plus[f[g[h[i[Plus[j[k,l],m]],n,Plus[o,p,q]]]],r]";
     test_parser __LINE__ "{1,2,3}" "List[1,2,3]";
@@ -189,7 +191,7 @@ let suite_printer =
     test_printer_same __LINE__ "a+b+c+d";
     test_printer_same __LINE__ "f[a+b+c,d]";
     test_printer_same __LINE__ "3/2";
-    test_printer __LINE__ 
+    test_printer __LINE__
       "f[g[h[i[j[k,l]+m],n,o+p+(q)]]]+r"
       "f[g[h[i[j[k,l]+m],n,o+p+q]]]+r";
     test_printer_same __LINE__ "{1,2,3}";
