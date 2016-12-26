@@ -97,6 +97,9 @@ and prim_fun_args = eval_state
 
 and prim_fun = prim_fun_args -> expr -> expr option
 
+(* function using for tracing evaluation *)
+and trace_fun = expr -> expr -> unit
+
 (* state for evaluation *)
 and eval_state = {
   mutable st_iter_count: int;
@@ -105,6 +108,8 @@ and eval_state = {
   (* permanent list of rules *)
   st_effects: (eval_side_effect Stack.t) option;
   (* temporary messages *)
+  mutable st_trace: trace_fun;
+  (* called on intermediate forms *)
 }
 
 (* custom display for expressions *)

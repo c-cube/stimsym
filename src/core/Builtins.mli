@@ -89,6 +89,7 @@ val integer_q : t
 val rational_q : t
 val true_q : t
 
+val trace : t
 val print : t
 val null : t
 val doc : t

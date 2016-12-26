@@ -47,17 +47,17 @@ let pp_slice out s =
   Format.fprintf out "[@[%a@]]"
     (Slice.print E.pp_full_form) s
 
-let trace_on_ : bool ref = ref false
+let debug_on_ : bool ref = ref false
 
 (* tracing evaluation *)
-let trace_eval_ k =
-  if !trace_on_
+let debug_eval_ k =
+  if !debug_on_
   then (
     k (fun msg ->
       Format.kfprintf (fun out -> Format.fprintf out "@.") Format.std_formatter msg)
   )
 
-let set_eval_trace b = trace_on_ := b
+let set_eval_debug b = debug_on_ := b
 
 (* @raise No_head if there is no head *)
 let rec pattern_head (p:pattern): const = match p with
@@ -120,7 +120,7 @@ let equal_with (subst:Subst.t) a b: bool =
 (* return all the matches of [pat] against [e], modifying [st]
    every time in a backtracking way *)
 let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t)(yield:Subst.t -> unit): unit =
-  trace_eval_ (fun k->k "@[<2>match @[%a@]@ with: @[%a@]@ subst: @[%a@]@]"
+  debug_eval_ (fun k->k "@[<2>match @[%a@]@ with: @[%a@]@ subst: @[%a@]@]"
     Pattern.pp pat E.pp_full_form e Subst.pp subst);
   begin match pat, e with
     | P_z a, Z b -> if Z.equal a b then yield subst
@@ -150,7 +150,7 @@ let rec match_ (st:eval_state) (subst:Subst.t) (pat:pattern) (e:E.t)(yield:Subst
         (fun subst ->
            (* get current binding for [i] *)
            let other = Subst.get_exn i subst in
-           trace_eval_
+           debug_eval_
              (fun k->k "(@[<2>check_same@ %a@ %a@])" E.pp_full_form e E.pp_full_form other);
            if E.equal e other then yield subst)
     | P_app (hd, args), App (hd', args')
@@ -224,7 +224,7 @@ and match_slices st subst (ap:slice_pattern) (slice:E.t Slice.t) yield: unit =
     | SP_pure (l,_) -> match_sp_pure st subst l slice yield
 
 and match_sp_vantage st subst (apv:slice_pattern_vantage) slice yield =
-  trace_eval_ (fun k->k "@[<2>match_sp_vantage st @[%a@]@ slice @[%a@]@]"
+  debug_eval_ (fun k->k "@[<2>match_sp_vantage st @[%a@]@ slice @[%a@]@]"
     Pattern.pp apv.sp_vantage pp_slice slice);
   (* check that there are enough elements *)
   let n = Slice.length slice in
@@ -237,7 +237,7 @@ and match_sp_vantage st subst (apv:slice_pattern_vantage) slice yield =
     in
     for vantage_idx = min to max-1 do
       (* try with this index *)
-      trace_eval_ (fun k->k
+      debug_eval_ (fun k->k
           "@[match_sp_vantage st@ at idx %d,@ pat @[%a@]@ \
            (min %d, max %d, slice @[%a@])@]"
         vantage_idx Pattern.pp apv.sp_vantage min max pp_slice slice);
@@ -293,7 +293,7 @@ and match_sup_vantage st subst p next min_size slice yield =
     let rec aux left right = match right with
       | [] -> ()
       | e :: right_tail ->
-        trace_eval_ (fun k->k
+        debug_eval_ (fun k->k
             "@[match_sup_vantage st@ pat @[%a@]@ at @[%a@]@]"
             Pattern.pp p (Fmt.Dump.list E.pp_full_form) right);
         (* try [e] *)
@@ -362,7 +362,7 @@ and match_pat_slice st subst (p:pattern) slice yield =
         (fun subst ->
            (* get current binding for [i] *)
            let other = Subst.get_exn i subst in
-           trace_eval_
+           debug_eval_
              (fun k->k "(@[<2>check_same@ %a@ %a@])"
                  E.pp_full_form (Lazy.force e_slice) E.pp_full_form other);
            if E.equal (Lazy.force e_slice) other then yield subst)
@@ -394,7 +394,7 @@ and match_pat_slice st subst (p:pattern) slice yield =
   end
 
 and eval_rec (st:eval_state) e =
-  (* trace_eval_ (fun k->k "@[<2>eval_rec @[%a@]@]" E.pp_full_form e); *)
+  (* debug_eval_ (fun k->k "@[<2>eval_rec @[%a@]@]" E.pp_full_form e); *)
   match e with
   | App (Const {cst_name="CompoundExpression";_}, ([| |] | [| _ |])) -> assert false
   | App (Const {cst_name="CompoundExpression";_}, args) ->
@@ -414,7 +414,7 @@ and eval_rec (st:eval_state) e =
     let b = eval_rec st b in
     (* rewrite [a] with rules in [b], until fixpoint *)
     let rules = term_as_rules st b in
-    trace_eval_
+    debug_eval_
       (fun k->k "(@[replace_all@ %a@ rules: (@[%a@])@])"
           E.pp_full_form a (Fmt.list ~start:"" ~stop:"" Pattern.pp_rule) rules);
     let a = rewrite_rec st ~steps:`Once rules a in
@@ -425,7 +425,7 @@ and eval_rec (st:eval_state) e =
     let b = eval_rec st b in
     (* rewrite [a] with rules in [b], until fixpoint *)
     let rules = term_as_rules st b in
-    trace_eval_
+    debug_eval_
       (fun k->k "(@[replace_repeated@ %a@ rules: (@[%a@])@])"
           E.pp_full_form a (Fmt.list ~start:"" ~stop:"" Pattern.pp_rule) rules);
     let a = rewrite_rec st ~steps:`Repeated rules a in
@@ -437,7 +437,7 @@ and eval_rec (st:eval_state) e =
       Array.mapi (fun i arg -> if i>0 then eval_rec st arg else arg) args
     in
     begin match Pattern.compile_binding_seq ~ret:`First args with
-      | Result.Ok c -> eval_comprehension st c
+      | Result.Ok c -> eval_comprehension st e c
       | Result.Error msg ->
         eval_failf "@[<2>could not evaluate@ `%a`@ reason: %s@]" E.pp e msg
     end
@@ -448,7 +448,7 @@ and eval_rec (st:eval_state) e =
       Array.mapi (fun i arg -> if i+1<Array.length args then eval_rec st arg else arg) args
     in
     begin match Pattern.compile_binding_seq ~ret:`Last args with
-      | Result.Ok c -> eval_let st c
+      | Result.Ok c -> eval_let st e c
       | Result.Error msg ->
         eval_failf "@[<2>could not evaluate@ `%a`@ reason: %s@]" E.pp e msg
     end
@@ -476,7 +476,7 @@ and eval_rec (st:eval_state) e =
   | App (App (Const {cst_name="Function";_}, [| body |]) as hd, args) ->
     (* evaluate args, then apply function *)
     let args = eval_args_of st hd args in
-    eval_beta_reduce st body args
+    eval_beta_reduce st e body args
   | App (hd, args) ->
     let hd = eval_rec st hd in
     (* evaluate arguments, but only if [hd] allows it *)
@@ -490,7 +490,9 @@ and eval_rec (st:eval_state) e =
         (* distribute [hd] on the list and evaluate it *)
         let args = Array.map (fun a -> eval_rec st (E.app hd [| a |])) args in
         (* return the list of results *)
-        E.app_flatten list_ args
+        let e' = E.app_flatten list_ args in
+        st.st_trace e e';
+        e'
       | App (hd, _) ->
         begin
           try
@@ -558,6 +560,7 @@ and try_defs (st:eval_state) t (rs:rewrite_set) = match rs with
       | None -> try_defs st t (RS_add_defs (trail, rs'))
       | Some t' ->
         st.st_iter_count <- st.st_iter_count + 1;
+        st.st_trace t t';
         eval_rec st t'
     end
 
@@ -570,11 +573,12 @@ and try_rule st t rule (rs:rewrite_set) =
     | Some subst ->
       let t' = Subst.apply subst rule.rr_rhs in
       st.st_iter_count <- st.st_iter_count + 1;
+      st.st_trace t t';
       eval_rec st t'
   end
 
 (* beta-reduction of given function expression *)
-and eval_beta_reduce st fun_body args =
+and eval_beta_reduce st e fun_body args =
   let rec replace (t:expr): expr = match t with
     | Reg _ -> assert false
     | App (Const {cst_name="Function"; _}, _) ->
@@ -594,8 +598,9 @@ and eval_beta_reduce st fun_body args =
     | App (hd, args) ->
       E.app_flatten (replace hd) (Array.map replace args)
   in
-  let t = replace fun_body in
-  eval_rec st t
+  let e' = replace fun_body in
+  st.st_trace e e';
+  eval_rec st e'
 
 and eval_bindings st subst (l:binding_seq_body_item list): Subst.t Sequence.t =
   let open Sequence.Infix in
@@ -628,29 +633,33 @@ and eval_binding st subst (op:binding_seq_body_item): Subst.t Sequence.t =
       end
 
 (* evaluate a comprehension *)
-and eval_comprehension st (c:binding_seq) =
+and eval_comprehension st e (c:binding_seq) =
   let eval_subst subst t = Subst.apply subst t |> eval_rec st in
   (* recurse through the body *)
-  begin
+  let e' =
     eval_bindings st Subst.empty c.comp_body
     |> Sequence.map (fun subst -> eval_subst subst c.comp_yield)
     |> Sequence.to_list
     |> Array.of_list
     |> E.app_flatten sequence
-  end
+  in
+  st.st_trace e e';
+  e'
 
 (* let is like a binding_seq, but we only return the first result *)
-and eval_let st (c:binding_seq) =
+and eval_let st e (c:binding_seq) =
   let eval_subst subst t = Subst.apply subst t |> eval_rec st in
   (* recurse through the body *)
-  begin
+  let e' =
     eval_bindings st Subst.empty c.comp_body
     |> Sequence.map (fun subst -> eval_subst subst c.comp_yield)
     |> Sequence.head
     |> (function
       | Some t -> t
       | None -> eval_failf "no match for `Let`")
-  end
+  in
+  st.st_trace e e';
+  e'
 
 (* rewrite term [e] recursively using [rules].
    Do not evaluate. *)
@@ -674,6 +683,7 @@ and rewrite_rec st ~(steps:[`Once|`Repeated]) (rules:rewrite_rule list)(e:expr):
         | None -> try_rewrite_with e tail
         | Some subst ->
           let e' = Subst.apply subst r.rr_rhs in
+          st.st_trace e e';
           begin match steps with
             | `Once -> e'
             | `Repeated -> aux e' (* rewrite again *)
@@ -686,6 +696,7 @@ let create_eval_state ~buf () : eval_state = {
   st_iter_count=0;
   st_rules=[];
   st_effects=buf;
+  st_trace=(fun _ _ ->());
 }
 
 let eval e =
@@ -711,6 +722,13 @@ let eval_full e : E.t * eval_side_effect list =
 let prim_eval = eval_rec
 let prim_fail _ = eval_fail
 let prim_failf _ msg = eval_failf msg
+
+let prim_with_trace st trace f =
+  let old = st.st_trace in
+  st.st_trace <- trace;
+  CCFun.finally
+    ~h:(fun () -> st.st_trace <- old)
+    ~f
 
 let prim_write_doc st = match st.st_effects with
   | None -> (fun _ -> ())

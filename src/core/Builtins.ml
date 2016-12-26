@@ -1249,6 +1249,31 @@ let print =
       `P "`Print[e]` evaluates `e`, prints it and returns `Null`";
     ]
 
+let trace =
+  let doc_of_list l : Document.block =
+    List.rev_map
+      (fun (e,e') -> Document.paragraph_f "@[<2>`%a`@ -> `%a`@]" E.pp e E.pp e')
+      l
+    |> Document.indent "trace"
+  in
+  let eval _ arg e = match e with
+    | E.App (_, [| t |]) ->
+      let l = ref [] in
+      let push_step e e' = l := (e,e') :: !l in
+      let e' =
+        Eval.prim_with_trace arg push_step (fun () -> Eval.prim_eval arg t)
+      in
+      (* now print *)
+      Eval.prim_write_doc arg (lazy [doc_of_list !l]);
+      Some e'
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Trace" ~funs:[eval] ~fields:[E.field_hold_first]
+    ~doc:[
+      `S "Trace";
+      `P "`Trace[e]` evaluates `e`, printing every reduction step";
+    ]
+
 let all_builtins () = !all_
 
 let doc =

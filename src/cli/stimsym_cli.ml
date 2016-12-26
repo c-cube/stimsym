@@ -85,7 +85,7 @@ let () =
   Arg.parse
     [ "-v", Arg.Set verbose, " enable verbose output";
       "--verbose", Arg.Set verbose, " enable verbose output";
-      "--trace", Arg.Unit (fun () -> Eval.set_eval_trace true), " enable tracing of evaluation";
+      "--trace", Arg.Unit (fun () -> Eval.set_eval_debug true), " enable tracing of evaluation";
     ]
     (fun _ -> ())
     "./cli [options]

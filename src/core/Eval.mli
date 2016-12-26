@@ -23,10 +23,13 @@ val eval_full : expr -> expr * eval_side_effect list
 (** @returns the normal form, and messages printed in the mean time *)
 
 (**/**)
-val set_eval_trace: bool -> unit
+val set_eval_debug: bool -> unit
 
 val prim_eval : prim_fun_args -> expr -> expr
 (** Evaluation function to be called by primitives *)
+
+val prim_with_trace : prim_fun_args -> trace_fun -> (unit -> 'a) -> 'a
+(** Set [trace] functions during call to function, then restore old one *)
 
 val prim_fail : prim_fun_args -> string -> 'a
 (** To be called by primitives on failure *)
