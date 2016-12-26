@@ -385,6 +385,28 @@ let set =
       `P "`Set[a,b,c]`: unordered collection without duplicates.";
     ]
 
+let union =
+  let rule2 _ =
+    E.of_string_full_form_exn
+      "Union[Set[Pattern[a,BlankNullSequence[]]],
+                      Set[Pattern[b,BlankNullSequence[]]],
+                      Pattern[o,BlankNullSequence[]]]",
+    E.of_string_full_form_exn "Union[Set[a,b],o]]"
+  and rule0 _ =
+    E.of_string_full_form_exn "Union[]",
+    E.of_string_full_form_exn "Set[]"
+  in
+  make "Union"
+    ~fields:[E.field_orderless; E.field_one_identity] ~rules:[rule0;rule2]
+    ~doc:[
+      `S "Union";
+      `P "`Union[s1,s2,…]` computes the set union";
+      `I ("example", [
+          `Pre "`Union[Set[1,2,3],Set[2,3,4],Set[5,7]]`";
+          `P "returns `Set[1,2,3,4,5,7]`";
+        ]);
+    ]
+
 let match_bind =
   let pp _ pp_sub out = function
     | [| pat; rhs |] ->

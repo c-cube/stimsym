@@ -435,6 +435,14 @@ let suite_eval =
     mk_eval __LINE__
       "Fixpoint[(Set[x:: y_<<- #1, x_<<-Range[y]]&), Set[5]]"
       "Set[0,1,2,3,4,5]";
+    mk_eval __LINE__ "Union[]" "Set[]";
+    mk_eval __LINE__ "Union[a]" "a";
+    mk_eval __LINE__
+      "Union[Set[1,2,3],Set[2,3,4],Set[5,7]]"
+      "Set[1,2,3,4,5,7]";
+    mk_eval __LINE__
+      "Union[Set[x::x_<<-Range[i]]:: i_<<-Range[10]]"
+      "Set[0,1,2,3,4,5,6,7,8,9,10]";
   ]
 
 (** {2 Main} *)

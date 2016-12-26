@@ -63,6 +63,8 @@ val power : t
 val list : t
 val set : t
 
+val union : t
+
 val random : t
 val floor : t
 val ceil : t
