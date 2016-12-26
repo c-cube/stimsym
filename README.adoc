@@ -53,9 +53,11 @@ h[4,5,3,2,1]
 List[g[a],f[b],g[c],f[d]]
 ----
 
-The file 'tests/run_tests.ml' contains a lot of small test cases.
-See also link:doc/examples.adoc[the list of commented examples] to
+=== Some Examples
+
+See link:doc/examples.adoc[the list of commented examples] to
 get an idea of how to use Stimsym.
+The file 'tests/run_tests.ml' also contains a lot of small test cases.
 
 === Jupyter Interface
 
