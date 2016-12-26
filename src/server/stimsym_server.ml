@@ -88,7 +88,7 @@ let run_ count str : C.Kernel.exec_status =
 (* auto-completion *)
 let complete pos str = 
   let completion_matches =
-    if pos >= String.length str then []
+    if pos > String.length str then []
     else
       let left = String.sub str 0 pos in
       Completion.complete left
