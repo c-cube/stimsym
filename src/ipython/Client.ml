@@ -8,6 +8,8 @@ open Ipython_json_j
 
 module M = Message
 
+exception Restart
+
 module Kernel = struct
   type exec_action =
     | Doc of Document.t
@@ -256,12 +258,13 @@ let kernel_info_request (t:t) msg =
                  }
        })
 
-let shutdown_request (t:t) msg _ : 'a Lwt.t =
+let shutdown_request (t:t) msg (r:shutdown) : 'a Lwt.t =
+  Log.log "received shutdown request...\n";
   let%lwt () =
     M.send_h ?key:t.key t.sockets.Sockets.shell msg
-      (M.Shutdown_reply { restart = false })
+      (M.Shutdown_reply r)
   in
-  Lwt.fail Exit
+  Lwt.fail (if r.restart then Restart else Exit)
 
 let handle_invalid_message () =
   Lwt.fail (Failure "Invalid message on shell socket")
@@ -304,7 +307,11 @@ let history_request t _msg _x =
   in
   Lwt.return_unit
 
-let run t : unit Lwt.t =
+type run_result =
+  | Run_stop
+  | Run_restart
+
+let run t : run_result Lwt.t =
   let () = Sys.catch_break true in
   Log.log "run on sockets...\n";
   let%lwt _ =
@@ -346,8 +353,11 @@ let run t : unit Lwt.t =
       | Sys.Break ->
         Log.log "Sys.Break\n";
         run ()
+      | Restart ->
+        Log.log "Restart\n";
+        Lwt.return Run_restart
       | Exit ->
         Log.log "Exiting, as requested\n";
-        Lwt.return_unit
+        Lwt.return Run_stop
   in
   run ()

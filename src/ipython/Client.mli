@@ -44,4 +44,8 @@ type t
 
 val make : ?key:string -> Sockets.t -> Kernel.t -> t
 
-val run : t -> unit Lwt.t
+type run_result =
+  | Run_stop
+  | Run_restart
+
+val run : t -> run_result Lwt.t

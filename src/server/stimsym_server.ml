@@ -150,26 +150,28 @@ let connection_info =
     let () = close_in f_conn_info in
     conn
 
+let rec main_loop () =
+  try%lwt
+    let sockets = Sockets.open_sockets connection_info in
+    let key = connection_info.Ipython_json_t.key in
+    let key = if key="" then None else Some key in
+    let sh = C.make ?key sockets kernel in
+    Lwt.pick
+      [ C.run sh;
+        (Sockets.heartbeat connection_info >|= fun () -> C.Run_stop);
+        (Sockets.dump sockets.Sockets.control >|= fun () -> C.Run_stop);
+      ]
+    >>= function
+    | C.Run_stop ->
+      Log.log "Done.\n";
+      Lwt.return_unit
+    | C.Run_restart ->
+      main_loop ()
+  with e ->
+    Log.log (Printf.sprintf "Exception: %s\n" (Printexc.to_string e));
+    Log.log "Dying.\n";
+    exit 0
+
 let () =
   Log.log "start main...\n";
-  Lwt_main.run
-    begin
-      try%lwt
-        let sockets = Sockets.open_sockets connection_info in
-        let key = connection_info.Ipython_json_t.key in
-        let key = if key="" then None else Some key in
-        let sh = C.make ?key sockets kernel in
-        Lwt.join
-          [ C.run sh;
-            Sockets.heartbeat connection_info;
-            Sockets.dump sockets.Sockets.control;
-          ]
-        >>= fun () ->
-        Log.log "Done.\n";
-        Lwt.return_unit
-      with e ->
-        Log.log (Printf.sprintf "Exception: %s\n" (Printexc.to_string e));
-        Log.log "Dying.\n";
-        exit 0
-    end
-
+  Lwt_main.run (main_loop ())
