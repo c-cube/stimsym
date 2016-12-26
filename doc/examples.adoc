@@ -41,10 +41,10 @@ a
 ----
 
 In this definition, you might have noticed how `x` appears with
-the `_` on the left, but not on the right.
-`x_` is actually a **blank pattern**: it matches any expression (any argument)
+the +++_+++ on the left, but not on the right.
++++x_+++ is actually a **blank pattern**: it matches any expression (any cargument)
 and binds the argument to the variable `x`.
-So, `g[x_,y_] := 2 x + y` defines `g` as a function that takes any two
+So, +++g[x_,y_] := 2 x + y+++ defines `g` as a function that takes any two
 expressions and sums them after doubling the first one: `g[10,3]` will be `23`.
 More complicated **patterns** will only match some expressions
 (see <<patterns>>).
@@ -88,7 +88,7 @@ Some expressions define "local" rewriting rules:
   if `pattern` is a constant)
 - `pattern :> expr` maps anything matching `pattern` to `expr`.
   Here, `expr` is only evaluated once the pattern matches.
-  For instance, `f[x_] :> x+2` will rewrite `f[1]` to `3`,
+  For instance, +++f[x_] :> x+2+++ will rewrite `f[1]` to `3`,
   `f[98]` to `100`, etc.
 
 The following operators rewrite expressions using local rules:
@@ -120,11 +120,11 @@ g[g[g[a]]]
 == Patterns
 
 blank pattern::
-  `_` matches anything. `x_` matches anything and binds `x` to it.
+ +++_+++ matches anything.  +++x_+++ matches anything and binds `x` to it.
 blank non empty sequence::
-  `__` matches any non-empty **sequence** of arguments:
-  `f[a, y__] := {y}` will trigger on any expression `f[a,…]` and
-  match `y` with the `…`.
+ +++__+++ matches any non-empty **sequence** of arguments:
+  +++f[a, y__] := {y}+++ will trigger on any expression `f[a,…]` and match `y` with
+  the `…`.
   +
 ----
 > f[a,y__] := {y}
@@ -137,9 +137,9 @@ f[b,c,d]
 ----
 
 blank sequence::
-  `___` matches any **sequence** of arguments, including an empty one:
-  `f[a, y___] := {y}` is very similar to `f[a,y__] := {y}` but will
-  also reduce `f[a]` to `{}`.
+ +++___+++ matches any **sequence** of arguments, including an empty one:
+ +++f[a, y___] := {y}+++ is very similar to +++f[a,y__] := {y}+++
+  but will also reduce `f[a]` to `{}`.
 
 test pattern::
   `p?f` is a pattern that matches any expression `e` against `p`, but
@@ -167,9 +167,9 @@ we guard `x_` with an `IntegerQ` test):
 A funny example of rewriting is the following bubble sort (not efficient,
 but compact).
 It repeatedly rewrites the list `l` using the rule
-`{x___,y_,z_,k___}/;(y>z) :> {x,z,y,k}`, which finds two elements `y`
+ +++{x___,y_,z_,k___}/;(y>z) :> {x,z,y,k}+++, which finds two elements `y`
 and `z` in a list, with `y>z`, and swaps them.
-Note how `x___` and `k___` capture the other elements of the list.
+Note how +++x___+++ and +++k___+++ capture the other elements of the list.
 
 ----
 > sort[l_] := l //. {x___,y_,z_,k___}/;(y>z) :> {x,z,y,k}
@@ -260,19 +260,19 @@ Conditions are evaluated left-to-right, and have one of the forms:
   immediately beneath `expr`,
   and bind variables of `pattern` in the remaining (right-side) conditions.
   +
-  For example, `f[x_] <<- {1,f[2],3,f[4]}` will match `f[x_]` with
+  For example, +++f[x_] <<- {1,f[2],3,f[4]}+++ will match +++f[x_]+++ with
   each element of the list in a backtracking fashion.
   First, it will try to match against `1`, fail, then `f[2]`, succeed in
-  binding `x_ <- 2`, _evaluate the remaining conditions_,
+  binding +++x_ <- 2+++, _evaluate the remaining conditions_,
   then backtrack, fail against 3, succeed against `f[4]`,
-  evaluate the remaining conditions with `x_ <- 4`, and terminate.
+  evaluate the remaining conditions with +++x_ <- 4+++, and terminate.
 - `expr`, where the expression will be evaluated with the current bindings,
   and evaluation continues only if `expr` reduces to `True`.
   This is used to add tests, a bit like `bar` in
   python's `expr for x in foo if bar`.
 
 Note that matching a pattern against an expression can return several results.
-For instance, `x_+y_ <- a+b` will yield `x=a,y=b` and `x=b,y=a`.
+For instance, +++x_+y_ <- a+b+++ will yield `x=a,y=b` and `x=b,y=a`.
 In a comprehension, both choices will be considered and returned,
 like clauses in Prolog.
 
