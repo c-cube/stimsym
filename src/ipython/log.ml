@@ -19,8 +19,8 @@ let time() =
 let open_log_file s = 
   let flog = open_out_gen [Open_text;Open_creat;Open_append] 0o666 s in
   let () = at_exit (fun () -> close_out flog) in
-  log' := (fun s -> output_string flog s; flush flog);
-  !log' (Printf.sprintf "iocaml log file: %s\n" (time()))
+  log' := (fun s -> Printf.fprintf flog "[%s] %s%!" (time()) s);
+  !log' (Printf.sprintf "stimsym log file: %s\n" (time()))
 
 let log s = !log' s
 

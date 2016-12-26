@@ -46,7 +46,7 @@ let () =
           "--ci-ip", Set_string(ci_ip_addr), " (connection info) ip address"
         ])
       (fun s -> failwith ("invalid anonymous argument: " ^ s))
-      "rewrite kernel")
+      "stimsym kernel")
 
 (** {2 Execution of queries} *)
 
@@ -111,6 +111,8 @@ let kernel : C.Kernel.t = {
   C.Kernel.
   exec = (fun ~count msg -> Lwt.return (run_ count msg));
   is_complete;
+  language="stimsym";
+  language_version=[0;1;0];
   complete =
     (fun ~pos msg -> Lwt.return (complete pos msg))
 }
@@ -118,7 +120,7 @@ let kernel : C.Kernel.t = {
 (*******************************************************************************)
 (* main *)
 
-let () = Printf.printf "[rewrite] Starting kernel\n%!"
+let () = Printf.printf "[stimsym] Starting kernel\n%!"
 (*let () = Sys.interactive := false*)
 let () = Unix.putenv "TERM" "" (* make sure the compiler sees a dumb terminal *)
 
@@ -156,11 +158,7 @@ let rec main_loop () =
     let key = connection_info.Ipython_json_t.key in
     let key = if key="" then None else Some key in
     let sh = C.make ?key sockets kernel in
-    Lwt.pick
-      [ C.run sh;
-        (Sockets.heartbeat connection_info >|= fun () -> C.Run_stop);
-        (Sockets.dump sockets.Sockets.control >|= fun () -> C.Run_stop);
-      ]
+    C.run sh;
     >>= function
     | C.Run_stop ->
       Log.log "Done.\n";

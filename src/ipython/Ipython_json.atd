@@ -26,6 +26,7 @@ type connection_info = {
 (* header (and parent) information in ZMQ messages *)
 type header_info = {
     ~date : string;
+    ~version: string;
     ~username : string;
     ~session : string;
     ~msg_id : string;
@@ -164,11 +165,27 @@ type connect_reply = {
 (* kernel information *)
 (*********************************************************************)
 
+(* TODO: missing fields *)
+type language_info = {
+  li_name <json name="name">: string;
+  li_version <json name="version">: string; (* a.b.c *)
+  li_mimetype <json name="mimetype">: string;
+  li_file_extension <json name="file_extension">: string;
+}
+
+type help_link = {
+  help_text <json name="text">: string;
+  help_url <json name="url">: string;
+}
+
 type kernel_info_reply = {
-    protocol_version : int list;
+    protocol_version : string;  (* a.b.c *)
     (* ipython_version : int * int * int * string; *)
-    language_version : int list;
-    language : string;
+    implementation: string;
+    implementation_version: string; (* a.b.c *)
+    language_info: language_info;
+    banner: string; (* to be displayed at startup *)
+    ~help_links: help_link list; (* help menu *)
 }
 
 (*********************************************************************)

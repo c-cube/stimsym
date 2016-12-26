@@ -36,6 +36,8 @@ module Kernel : sig
   type t = {
     exec: count:int -> string -> exec_status Lwt.t;
     is_complete: string -> is_complete_reply;
+    language: string;
+    language_version: int list;
     complete: pos:int -> string -> completion_status Lwt.t;
   }
 end

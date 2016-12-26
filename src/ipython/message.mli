@@ -31,8 +31,8 @@ type content =
   | History_reply of history_reply
   (* other *)
   | Status of status
-  | Pyin of pyin
-  | Pyout of pyout
+  | Execute_input of pyin
+  | Execute_result of pyout
   | Stream of stream
   | Clear of clear_output
   | Display_data of display_data
@@ -43,26 +43,28 @@ val content_of_json : header_info -> string -> content
 val json_of_content : content -> string
 val msg_type_of_content : content -> string
 
-type t =
-  {
-    ids : string array;
-    hmac : string;
-    header : header_info;
-    parent : header_info;
-    meta : string; (* XXX dict => assoc list I think *)
-    content : content;
-    raw : string array;
-  }
+type t = private {
+  ids : string array;
+  hmac : string;
+  header : header_info;
+  parent : header_info;
+  meta : string; (* XXX dict => assoc list I think *)
+  content : content;
+  raw : string array;
+}
 
-val log : t -> unit
+val log : string -> t -> unit
 
 val recv : [`Router] Lwt_zmq.Socket.t -> t Lwt.t
+
+val make : parent:t -> msg_type:string -> content -> t
+(** make a message with the given type and content, copying header
+    from [parent] *)
+
+val make_first : msg_type:string -> content -> t
+(** make a message with the given type and content, with a fresh header *)
 
 val send : ?key:string -> [<`Router|`Pub] Lwt_zmq.Socket.t -> t -> unit Lwt.t
 (** [send sock msg] sends the message.
     @param key the shared key for signing messages *)
-
-val make_header : t -> t
-
-val send_h : ?key:string -> [<`Router|`Pub] Lwt_zmq.Socket.t -> t -> content -> unit Lwt.t
 

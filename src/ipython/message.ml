@@ -31,8 +31,8 @@ type content =
   | History_reply of history_reply
   (* other *)
   | Status of status
-  | Pyin of pyin
-  | Pyout of pyout
+  | Execute_input of pyin
+  | Execute_result of pyout
   | Stream of stream
   | Clear of clear_output
   | Display_data of display_data
@@ -58,8 +58,7 @@ let content_of_json hdr c =
     | "history_reply" -> History_reply(history_reply_of_string c)
 
     | "status" -> Status(status_of_string c)
-    | "pyin" -> Pyin(pyin_of_string c)
-    | "pyout" -> Pyout(pyout_of_string c)
+    | "execute_input" -> Execute_input (pyin_of_string c)
     | "stream" -> Stream(stream_of_string c)
     | "display_data" -> Display_data(display_data_of_string c)
     | "clear_output" -> Clear(clear_output_of_string c)
@@ -88,8 +87,8 @@ let json_of_content = function
   | History_reply(x) -> string_of_history_reply x
 
   | Status(x) -> string_of_status x
-  | Pyin(x) -> string_of_pyin x
-  | Pyout(x) -> string_of_pyout x
+  | Execute_input(x) -> string_of_pyin x
+  | Execute_result (x) -> string_of_pyout x
   | Stream(x) -> string_of_stream x
   | Clear(x) -> string_of_clear_output x
   | Display_data(x) -> string_of_display_data x
@@ -116,27 +115,34 @@ let msg_type_of_content = function
   | History_reply(_) -> "history_reply"
 
   | Status(_) -> "status"
-  | Pyin(_) -> "pyin"
-  | Pyout(_) -> "pyout"
+  | Execute_input (_) -> "execute_input"
+  | Execute_result(_) -> "execute_result"
   | Stream(_) -> "stream"
   | Clear(_) -> "clear_output"
   | Display_data(_) -> "display_data"
 
   | Comm_open -> "comm_open"
 
-type t =
-  {
-    ids : string array;
-    hmac : string;
-    header : header_info;
-    parent : header_info;
-    meta : string; (* XXX dict => assoc list I think *)
-    content : content;
-    raw : string array;
-  }
+(* information used to generate a message *)
+type context = {
+  ctx_key: string;
+  ctx_session: string; (* unique session *)
+  ctx_user: string;
+}
 
-let log msg =
+type t = {
+  ids : string array;
+  hmac : string;
+  header : header_info;
+  parent : header_info;
+  meta : string; (* XXX dict => assoc list I think *)
+  content : content;
+  raw : string array;
+}
+
+let log prefix msg =
   let open Printf in
+  Log.logf "message %s:\n" prefix;
   Array.iter (fun id -> Log.log(id ^ "\n")) msg.ids;
   Log.log ("<IDS|MSG>\n");
   Log.log (sprintf "  HMAC: %s\n" msg.hmac);
@@ -177,11 +183,10 @@ let recv socket : t Lwt.t =
     content = content_of_json header data.(4);
     raw = Array.init (len-5) (fun i -> data.(i+5))
   } in
-  (* let () = log msg in *)
+  log "RECV" msg;
   Lwt.return msg
 
 let send ?key socket msg : unit Lwt.t =
-  (* let () = log msg in *)
   let content = enc_utf8 (json_of_content msg.content) in
   let header  = enc_utf8 (string_of_header_info msg.header) in
   let parent = enc_utf8 (string_of_header_info msg.parent) in
@@ -198,6 +203,7 @@ let send ?key socket msg : unit Lwt.t =
       let `Hex s = Hex.of_cstruct res in
       s
   in
+  log "SEND" {msg with hmac};
   Lwt_zmq.Socket.send_all socket (List.concat [
       Array.to_list (Array.map enc_utf8 msg.ids);
       [enc_utf8 "<IDS|MSG>"];
@@ -209,16 +215,40 @@ let send ?key socket msg : unit Lwt.t =
       Array.to_list (Array.map enc_utf8 msg.raw);
     ])
 
-let make_header msg =
-  { msg with
-      header =
-        { msg.header with
-            msg_type = msg_type_of_content msg.content;
-            msg_id = Uuidm.(to_string (create `V4)) };
-      parent = msg.header
-  }
+let mk_id () = Uuidm.(to_string (create `V4))
 
-let send_h ?key socket msg content =
-  send ?key socket (make_header { msg with content = content })
+let make ~parent ~msg_type content = {
+  parent with
+    content;
+    ids=[| msg_type |];
+    header={
+      parent.header with
+            version = "5.0";
+            msg_type;
+            msg_id = mk_id();
+    };
+    parent = parent.header;
+}
+
+let empty_header : header_info = {
+  version = ""; date=""; username=""; msg_type=""; msg_id = ""; session="";
+}
+
+let mk_header msg_type : header_info = {
+  empty_header with
+  version = "5.0";
+  msg_type;
+  msg_id = mk_id();
+}
+
+let make_first ~msg_type content = {
+  parent=empty_header;
+  header=mk_header msg_type;
+  content;
+  ids=[| msg_type |];
+  hmac="";
+  meta="{}";
+  raw=[||];
+}
 
 
