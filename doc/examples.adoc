@@ -1,0 +1,378 @@
+= Examples
+:toc: macro
+
+All the examples can be run in `stimsym_cli` or in the notebook.
+
+== The Basics
+
+Stimsym is a **symbolic** language, where we manipulate expressions, not
+simply values. `a+b` is just an expression that evaluates to itself, since
+we do not know a concrete value for `a` or for `b`.
+Similarly, `f[a,b]` is the application of the function `f` to arguments `a,b`.
+Since `f` is not defined, the application does not evaluate, and it's fine!
+
+----
+> 1 + 2
+3
+> 1 + a + 2
+3+a
+> f[a,b,c]
+f[a,b,c]
+> f[a,1+2+c]
+f[a,3+c]
+----
+
+We can define (partially) a function using `:=`.
+There is no static typing, and no need to defined a function on all its
+possible arguments:
+
+----
+> f[x_,0] := x
+> f[a, 0]
+a
+> f[b]  (* no rule matches *)
+f[b]
+> f[a, 42]
+f[a,42]
+> f[a,0+0]
+a
+----
+
+In this definition, you might have noticed how `x` appears with
+the `_` on the left, but not on the right.
+`x_` is actually a **blank pattern**: it matches any expression (any argument)
+and binds the argument to the variable `x`.
+So, `g[x_,y_] := 2 x + y` defines `g` as a function that takes any two
+expressions and sums them after doubling the first one: `g[10,3]` will be `23`.
+More complicated **patterns** will only match some expressions
+(see <<patterns>>).
+
+Expressions are built from the following ingredients:
+
+integers:: `1`, `-2`, `1234542452626246246225114787` (arbitrary precision)
+rationals:: `1/2`, `-5/10`, etc.
+strings:: `"ab cd"`, `"f[a]"`, `"1+1"`
+symbols:: any string composed of alphanumeric objects
+builtins:: many builtin functions, such as `Plus`. They often have
+  a shortcut representation, e.g. `Plus[a,b,c]` is `a+b+c+`, `Times[a,2]` is `a 2`, etc.
+applications:: `expr[expr,expr,…]` applies the first expression to
+  a sequence of arguments.
+  `f[]` applies `f` to 0 arguments;
+  `f[a]` applies `f` to `a`;
+  `f[a][b,c]` applies `f[a]` to arguments `b, c`.
+
+The primary container is the **list**, denoted `List[a,b,c]` or `{a,b,c}`.
+However, it is possible to store elements under any symbol that is
+not defined:
+
+----
+> {{a},{b,1+1}}
+{{a},{b,2}}
+> SomeSymbol[a,b,c]
+SomeSymbol[a,b,c]
+----
+
+== Rewriting
+
+The primary operation for evaluating expressions is **rewriting**.
+Every definition (`pattern := expr`) defines a rule that rewrites
+anything matching the pattern, to the expression.
+
+Some expressions define "local" rewriting rules:
+
+- `pattern -> expr` evaluates `expr` first, then defines the rule
+  mapping anything matching `pattern` to the evaluated expression.
+  This is typically only useful if `pattern` binds no variables (e.g.
+  if `pattern` is a constant)
+- `pattern :> expr` maps anything matching `pattern` to `expr`.
+  Here, `expr` is only evaluated once the pattern matches.
+  For instance, `f[x_] :> x+2` will rewrite `f[1]` to `3`,
+  `f[98]` to `100`, etc.
+
+The following operators rewrite expressions using local rules:
+
+- `expr //. rules`
+  (where `rules` is either one rule, or a list of rules)
+  rewrite `expr` with the rules until no rule applies anymore.
+  For example,
+  +
+----
+> g[f[f[f[a]]]] //.  {f[x_]:> x, g[x_] :> h[x]}
+h[a]
+> f[f[f[a]]] //.  {f[x_]:> g[x], g[x_] :> h[x]}
+h[h[h[a]]]
+----
++
+- `expr /. rules`
+  (where `rules` is either one rule, or a list of rules)
+  rewrite `expr` with the rules, but each sub-expression is rewritten
+  at most once:
+  +
+----
+> f[f[f[a]]] /.  {f[x_]:> g[x], g[x_] :> h[x]}
+g[g[g[a]]]
+----
+
+
+[[patterns]]
+== Patterns
+
+blank pattern::
+  `_` matches anything. `x_` matches anything and binds `x` to it.
+blank non empty sequence::
+  `__` matches any non-empty **sequence** of arguments:
+  `f[a, y__] := {y}` will trigger on any expression `f[a,…]` and
+  match `y` with the `…`.
+  +
+----
+> f[a,y__] := {y}
+> f[a,b,c,d]
+{b,c,d}
+> f[a]  (* does not match *)
+f[a]
+> f[b,c,d]
+f[b,c,d]
+----
+
+blank sequence::
+  `___` matches any **sequence** of arguments, including an empty one:
+  `f[a, y___] := {y}` is very similar to `f[a,y__] := {y}` but will
+  also reduce `f[a]` to `{}`.
+
+test pattern::
+  `p?f` is a pattern that matches any expression `e` against `p`, but
+  only if `f[e]` reduces to `True`.
+  Typically, `_?IntegerQ` matches any integer, `_?RationalQ`
+  any rational (or integer).
+
+conditional pattern::
+  A pattern `p /; expr` matches the same expressions as `p` (where `p`
+  is a pattern), but only if `expr` evaluates to `True`.
+  The test `expr` is expected to reduce to `True` or `False`;
+  otherwise the evaluation fails.
+  This is more powerful, but more verbose, than a test pattern:
+  `_?IntegerQ` can be expressed as `x_ /; IntegerQ[x]`.
+  +
+More advanced example involving both a test and a conditional
+(because the condition `a+2==3` does not reduce to a boolean,
+we guard `x_` with an `IntegerQ` test):
+  +
+----
+> {1,2,a,4} /. (x_?IntegerQ /; (x+2 == 3) :> success[x])
+{success[1],2,a,4}
+----
+
+A funny example of rewriting is the following bubble sort (not efficient,
+but compact).
+It repeatedly rewrites the list `l` using the rule
+`{x___,y_,z_,k___}/;(y>z) :> {x,z,y,k}`, which finds two elements `y`
+and `z` in a list, with `y>z`, and swaps them.
+Note how `x___` and `k___` capture the other elements of the list.
+
+----
+> sort[l_] := l //. {x___,y_,z_,k___}/;(y>z) :> {x,z,y,k}
+> sort[{64,44,71,48,96,47,59,71,73,51,67,50,26,49,49}]
+{26,44,47,48,49,49,50,51,59,64,67,71,71,73,96}
+----
+
+== Some primitives
+
+Stimsym is certainly not a (usable) computer algebra system, but it provides
+a few builtin operators.
+
+----
+> a===a  (* syntactic equality *)
+True
+> a===b
+False
+> 10>5==5<=7 (* chain of tests *)
+True
+> a==a (* does not reduce *)
+a==a
+> a==a<b
+a==a<b
+> a==a<b /. {a->5,b->10}
+True
+> 2^10
+1024
+> 6! (* factorial *)
+120
+> a&&b || !c (* bool expressions *)
+a&&b||!c
+----
+
+Some handy functions:
+
+FullForm::
+  shows the unsugared expression, very convenient for understanding
+  some quirks of the parser:
+  +
+----
+> FullForm[a&&b||!c]
+Or[And[a,b],Not[c]]
+----
++
+Nest::
++
+----
+> Nest[f,a,10]
+f[f[f[f[f[f[f[f[f[f[a]]]]]]]]]]
+> (f^10)[a]  (* short for Nest *)
+f[f[f[f[f[f[f[f[f[f[a]]]]]]]]]]
+----
++
+Hold::
+  blocks evaluation of its arguments.
++
+----
+> Hold[1+1]
+Hold[1+1]
+----
+
+== Sequence
+
+The special symbol `Sequence` has the special property that
+it "flattens" when it appears in a list of arguments (or a list):
+
+----
+> Sequence[a,b]
+Sequence[a,b]
+> f[a,Sequence[b,c],d]
+f[a,b,c,d]
+> {Sequence[1,2],Sequence[3,4],5}
+{1,2,3,4,5}
+----
+
+[[comprehension]]
+== Comprehensions
+
+Stimsym emphasizes functional programming and pure expressions.
+Instead of loops, it provides a powerful **comprehension** mechanism.
+A comprehension expression has the form `expr ::cond1, cond2, …`,
+a bit similar to python's `expr for … if …` construct.
+Conditions are evaluated left-to-right, and have one of the forms:
+
+- `pattern <- expr`, will match `pattern` against `expr`
+  and bind variables of `pattern` in the remaining (right-side) conditions
+- `pattern <<- expr`, will match `pattern` against every expressions
+  immediately beneath `expr`,
+  and bind variables of `pattern` in the remaining (right-side) conditions.
+  +
+  For example, `f[x_] <<- {1,f[2],3,f[4]}` will match `f[x_]` with
+  each element of the list in a backtracking fashion.
+  First, it will try to match against `1`, fail, then `f[2]`, succeed in
+  binding `x_ <- 2`, _evaluate the remaining conditions_,
+  then backtrack, fail against 3, succeed against `f[4]`,
+  evaluate the remaining conditions with `x_ <- 4`, and terminate.
+- `expr`, where the expression will be evaluated with the current bindings,
+  and evaluation continues only if `expr` reduces to `True`.
+  This is used to add tests, a bit like `bar` in
+  python's `expr for x in foo if bar`.
+
+Note that matching a pattern against an expression can return several results.
+For instance, `x_+y_ <- a+b` will yield `x=a,y=b` and `x=b,y=a`.
+In a comprehension, both choices will be considered and returned,
+like clauses in Prolog.
+
+The following expression computes the cartesian product of two lists:
+
+----
+> Product[l1_,l2_] := {{x,y} :: x_<<- l1, y_ <<- l2}
+> Product[{1,2,3},{a,b,c}]
+{{1,a},{1,b},{1,c},{2,a},{2,b},{2,c},{3,a},{3,b},{3,c}}
+----
+
+A comprehension returns a `Sequence`, so it flattens under any
+other symbol (such as `{}`).
+
+== `Let`-binding
+
+Very similar to the comprehension, `Let` is an interesting variation.
+Its full form is `Let[cond1,…,condn, expr]` where the conditions are
+similar to those in <<comprehension>>, but it only returns the first
+successful `expr` and discards the other choices.
+If there is no successful answer (corresponding to an empty comprehension)
+then evaluation fails.
+
+----
+> Let[x_<-1, y_<-2, 2 x+y]
+4
+> Let[x_+y_ <- a+b, f[x,y]]
+f[a,b]
+> {f[x,y]:: x_+y_ <-a+b} (* contrast with that *)
+{f[a,b],f[b,a]}
+> Let[x_?IntegerQ <- a, x] (* no answer -> failure! *)
+evaluation failed:
+no match for `Let`
+----
+
+== Inline Documentation: `Doc`
+
+Evaluating `Doc[f]` where `f` is a builtin symbol will display the
+corresponding documentation:
+
+----
+> Doc[Plus]
+==================================================
+
+# Plus
+
+Addition operator. Associative, Commutative, with regular evaluation on
+numbers.
+neutral element::
+  0
+  infix form::
+    `a + b + c + d`
+==================================================
+----
+
+
+== Larger Examples
+
+enumerate the way to split a sum in one atom + 2 sub-sums::
++
+To do so, we match `a+b+c+d` with the pattern `x_+y__+z__`,
+where `y` and `z` match non-empty sequences.
+Using the <<comprehension>> mechanism, we build a term
+`f[x,{y},{z}]` for each result of this matching, and wrap
+the result in a list.
++
+----
+> {f[x,{y},{z}] :: x_+y__+z__<-a+b+c+d}
+{f[a,{c,b},{d}],
+ f[a,{d,b},{c}],
+ f[a,{b},{d,c}],
+ f[a,{d,c},{b}],
+ f[a,{c},{d,b}],
+ f[a,{d},{c,b}],
+ f[b,{c,a},{d}],
+ f[b,{d,a},{c}],
+ f[b,{a},{d,c}],
+ f[b,{d,c},{a}],
+ f[b,{c},{d,a}],
+ f[b,{d},{c,a}],
+ f[c,{b,a},{d}],
+ f[c,{d,a},{b}],
+ f[c,{a},{d,b}],
+ f[c,{d,b},{a}],
+ f[c,{b},{d,a}],
+ f[c,{d},{b,a}],
+ f[d,{b,a},{c}],
+ f[d,{c,a},{b}],
+ f[d,{a},{c,b}],
+ f[d,{c,b},{a}],
+ f[d,{b},{c,a}],
+ f[d,{c},{b,a}]}
+----
++
+computing `3!!!`::
++
+we compute `(fun x -> x!)` (i.e. `(#! &)`)
+composed 3 times with itself (`^3`) and then applied to 3.
++
+----
+> ((#!&)^3)[3]
+2601218943565795100204903227081043611191521875016945785727541837850835631156947382240678577958130457082619920575892247259536641565162052015873791984587740832529105244690388811884123764341191951045505346658616243271940197113909845536727278537099345629855586719369774070003700430783758997420676784016967207846280629229032107161669867260548988445514257193985499448939594496064045132362140265986193073249369770477606067680670176491669403034819961881455625195592566918830825514942947596537274845624628824234526597789737740896466553992435928786212515967483220976029505696699927284670563747137533019248313587076125412683415860129447566011455420749589952563543068288634631084965650682771552996256790845235702552186222358130016700834523443236821935793184701956510729781804354173890560727428048583995919729021726612291298420516067579036232337699453964191475175567557695392233803056825308599977441675784352815913461340394604901269542028838347101363733824484506660093348484440711931292537694657354337375724772230181534032647177531984537341478674327048457983786618703257405938924215709695994630557521063203263493209220738320923356309923267504401701760572026010829288042335606643089888710297380797578013056049576342838683057190662205291174822510536697756603029574043387983471518552602805333866357139101046336419769097397432285994219837046979109956303389604675889865795711176566670039156748153115943980043625399399731203066490601325311304719028898491856203766669164468791125249193754425845895000311561682974304641142538074897281723375955380661719801404677935614793635266265683339509760000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+----
+
+

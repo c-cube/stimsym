@@ -1,4 +1,4 @@
-= Rewrite
+= Stimsym
 :toc: macro
 :source-highlighter: pygments
 
@@ -20,6 +20,7 @@ for the Jupyter frontend is adapted from
 https://github.com/andrewray/iocaml[IOcaml]
 so as to use `lwt-zmq` and work with Jupyter 4.
 
+toc::[]
 
 == Build
 
@@ -53,28 +54,36 @@ List[g[a],f[b],g[c],f[d]]
 ----
 
 The file 'tests/run_tests.ml' contains a lot of small test cases.
+See also link:doc/examples.adoc[the list of commented examples] to
+get an idea of how to use Stimsym.
 
 === Jupyter Interface
 
 Very experimental interface to http://jupyter.org/[Jupyter 4.*].
 You should copy 'data/kernel.json' into
-the directory '~/.local/share/jupyter/kernels/rewrite'.
+the directory '~/.local/share/jupyter/kernels/stimsym'.
 
 ----
-mkdir -p ~/.local/share/jupyter/kernels/rewrite
-cp data/kernel.json ~/.local/share/jupyter/kernels/rewrite/
+mkdir -p ~/.local/share/jupyter/kernels/stimsym
+cp data/kernel.json ~/.local/share/jupyter/kernels/stimsym/
 ----
 
-Start the jupyter notebook with `jupyter-notebook --Session.key='b""'`;
+Start the jupyter notebook with `jupyter-notebook`;
 you can find a sample notebook in 'data/notebook1.ipynb'. The `make jupyter`
-target will do the same.
+target will open the sample notebook.
 
-== Hack
+== License
 
-Almost everything in the language itself can be found in 'src/core/Expr.ml';
-the primitives are in 'src/core/Builtins.ml'. The rest is about parsing,
-CLI, jupyter frontend, etc. The code is relatively naive and will certainly
-not perform well, and there is a lot of room for algorithmic improvement.
+BSD license, you can modify as you like. Contributions are welcome.
+
+== Hacking
+
+Almost everything in the language itself can be found in 'src/core/Expr.ml',
+'src/core/Eval.ml{,i}' and 'src/core/Pattern.ml{,i}';
+the primitives are in 'src/core/Builtins.ml'.
+The rest is about parsing, CLI, jupyter frontend, etc. The code is relatively
+naive and will certainly not perform well, and there is a lot of room for
+algorithmic improvement.
 
 If (who knows?) you are interested in hacking on this in any way, do not
 hesitate to contact me or just say "hi" on IRC. I'd be interested in
@@ -85,6 +94,3 @@ discussing or helping.
 It is a reference to Dan Simmons' _Hyperion_ series of books, with the
 suffix "sym" altered because, hey, we're doing _symbolic_ stuff around here!
 
-== License
-
-BSD license, you can modify as you like. Contributions are welcome.
