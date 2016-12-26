@@ -208,12 +208,12 @@ Some handy functions:
 FullForm::
   shows the unsugared expression, very convenient for understanding
   some quirks of the parser:
-  +
++
 ----
 > FullForm[a&&b||!c]
 Or[And[a,b],Not[c]]
 ----
-+
+
 Nest::
 +
 ----
@@ -222,7 +222,7 @@ f[f[f[f[f[f[f[f[f[f[a]]]]]]]]]]
 > (f^10)[a]  (* short for Nest *)
 f[f[f[f[f[f[f[f[f[f[a]]]]]]]]]]
 ----
-+
+
 Hold::
   blocks evaluation of its arguments.
 +
@@ -254,18 +254,20 @@ A comprehension expression has the form `expr ::cond1, cond2, …`,
 a bit similar to python's `expr for … if …` construct.
 Conditions are evaluated left-to-right, and have one of the forms:
 
-- `pattern <- expr`, will match `pattern` against `expr`
+- +++pattern <- expr+++, will match `pattern` against `expr`
   and bind variables of `pattern` in the remaining (right-side) conditions
-- `pattern <<- expr`, will match `pattern` against every expressions
+
+- +++pattern <<- expr+++, will match `pattern` against every expressions
   immediately beneath `expr`,
   and bind variables of `pattern` in the remaining (right-side) conditions.
-  +
-  For example, +++f[x_] <<- {1,f[2],3,f[4]}+++ will match +++f[x_]+++ with
-  each element of the list in a backtracking fashion.
-  First, it will try to match against `1`, fail, then `f[2]`, succeed in
-  binding +++x_ <- 2+++, _evaluate the remaining conditions_,
-  then backtrack, fail against 3, succeed against `f[4]`,
-  evaluate the remaining conditions with +++x_ <- 4+++, and terminate.
++
+For example, +++f[x_] <<- {1,f[2],3,f[4]}+++ will match +++f[x_]+++ with
+each element of the list in a backtracking fashion.
+First, it will try to match against `1`, fail, then `f[2]`, succeed in
+binding +++x_ <- 2+++, _evaluate the remaining conditions_,
+then backtrack, fail against 3, succeed against `f[4]`,
+evaluate the remaining conditions with +++x_ <- 4+++, and terminate.
+
 - `expr`, where the expression will be evaluated with the current bindings,
   and evaluation continues only if `expr` reduces to `True`.
   This is used to add tests, a bit like `bar` in
