@@ -71,6 +71,7 @@ val match_bind : t
 val match_bind1 : t
 val comprehension : t
 val let_ : t
+val fixpoint : t
 
 val set_attributes : t
 val remove_attributes : t

@@ -486,6 +486,30 @@ let let_ =
           Only one result is returned, all backtracking is ignored.";
     ]
 
+let fixpoint =
+  let eval _ st = function
+    | E.App (self, [| f; arg |]) ->
+      let arg' = Eval.prim_eval st (E.app f [| arg |]) in
+      if E.equal arg arg'
+      then Some arg'
+      else Some (E.app self [| f; arg' |])
+    | _ -> raise Eval_does_not_apply
+  in
+  make "Fixpoint" ~funs:[eval]
+    ~doc:[
+      `S "Fixpoint";
+      `P "`Fixpoint[f,x]` applies `f` to `x` to obtain `y`, then \
+        computes `Fixpoint[f,y]`, until `x===y`.";
+      `P "The computation might not terminate, if there is \
+          no fixpoint.";
+      `I ("remark", [`P "Useful in combination with `Set`"]);
+      `I ("example", [
+          `Pre "`Fixpoint[(Set[x:: y_<<- #1, x_<<-Range[y]]&), Set[5]]`";
+          `P "returns `Set[0,1,2,3,4,5]` in one iteration.";
+          `P "verify yourself that `Set[0,1,2,3,4,5]` is indeed a fixpoint.";
+        ]);
+    ]
+
 let blank =
   let pp _ _ out args = match args with
     | [||] -> Fmt.string out "_"
