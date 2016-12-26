@@ -33,8 +33,8 @@ val sequence : t
 val pattern : t
 val pattern_test : t
 val same_q : t
-val set : t
-val set_delayed : t
+val assign : t
+val assign_delayed : t
 val rule : t
 val rule_delayed : t
 val condition : t

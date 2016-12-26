@@ -84,11 +84,11 @@ let suite_parser =
       "Alternatives[Pattern[a,Blank[]],f[Pattern[b,BlankSequence[]]],c]";
     test_parser __LINE__ "a ___b" "Times[a,BlankNullSequence[b]]";
     test_parser __LINE__ "a ___ b" "Times[a,BlankNullSequence[],b]";
-    test_parser __LINE__ "f[a_] = b " "Set[f[Pattern[a,Blank[]]],b]";
+    test_parser __LINE__ "f[a_] = b " "Assign[f[Pattern[a,Blank[]]],b]";
     test_parser __LINE__
       "f[a_|foo] := b[c] d+f "
-      "SetDelayed[f[Alternatives[Pattern[a,Blank[]],foo]],Plus[Times[b[c],d],f]]";
-    test_parser __LINE__ "f[a_] = b " "Set[f[Pattern[a,Blank[]]],b]";
+      "AssignDelayed[f[Alternatives[Pattern[a,Blank[]],foo]],Plus[Times[b[c],d],f]]";
+    test_parser __LINE__ "f[a_] = b " "Assign[f[Pattern[a,Blank[]]],b]";
     test_parser __LINE__ "f[a_] :> g[a,a]" "RuleDelayed[f[Pattern[a,Blank[]]],g[a,a]]";
     test_parser __LINE__ "f[x] -> g[x,a]" "Rule[f[x],g[x,a]]";
     test_parser __LINE__ "f[x]:> g[x,a]" "RuleDelayed[f[x],g[x,a]]";
@@ -127,15 +127,15 @@ let suite_parser =
       "f[a,b+c d!] //. {f[x,y,z___] :> f[x y,z]}"
         "ReplaceRepeated[f[a,Plus[b,Times[c,Factorial[d]]]],\
          List[RuleDelayed[f[x,y,Pattern[z,BlankNullSequence[]]],f[Times[x,y],z]]]]";
-    test_parser __LINE__ "a := b; c" "CompoundExpression[SetDelayed[a,b],c]";
-    test_parser __LINE__ "a/; test := b ; c" "CompoundExpression[SetDelayed[Condition[a,test],b],c]";
+    test_parser __LINE__ "a := b; c" "CompoundExpression[AssignDelayed[a,b],c]";
+    test_parser __LINE__ "a/; test := b ; c" "CompoundExpression[AssignDelayed[Condition[a,test],b],c]";
     test_parser __LINE__ "a := b :> c; d//.e"
-      "CompoundExpression[SetDelayed[a,RuleDelayed[b,c]],ReplaceRepeated[d,e]]";
+      "CompoundExpression[AssignDelayed[a,RuleDelayed[b,c]],ReplaceRepeated[d,e]]";
     test_parser __LINE__ "#1" "Slot[1]";
     test_parser __LINE__ "#1 #2" "Times[Slot[1],Slot[2]]";
     test_parser __LINE__ "(#1 + #2[#0])&" "Function[Plus[Slot[1],Slot[2][Slot[0]]]]";
     test_parser __LINE__ "f = a; 1+#2&"
-      "CompoundExpression[Set[f,a],Function[Plus[1,Slot[2]]]]";
+      "CompoundExpression[Assign[f,a],Function[Plus[1,Slot[2]]]]";
     test_parser __LINE__ "({#0}&)+#1&"
       "Function[Plus[Function[List[Slot[0]]],Slot[1]]]";
     test_parser __LINE__ "a<-b" "MatchBind[a,b]";

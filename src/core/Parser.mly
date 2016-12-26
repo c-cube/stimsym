@@ -102,9 +102,9 @@ compound_expr:
 set_expr:
   | e = set_expr_rhs { e }
   | a=pattern_expr O_SET b=set_expr_rhs
-    { E.app_l B.set [a;b] }
+    { E.app_l B.assign [a;b] }
   | a=pattern_expr O_SET_DELAYED b=set_expr_rhs
-    { E.app_l B.set_delayed [a;b] }
+    { E.app_l B.assign_delayed [a;b] }
   | a=pattern_expr O_MATCH_BIND b=set_expr_rhs
     { E.app_l B.match_bind [a;b] }
   | a=pattern_expr O_MATCH_BIND1 b=set_expr_rhs

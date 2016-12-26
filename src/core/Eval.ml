@@ -452,7 +452,7 @@ and eval_rec (st:eval_state) e =
       | Result.Error msg ->
         eval_failf "@[<2>could not evaluate@ `%a`@ reason: %s@]" E.pp e msg
     end
-  | App (Const {cst_name="SetDelayed";_}, [| a; b |]) ->
+  | App (Const {cst_name="AssignDelayed";_}, [| a; b |]) ->
     (* lazy set: add rewrite rule [a :> b] to the definitions of [head a] *)
     begin match E.head a with
       | c ->
@@ -462,7 +462,7 @@ and eval_rec (st:eval_state) e =
         eval_failf "cannot assign to %a" E.pp_full_form a
     end;
     E.null
-  | App (Const {cst_name="Set";_}, [| a; b |]) ->
+  | App (Const {cst_name="Assign";_}, [| a; b |]) ->
     (* eager set: eval [b], then add [a :> b] to the defs of [head a] *)
     let b = eval_rec st b in
     begin match E.head a with

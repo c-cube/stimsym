@@ -573,30 +573,30 @@ let same_q =
       `I ("infix", [`P "`a===b`"]);
     ]
 
-let set =
+let assign =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
       Fmt.fprintf out "%a=%a" (pp_sub prec_set) lhs (pp_sub prec_set) rhs
     | _ -> raise E.Print_default
   in
-  make "Set" ~printer:(prec_set, pp)
+  make "Assign" ~printer:(prec_set, pp)
     ~fields:[E.field_hold_first; E.field_protected]
     ~doc:[
-      `S "Set";
+      `S "Assign";
       `P "Eager assignment: `a = b` sets `a` to the value of `b`.";
       `I ("infix", [`P "`a = b`"]);
     ]
 
-let set_delayed =
+let assign_delayed =
   let pp _ pp_sub out = function
     | [| lhs; rhs |] ->
       Fmt.fprintf out "%a:=%a" (pp_sub prec_set) lhs (pp_sub prec_set) rhs
     | _ -> raise E.Print_default
   in
-  make "SetDelayed" ~printer:(prec_set, pp)
+  make "AssignDelayed" ~printer:(prec_set, pp)
     ~fields:[E.field_hold_all; E.field_protected]
     ~doc:[
-      `S "SetDelayed";
+      `S "AssignDelayed";
       `P "Eager assignment: `a = b` sets `a` to `b`, as an expression,\
           without evaluating `b` (it will be evaluated when `a` is
           used).";
