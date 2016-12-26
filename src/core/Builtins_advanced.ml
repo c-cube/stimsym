@@ -329,28 +329,36 @@ let graph =
 module Tree_form = struct
   type t = E.t
 
-  let as_graph g =
-    CCGraph.make_tuple
-      (fun e -> match e with
-        | E.Z _ | E.Q _ | E.String _ | E.Const _ | E.Reg _ -> Sequence.empty
-        | E.App (_, a) ->
-          Sequence.of_array a)
+  type vertex =
+    | V of E.t * t array
+    | L of E.t
+
+  let as_vertex (e:E.t): vertex = match e with
+    | E.Z _ | E.Q _ | E.String _ | E.Const _ | E.Reg _ -> L e
+    | E.App (E.Const {E.cst_name="Blank" | "BlankSequence" | "BlankNullSequence";_}, _) ->
+      L e
+    | E.App (f, a) -> V (f, a)
+
+  let as_graph =
+    CCGraph.make_labelled_tuple
+      (fun e -> match as_vertex e with
+         | L _ -> Sequence.empty
+         | V(_,a) -> Sequence.of_array_i a)
 
   let pp_dot out (g:t): unit =
     let fmt = Format.formatter_of_out_channel out in
-    let attrs_v v = match v with
-      | E.Z _ | E.Q _ | E.String _ | E.Const _ | E.Reg _ ->
-        [`Label (E.to_string v); `Shape "box"]
-      | E.App (hd,_) ->
-        [`Label (E.to_string hd); `Shape "box"]
+    let attrs_v v = match as_vertex v with
+      | L v -> [`Label (E.to_string_compact v); `Shape "box"]
+      | V (hd,_) ->
+        [`Label (E.to_string_compact hd); `Shape "box"]
     in
-    let attrs_e _ = [] in
+    let attrs_e (_,i,_) = [`Label (string_of_int i)] in
     Format.fprintf fmt "%a@."
       (CCGraph.Dot.pp_seq
          ~eq:E.equal ~name:"some_graph"
          ~attrs_v ~attrs_e
          ~tbl:(CCGraph.mk_table ~eq:E.equal ~hash:E.hash 32)
-         ~graph:(as_graph g))
+         ~graph:as_graph)
        (Sequence.return g)
 
   let get_png (g:t): E.mime_content =
@@ -365,7 +373,6 @@ module Tree_form = struct
          B.logf "got png (%d bytes)\n" (String.length data);
          {E.mime_data=data; mime_ty="image/png"; mime_base64=true})
 end
-
 
 let tree_form =
   B.make "TreeForm" ~display:(fun e -> [Tree_form.get_png e])

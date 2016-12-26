@@ -212,7 +212,7 @@ let rec equal a b = match a, b with
   | Q q, Z z -> Q.equal q (Q.of_bigint z)
   | Q n1, Q n2 -> Q.equal n1 n2
   | String s1, String s2 -> s1=s2
-  | Const c1, Const c2 -> c1.cst_id = c2.cst_id
+  | Const c1, Const c2 -> Cst.equal c1 c2
   | App (f1,a1), App (f2,a2) ->
     Array.length a1=Array.length a2 &&
     equal f1 f2 &&

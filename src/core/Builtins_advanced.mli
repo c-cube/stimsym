@@ -10,3 +10,6 @@ val sat_solve : t
 
 val graph : t
 (** Graph structure and display *)
+
+val tree_form : t
+(** Display the structure of a term *)
