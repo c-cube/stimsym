@@ -363,6 +363,7 @@ let list =
   in
   make ~printer:(prec_list,pp_list) "List"
 
+(* TODO: move eval function to [E.field_no_duplicates] *)
 let set =
   (* remove duplicates *)
   let eval _ _ = function
@@ -378,7 +379,7 @@ let set =
     | _ -> raise Eval_does_not_apply
   in
   make "Set"
-    ~fields:[E.field_listable; E.field_orderless] ~funs:[eval]
+    ~fields:[E.field_orderless] ~funs:[eval]
     ~doc:[
       `S "Set";
       `P "`Set[a,b,c]`: unordered collection without duplicates.";
@@ -761,6 +762,7 @@ let function_ =
     | _ -> raise Eval_does_not_apply
   in
   make "Function" ~printer:(prec_function,pp)
+    ~fields:[E.field_hold_first]
     ~doc:[
       `S "Function";
       `P "Anonymous function (also called \"lambda\").";
