@@ -443,6 +443,12 @@ let suite_eval =
     mk_eval __LINE__
       "Union[Set[x::x_<<-Range[i]]:: i_<<-Range[10]]"
       "Set[0,1,2,3,4,5,6,7,8,9,10]";
+    mk_eval __LINE__
+      "Inter[Set[1,2,3],Set[2,3,4,5,6],Set[4,5]]"
+      "Set[]";
+    mk_eval __LINE__
+      "Inter[Set[1,2,3,4],Set[2,3,4,5,6],Set[4,5]]"
+      "Set[4]";
   ]
 
 (** {2 Main} *)

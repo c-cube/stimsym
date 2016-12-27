@@ -64,6 +64,7 @@ val list : t
 val set : t
 
 val union : t
+val inter : t
 
 val random : t
 val floor : t

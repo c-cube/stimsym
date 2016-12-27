@@ -407,6 +407,30 @@ let union =
         ]);
     ]
 
+let inter =
+  let rule2 _ =
+    E.of_string_full_form_exn
+      "Inter[Pattern[a,Blank[Set]],
+             Pattern[b,Blank[Set]],
+             Pattern[o,BlankNullSequence[]]]",
+    E.of_string_full_form_exn
+      "Inter[Set[Comprehension[x,
+          MatchBind[Pair[Set[Pattern[x,Blank[]],BlankNullSequence[]],
+                         Set[Pattern[x,Blank[]],BlankNullSequence[]]],
+                    Pair[a,b]]]],
+        o]]"
+  in
+  make "Inter"
+    ~fields:[E.field_orderless; E.field_one_identity] ~rules:[rule2]
+    ~doc:[
+      `S "Inter";
+      `P "`Inter[s1,s2,…]` computes the set intersection";
+      `I ("example", [
+          `Pre "`Inter[Set[1,2,3],Set[2,3,4],Set[3,5,7]]`";
+          `P "returns `Set[3]`";
+        ]);
+    ]
+
 let match_bind =
   let pp _ pp_sub out = function
     | [| pat; rhs |] ->
