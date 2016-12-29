@@ -33,6 +33,7 @@ type content =
   | Status of status
   | Execute_input of pyin
   | Execute_result of pyout
+  | Execute_error of execute_error
   | Stream of stream
   | Clear of clear_output
   | Display_data of display_data

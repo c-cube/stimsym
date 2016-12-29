@@ -33,6 +33,7 @@ type content =
   | Status of status
   | Execute_input of pyin
   | Execute_result of pyout
+  | Execute_error of execute_error
   | Stream of stream
   | Clear of clear_output
   | Display_data of display_data
@@ -90,6 +91,7 @@ let json_of_content = function
   | Status(x) -> string_of_status x
   | Execute_input(x) -> string_of_pyin x
   | Execute_result (x) -> string_of_pyout x
+  | Execute_error e -> string_of_execute_error e
   | Stream(x) -> string_of_stream x
   | Clear(x) -> string_of_clear_output x
   | Display_data(x) -> string_of_display_data x
@@ -118,6 +120,7 @@ let msg_type_of_content = function
   | Status(_) -> "status"
   | Execute_input (_) -> "execute_input"
   | Execute_result(_) -> "execute_result"
+  | Execute_error _ -> "error"
   | Stream(_) -> "stream"
   | Clear(_) -> "clear_output"
   | Display_data(_) -> "display_data"

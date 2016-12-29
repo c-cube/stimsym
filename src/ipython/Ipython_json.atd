@@ -64,6 +64,13 @@ type execute_reply = {
     ?er_user_expressions <json name="user_expressions"> : dyn option;
 }
 
+type execute_error = {
+    (* if there was an error *)
+    err_ename <json name ="ename"> : string;
+    err_evalue <json name ="evalue"> : string;
+    err_traceback <json name ="traceback"> : string list;
+}
+
 (*********************************************************************)
 (* object info *)
 (*********************************************************************)

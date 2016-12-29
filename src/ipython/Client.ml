@@ -231,7 +231,16 @@ let execute_request (t:t) ~parent e : unit Lwt.t =
         }
       in
       Log.logf "send ERROR `%s`\n" (M.json_of_content content);
-      send_shell t ~parent content
+      let%lwt () = send_shell t ~parent content in
+      send_iopub t ~parent
+        (Iopub_send_message (M.Execute_error {
+             err_ename="error";
+             err_evalue=err_msg;
+             err_traceback=[
+               "ERROR " ^ err_msg;
+               "evaluating " ^ e.code;
+             ];
+           }))
   in
   Lwt.return_unit
 
@@ -341,7 +350,7 @@ let run t : run_result Lwt.t =
       | M.Object_info_reply(_) | M.Complete_reply(_) | M.Is_complete_reply _
       | M.History_reply(_) | M.Status(_) | M.Execute_input _
       | M.Execute_result _ | M.Stream(_) | M.Display_data(_)
-      | M.Clear(_) -> handle_invalid_message ()
+      | M.Execute_error _ | M.Clear(_) -> handle_invalid_message ()
 
       | M.Comm_open -> Lwt.return_unit
     end
