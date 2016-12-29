@@ -224,6 +224,7 @@ let make ~parent ~msg_type content = {
     header={
       parent.header with
             version = "5.0";
+            date = ISO8601.Permissive.string_of_datetime (Unix.gettimeofday());
             msg_type;
             msg_id = mk_id();
     };

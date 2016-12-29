@@ -46,7 +46,8 @@ Library ipython
   Modules:          Base64, Ipython_json_j, Ipython_json_t, Log,
                     Message, Sockets, Client
   BuildDepends:     stimsym, atdgen, yojson, uuidm, ZMQ, lwt-zmq, nocrypto, hex,
-                    tyxml, lwt, lwt.unix, lwt.preemptive, threads, lwt.ppx, bytes
+                    tyxml, lwt, lwt.unix, lwt.preemptive, threads, lwt.ppx,
+                    bytes, ISO8601
 
 Executable stimsym_server
   Path:             src/server/
