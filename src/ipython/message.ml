@@ -220,7 +220,6 @@ let mk_id () = Uuidm.(to_string (create `V4))
 let make ~parent ~msg_type content = {
   parent with
     content;
-    ids=[| msg_type |];
     header={
       parent.header with
             version = "5.0";

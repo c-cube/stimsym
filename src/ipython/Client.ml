@@ -88,21 +88,12 @@ let mime_message_content mime_type base64 data : M.content =
        dd_metadata = `Assoc [];
      })))
 
-type received = {
-  rcv_key: string option;
-  rcv_msg: M.t;
-  rcv_on: [`Router] Lwt_zmq.Socket.t;
-}
-
-let rcv_shell (t:t) m = {rcv_key=t.key; rcv_msg=m; rcv_on=t.sockets.Sockets.shell}
-let rcv_control (t:t) m = {rcv_key=t.key; rcv_msg=m; rcv_on=t.sockets.Sockets.control}
-
-let reply (m:received) (content:M.content): unit Lwt.t =
-  Log.logf "reply `%s`\n" (string_of_message content);
-  let socket = m.rcv_on in
+let send_shell (t:t) ~parent (content:M.content): unit Lwt.t =
+  Log.logf "send_shell `%s`\n" (string_of_message content);
+  let socket = t.sockets.Sockets.shell in
   let msg_type = M.msg_type_of_content content in
-  let msg' = M.make ~parent:m.rcv_msg ~msg_type content in
-  M.send ?key:m.rcv_key socket msg'
+  let msg' = M.make ~parent ~msg_type content in
+  M.send ?key:t.key socket msg'
 
 (* send a message on the Iopub socket *)
 let send_iopub (t:t) ?parent (m:iopub_message): unit Lwt.t =
@@ -162,21 +153,21 @@ let html_of_doc : Document.t -> [<Html_types.div] H.elt =
   aux ~depth:3
 
 (* run [f ()] in a "status:busy" context *)
-let within_status (t:t) (m:received) ~f =
+let within_status (t:t) ~f =
   (* set state to busy *)
   let%lwt _ =
-    send_iopub t ~parent:m.rcv_msg
+    send_iopub t
       (Iopub_send_message (M.Status { execution_state = "busy" }))
   in
   Lwt.finalize
     f
     (fun () ->
-       send_iopub t ~parent:m.rcv_msg
+       send_iopub t
          (Iopub_send_message
           (M.Status { execution_state = "idle" })))
 
 (* execute code *)
-let execute_request (t:t) (m:received) e : unit Lwt.t =
+let execute_request (t:t) ~parent e : unit Lwt.t =
   (* if we are not silent increment execution count *)
   if not e.silent then (
     t.e_count <- t.e_count + 1;
@@ -184,7 +175,7 @@ let execute_request (t:t) (m:received) e : unit Lwt.t =
 
   let execution_count = t.e_count in
 
-  let%lwt _ = send_iopub t ~parent:m.rcv_msg
+  let%lwt _ = send_iopub t ~parent
       (Iopub_send_message
         (M.Execute_input {
             pi_code = e.code;
@@ -199,7 +190,7 @@ let execute_request (t:t) (m:received) e : unit Lwt.t =
   let reply_status_ok (s:string option) = match s with
     | None -> Lwt.return_unit
     | Some msg ->
-      send_iopub t ~parent:m.rcv_msg (Iopub_send_message
+      send_iopub t ~parent (Iopub_send_message
           (M.Execute_result {
               po_execution_count = execution_count;
               po_data = `Assoc ["text/html", `String msg];
@@ -213,12 +204,12 @@ let execute_request (t:t) (m:received) e : unit Lwt.t =
         "text/html", s, false
       | Kernel.Mime (ty,s,b64) -> ty, s, b64
     in
-    send_iopub t ~parent:m.rcv_msg (Iopub_send_mime (ty, payload, b64))
+    send_iopub t ~parent (Iopub_send_mime (ty, payload, b64))
   in
   let%lwt () = match status with
     | Result.Ok ok ->
       let%lwt () =
-        reply m
+        send_shell t ~parent
           (M.Execute_reply {
               status = "ok";
               execution_count;
@@ -240,14 +231,14 @@ let execute_request (t:t) (m:received) e : unit Lwt.t =
         }
       in
       Log.logf "send error `%s`" (M.json_of_content content);
-      reply m content
+      send_shell t ~parent content
   in
   Lwt.return_unit
 
-let kernel_info_request (t:t) (m:received) =
+let kernel_info_request (t:t) ~parent =
   let str_of_version = CCFormat.(to_string (list ~sep:"." int |> hbox)) in
   let%lwt _ =
-    reply m (M.Kernel_info_reply {
+    send_shell t ~parent (M.Kernel_info_reply {
         implementation=t.kernel.Kernel.language;
         implementation_version="0.1.0";  (* TODO *)
         protocol_version = "5.0";
@@ -263,17 +254,17 @@ let kernel_info_request (t:t) (m:received) =
   in
   Lwt.return_unit
 
-let shutdown_request (_:t) (m:received) (r:shutdown) : 'a Lwt.t =
+let shutdown_request (t:t) ~parent (r:shutdown) : 'a Lwt.t =
   Log.log "received shutdown request...\n";
   let%lwt () =
-    reply m (M.Shutdown_reply r)
+    send_shell t ~parent (M.Shutdown_reply r)
   in
   Lwt.fail (if r.restart then Restart else Exit)
 
 let handle_invalid_message () =
   Lwt.fail (Failure "Invalid message on shell socket")
 
-let complete_request t (m:received) (r:complete_request): unit Lwt.t =
+let complete_request t ~parent (r:complete_request): unit Lwt.t =
   let%lwt st = t.kernel.Kernel.complete ~pos:r.cursor_pos r.line in
   let content = {
     matches=st.Kernel.completion_matches;
@@ -281,9 +272,9 @@ let complete_request t (m:received) (r:complete_request): unit Lwt.t =
     cursor_end=st.Kernel.completion_end;
     cr_status="ok";
   } in
-  reply m (M.Complete_reply content)
+  send_shell t ~parent (M.Complete_reply content)
 
-let is_complete_request t (m:received) (r:is_complete_request): unit Lwt.t =
+let is_complete_request t ~parent (r:is_complete_request): unit Lwt.t =
   let st = t.kernel.Kernel.is_complete r.icr_code in
   let content = match st with
     | Kernel.Is_complete ->
@@ -291,16 +282,16 @@ let is_complete_request t (m:received) (r:is_complete_request): unit Lwt.t =
     | Kernel.Is_not_complete icr_indent ->
       {icr_status="incomplete"; icr_indent}
   in
-  reply m (M.Is_complete_reply content)
+  send_shell t ~parent (M.Is_complete_reply content)
 
-let object_info_request _socket _msg _x =
+let object_info_request _socket ~parent:_msg _x =
   () (* TODO: doc? *)
 
 let connect_request _socket _msg = ()
 
-let history_request _t (m:received) _x =
+let history_request t ~parent _x =
   let content = {history=[]} in
-  reply m (M.History_reply content)
+  send_shell t ~parent (M.History_reply content)
 
 type run_result =
   | Run_stop
@@ -319,30 +310,30 @@ let run t : run_result Lwt.t =
   let handle_message () =
     let open Sockets in
     let%lwt m = Lwt.pick
-        [ (M.recv t.sockets.shell >|= rcv_shell t);
-          (M.recv t.sockets.control >|= rcv_control t);
+        [ M.recv t.sockets.shell;
+          M.recv t.sockets.control;
         ] in
     Log.logf "received message `%s`, content `%s`\n"
-      (M.msg_type_of_content m.rcv_msg.M.content)
-      (M.json_of_content m.rcv_msg.M.content);
-    match m.rcv_msg.M.content with
+      (M.msg_type_of_content m.M.content)
+      (M.json_of_content m.M.content);
+    match m.M.content with
       | M.Kernel_info_request ->
-        within_status t m
-          ~f:(fun () -> kernel_info_request t m)
+        within_status t
+          ~f:(fun () -> kernel_info_request t ~parent:m)
       | M.Execute_request x ->
-        within_status t m
-          ~f:(fun () -> execute_request t m x)
+        within_status t
+          ~f:(fun () -> execute_request t ~parent:m x)
       | M.Connect_request ->
         Log.log "warning: received deprecated connect_request";
         connect_request t m; Lwt.return_unit
-      | M.Object_info_request x -> object_info_request t m x; Lwt.return_unit
+      | M.Object_info_request x -> object_info_request t ~parent:m x; Lwt.return_unit
       | M.Complete_request x ->
-        within_status t m ~f:(fun () -> complete_request t m x)
+        within_status t ~f:(fun () -> complete_request t ~parent:m x)
       | M.Is_complete_request x ->
-        within_status t m ~f:(fun () -> is_complete_request t m x)
+        within_status t ~f:(fun () -> is_complete_request t ~parent:m x)
       | M.History_request x ->
-        within_status t m ~f:(fun () -> history_request t m x)
-      | M.Shutdown_request x -> shutdown_request t m x
+        within_status t ~f:(fun () -> history_request t ~parent:m x)
+      | M.Shutdown_request x -> shutdown_request t ~parent:m x
 
       (* messages we should not be getting *)
       | M.Connect_reply(_) | M.Kernel_info_reply(_)
