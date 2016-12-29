@@ -183,7 +183,7 @@ let recv socket : t Lwt.t =
     content = content_of_json header data.(4);
     raw = Array.init (len-5) (fun i -> data.(i+5))
   } in
-  log "RECV" msg;
+  (* log "RECV" msg; *)
   Lwt.return msg
 
 let send ?key socket msg : unit Lwt.t =
@@ -203,7 +203,7 @@ let send ?key socket msg : unit Lwt.t =
       let `Hex s = Hex.of_cstruct res in
       s
   in
-  log "SEND" {msg with hmac};
+  (* log "SEND" {msg with hmac}; *)
   Lwt_zmq.Socket.send_all socket (List.concat [
       Array.to_list (Array.map enc_utf8 msg.ids);
       [enc_utf8 "<IDS|MSG>"];
