@@ -47,6 +47,7 @@ let content_of_json hdr c =
     | "execute_request" -> Execute_request(execute_request_of_string c)
     | "object_info_request" -> Object_info_request(object_info_request_of_string c)
     | "complete_request" -> Complete_request(complete_request_of_string c)
+    | "is_complete_request" -> Is_complete_request (is_complete_request_of_string c)
     | "history_request" -> History_request(history_request_of_string c)
 
     | "connect_reply" -> Connect_reply(connect_reply_of_string c)

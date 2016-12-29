@@ -193,7 +193,7 @@ let execute_request (t:t) ~parent e : unit Lwt.t =
       send_iopub t ~parent (Iopub_send_message
           (M.Execute_result {
               po_execution_count = execution_count;
-              po_data = `Assoc ["text/html", `String msg];
+              po_data = `Assoc ["text/plain", `String msg];
               po_metadata = `Assoc []; }))
       >|= fun _ -> ()
   and side_action (s:Kernel.exec_action) : unit Lwt.t =
@@ -230,7 +230,7 @@ let execute_request (t:t) ~parent e : unit Lwt.t =
             er_user_expressions = None;
         }
       in
-      Log.logf "send error `%s`" (M.json_of_content content);
+      Log.logf "send ERROR `%s`\n" (M.json_of_content content);
       send_shell t ~parent content
   in
   Lwt.return_unit
@@ -316,7 +316,7 @@ let run t : run_result Lwt.t =
     Log.logf "received message `%s`, content `%s`\n"
       (M.msg_type_of_content m.M.content)
       (M.json_of_content m.M.content);
-    match m.M.content with
+    begin match m.M.content with
       | M.Kernel_info_request ->
         within_status t
           ~f:(fun () -> kernel_info_request t ~parent:m)
@@ -344,6 +344,7 @@ let run t : run_result Lwt.t =
       | M.Clear(_) -> handle_invalid_message ()
 
       | M.Comm_open -> Lwt.return_unit
+    end
   in
   let rec run () =
     try%lwt
