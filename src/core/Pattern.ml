@@ -289,6 +289,7 @@ let compile_rule (lhs:E.t) (rhs:E.t): rewrite_rule =
   let pat = Pat_compile.tr_pattern st lhs in
   let rhs, cond = Pat_compile.extract_cond rhs in
   let rhs = Pat_compile.tr_term st rhs in
+  (* FIXME rr_pat_as_expr in case of condition *)
   let rr_pat = match cond with
     | None -> pat
     | Some cond ->
