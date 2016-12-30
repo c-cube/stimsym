@@ -3,11 +3,13 @@
 
 (** {1 Notebook interface} *)
 
-open Ipython
 open Stimsym
 open Lwt.Infix
 
-module C = Client
+module H = Tyxml.Html
+module C = Jupyter_kernel.Client
+module Log = Jupyter_kernel.Log
+module Proto_j = Jupyter_kernel.Protocol_j
 
 let output_cell_max_height = ref "100px"
 
@@ -30,7 +32,7 @@ let ci_ip_addr = ref ""
 let () =
   Arg.(parse
       (align [
-          "--log", String(Log.open_log_file), " <file> open log file";
+          "--log", String (Log.open_log_file), " <file> open log file";
           "--connection-file", Set_string(connection_file_name),
           " <filename> connection file name";
           "--init", Set_string(init_file), " <file> load <file> instead of default init file";
@@ -50,8 +52,42 @@ let () =
 
 (** {2 Execution of queries} *)
 
+(* display a document as HTML *)
+let html_of_doc : Document.t -> [<Html_types.div] H.elt =
+  let mk_header ~depth l = match depth with
+    | 1 -> H.h1 l
+    | 2 -> H.h2 l
+    | 3 -> H.h3 l
+    | 4 -> H.h4 l
+    | 5 -> H.h5 l
+    | n when n>=6 -> H.h6 l
+    | _ -> assert false
+  in
+  let rec aux ~depth doc =
+    H.div (List.map (aux_block ~depth) doc)
+  and aux_block ~depth (b:Document.block) =
+    let h = match b with
+      | `S s -> mk_header ~depth [H.pcdata s]
+      | `P s -> H.p [H.pcdata s]
+      | `Pre s -> H.pre [H.pcdata s]
+      | `L l ->
+        H.ul (List.map (fun sub -> H.li [aux ~depth sub]) l)
+      | `I (s,sub) ->
+        let depth = depth+1 in
+        H.div (
+          mk_header ~depth [H.pcdata s] :: List.map (aux_block ~depth) sub
+        )
+    in
+    H.div [h]
+  in
+  aux ~depth:3
+
+let mime_of_html (h:_ H.elt) : C.mime_data = 
+  let s = CCFormat.sprintf "%a@." (H.pp_elt ()) h in
+  {C.mime_type="text/html"; mime_content=s; mime_b64=false}
+
 (* blocking function *)
-let run_ count str : C.Kernel.exec_status =
+let run_ count str : C.Kernel.exec_status_ok C.or_error =
   let buf = Lexing.from_string str in
   Parse_loc.set_file buf ("cell_" ^ string_of_int count);
   begin match Parser.parse_expr Lexer.token buf with
@@ -67,7 +103,8 @@ let run_ count str : C.Kernel.exec_status =
           and actions =
             List.map
               (function
-                | Eval.Print_doc d -> C.Kernel.doc d
+                | Eval.Print_doc d ->
+                  C.Kernel.Mime [d |> html_of_doc |> mime_of_html]
                 | Eval.Print_mime {Expr.mime_ty;mime_data;mime_base64} ->
                   C.Kernel.mime ~base64:mime_base64 ~ty:mime_ty mime_data)
               effects
@@ -102,20 +139,22 @@ let complete pos str =
 
 (* is the block of code complete?
    TODO: a way of asking the parser if it failed because of EOI/unbalanced []*)
-let is_complete _ = C.Kernel.Is_complete
+let is_complete _ = Lwt.return C.Kernel.Is_complete
 
 let () =
   Builtins.log_ := Log.log
 
-let kernel : C.Kernel.t = {
-  C.Kernel.
-  exec = (fun ~count msg -> Lwt.return (run_ count msg));
-  is_complete;
-  language="stimsym";
-  language_version=[0;1;0];
-  complete =
-    (fun ~pos msg -> Lwt.return (complete pos msg))
-}
+let kernel : C.Kernel.t =
+  C.Kernel.make
+    ~banner:"Stimsym"
+    ~exec:(fun ~count msg -> Lwt.return (run_ count msg))
+    ~is_complete
+    ~history:(fun _ -> Lwt.return [])
+    ~inspect:(fun _ -> Lwt.return (Result.Error "not implemented"))
+    ~language:"stimsym"
+    ~language_version:[0;1;0]
+    ~complete: (fun ~pos msg -> Lwt.return (complete pos msg))
+    ()
 
 (*******************************************************************************)
 (* main *)
@@ -127,7 +166,7 @@ let () = Unix.putenv "TERM" "" (* make sure the compiler sees a dumb terminal *)
 let connection_info =
   if !ci_ip_addr <> "" then
     (* get configuration parameters from command line *)
-    { Ipython_json_t.
+    { Proto_j.
       stdin_port = !ci_stdin;
       ip = !ci_ip_addr;
       control_port = !ci_control;
@@ -148,14 +187,14 @@ let connection_info =
     in
     let state = Yojson.init_lexer () in
     let lex = Lexing.from_channel f_conn_info in
-    let conn = Ipython_json_j.read_connection_info state lex in
+    let conn = Proto_j.read_connection_info state lex in
     let () = close_in f_conn_info in
     conn
 
 let rec main_loop () =
   try%lwt
-    let sockets = Sockets.open_sockets connection_info in
-    let key = connection_info.Ipython_json_t.key in
+    let sockets = Jupyter_kernel.Sockets.open_sockets connection_info in
+    let key = connection_info.Proto_j.key in
     let key = if key="" then None else Some key in
     let sh = C.make ?key sockets kernel in
     C.run sh;

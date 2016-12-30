@@ -15,20 +15,9 @@ PKG sequence
 PKG linenoise
 PKG zarith
 PKG oUnit
-PKG ctypes
-PKG ctypes.foreign
-PKG atdgen
 PKG lwt
-PKG lwt.unix
-PKG lwt.ppx
-PKG uuidm
-PKG yojson
-PKG ZMQ
-PKG lwt-zmq
-PKG nocrypto
-PKG hex
 PKG containers.unix
 PKG unix
+PKG jupyter-kernel
 PKG tyxml
-PKG ISO8601
 FLG -w +a-4-44@8 -safe-string

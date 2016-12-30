@@ -7,7 +7,7 @@ build: [
     ["./configure"
         "--prefix" prefix
         "--enable-docs"
-        "--%{nocrypto+hex+lwt+zmq+lwt-zmq+yojson+uuidm+atdgen+tyxml:enable}%-notebook"
+        "--%{jupyter-kernel:enable}%-notebook"
     ]
     [make "build"]
 ]
@@ -31,15 +31,7 @@ depends: [
     "ocamlbuild" {build}
 ]
 depopts: [
-    "zmq"
-    "atdgen"
-    "yojson"
-    "uuidm"
-    "lwt"
-    "lwt-zmq"
-    "tyxml"
-    "nocrypto"
-    "hex"
+    "jupyter-kernel"
 ]
 tags: [ "rewriting" "cas" "logic" "mathematica" "jupyter" ]
 homepage: "https://github.com/c-cube/stimsym/"

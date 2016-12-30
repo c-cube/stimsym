@@ -15,7 +15,7 @@ XOCamlbuildExtraArgs: "-j 0 -use-menhir -menhir 'menhir --dump --explain --infer
 Synopsis:  A rewrite system designed for maximal expressiveness
 
 Flag notebook
-  Description:      Jupyter notebook
+  Description:      Interface to the Jupyter notebook (depends on jupyter-kernel)
   Default:          true
 
 Library stimsym
@@ -36,26 +36,13 @@ Executable stimsym_cli
   MainIs:           stimsym_cli.ml
   BuildDepends:     stimsym, linenoise
 
-Library ipython
-  Path:             src/ipython/
-  Pack:             true
-  FindlibName:      ipython
-  FindlibParent:    stimsym
-  Install:          false
-  Build$:           flag(notebook)
-  Modules:          Base64, Ipython_json_j, Ipython_json_t, Log,
-                    Message, Sockets, Client
-  BuildDepends:     stimsym, atdgen, yojson, uuidm, ZMQ, lwt-zmq, nocrypto, hex,
-                    tyxml, lwt, lwt.unix, lwt.preemptive, threads, lwt.ppx,
-                    bytes, ISO8601
-
 Executable stimsym_server
   Path:             src/server/
   Install$:         flag(notebook)
   Build$:           flag(notebook)
   CompiledObject:   native
   MainIs:           stimsym_server.ml
-  BuildDepends:     stimsym.ipython, stimsym, unix, threads
+  BuildDepends:     stimsym, jupyter-kernel, unix, threads, tyxml
 
 Executable run_tests
   Path:             tests/
