@@ -61,13 +61,16 @@ The file 'tests/run_tests.ml' also contains a lot of small test cases.
 
 === Jupyter Interface
 
-Very experimental interface to http://jupyter.org/[Jupyter 4.*].
-You should copy 'data/kernel.json' into
-the directory '~/.local/share/jupyter/kernels/stimsym'.
+Use the (experimental) library
+https://github.com/ocaml-jupyter/jupyter-kernel[jupyter-kernel].
+You should copy 'data/kernel.json' into the directory
+'~/.local/share/jupyter/kernels/stimsym'.
 
 ----
 mkdir -p ~/.local/share/jupyter/kernels/stimsym
 cp data/kernel.json ~/.local/share/jupyter/kernels/stimsym/
+
+opam pin add -k git jupyter-kernel https://github.com/ocaml-jupyter/jupyter-kernel.git
 ----
 
 Start the jupyter notebook with `jupyter-notebook`;
