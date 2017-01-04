@@ -19,6 +19,8 @@ exception Invalid_binding_seq of string
 
 val matches_slice : t -> bool
 
+val compile : expr -> t option
+
 val compile_rule : expr -> expr -> rewrite_rule
 
 val sp_slice_min_size : slice_pattern -> int

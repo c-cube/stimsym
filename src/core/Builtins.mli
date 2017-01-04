@@ -51,6 +51,8 @@ val function_ : t
 val true_ : t
 val false_ : t
 val if_ : t
+val match_ : t
+val matches : t
 val and_ : t
 val or_ : t
 val not_ : t

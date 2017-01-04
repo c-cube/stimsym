@@ -875,6 +875,66 @@ let if_ =
           `A` is `True` or `False`.";
     ]
 
+(* pattern matching *)
+let match_ =
+  let open Base_types in
+  let eval _ eval_st t =
+    let rec match_l e l = match l with
+      | [] -> Eval.prim_failf eval_st "no case matches in `@[%a@]`" E.pp t
+      | rule :: tail ->
+        begin match
+            Eval.prim_match_ eval_st Subst.empty rule.rr_pat e
+            |> Sequence.head
+          with
+            | Some subst -> Subst.apply subst rule.rr_rhs (* rule fired *)
+            | None ->
+              match_l e tail
+        end
+    in
+    begin match t with
+      | E.App (E.Const _, [| e; rules |]) ->
+        let rules = Eval.prim_term_as_rules eval_st rules in
+        Some (match_l e rules)
+      | _ -> None
+    end
+  in
+  make "Match" ~funs:[eval]
+    ~fields:[E.field_hold_rest]
+    ~doc:[
+      `S "Match";
+      `P "Pattern-Matching operator";
+      `P "`Match[e, {pat1 :> expr1, …}]` will match `e` with \
+          every rule's pattern in the given order.";
+      `P "the first rule `pat_i :> expr_i` to match will make \
+          the whole expression reduce to `expr_i` after substitution.";
+      `P "Fails if no pattern matches (just use `_` for the last case)";
+    ]
+
+let matches =
+  let eval _ eval_st t =
+    begin match t with
+      | E.App (E.Const _, [| pat; e; |]) ->
+        begin match Pattern.compile pat with
+          | None -> raise Eval_does_not_apply
+          | Some pat ->
+            let fail =
+              Eval.prim_match_ eval_st Subst.empty pat e
+              |> Sequence.is_empty
+            in
+            Some (if fail then false_ else true_)
+        end
+      | _ -> None
+    end
+  in
+  make "Matches" ~funs:[eval]
+    ~fields:[E.field_hold_rest]
+    ~doc:[
+      `S "Matches";
+      `P "Pattern-Matching binary predicate";
+      `P "`Matches[pat,e]` returns `True` if pattern `pat` matches expression `e`, \
+          `False` otherwise.";
+    ]
+
 type changed = bool
 
 type and_res =

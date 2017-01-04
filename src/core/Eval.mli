@@ -34,6 +34,12 @@ val prim_with_trace : prim_fun_args -> trace_fun -> (unit -> 'a) -> 'a
 val prim_fail : prim_fun_args -> string -> 'a
 (** To be called by primitives on failure *)
 
+val prim_match_ : prim_fun_args -> Subst.t -> Pattern.t -> expr -> Subst.t Sequence.t
+
+val prim_term_as_rule : prim_fun_args -> expr -> Expr.rewrite_rule
+
+val prim_term_as_rules : prim_fun_args -> expr -> Expr.rewrite_rule list
+
 val prim_failf : prim_fun_args -> ('a, Format.formatter, unit, 'b) format4 -> 'a
 
 val prim_write_doc : prim_fun_args -> Document.t lazy_t -> unit

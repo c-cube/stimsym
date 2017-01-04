@@ -449,6 +449,11 @@ let suite_eval =
     mk_eval __LINE__
       "Inter[Set[1,2,3,4],Set[2,3,4,5,6],Set[4,5]]"
       "Set[4]";
+    mk_eval __LINE__ "Matches[_,a]" "True";
+    mk_eval __LINE__ "Matches[b,a]" "False";
+    mk_eval __LINE__ "Matches[a+___,1+a]" "True";
+    mk_eval __LINE__ "Match[f[a],{f[_,_]:>b,f[x_]:>x+1}]" "Plus[1,a]";
+    mk_eval __LINE__ "Match[g[a],{f[_,_]:>b,f[x_]:>x+1,r_:>else[r]}]" "else[g[a]]";
   ]
 
 (** {2 Main} *)

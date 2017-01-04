@@ -736,6 +736,10 @@ let prim_write_doc st = match st.st_effects with
 
 let prim_print st m = prim_write_doc st (Lazy.from_val [Document.paragraph m])
 
+let prim_term_as_rule = term_as_rule
+let prim_term_as_rules = term_as_rules
+let prim_match_ = match_
+
 let prim_printf st = match st.st_effects with
   | None -> (fun msg -> Format.ikfprintf (fun _ -> ()) Format.str_formatter msg)
   | Some _ ->

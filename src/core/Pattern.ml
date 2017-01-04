@@ -283,6 +283,11 @@ module Pat_compile = struct
     | _ -> e, None
 end
 
+let compile (e:E.t): pattern option =
+  let st = Pat_compile.create() in
+  try Some (Pat_compile.tr_pattern st e)
+  with _ -> None
+
 (* raise Invalid_rule if cannot compile *)
 let compile_rule (lhs:E.t) (rhs:E.t): rewrite_rule =
   let st = Pat_compile.create() in
