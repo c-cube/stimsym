@@ -910,6 +910,47 @@ let match_ =
       `P "Fails if no pattern matches (just use `_` for the last case)";
     ]
 
+(* pattern matching, with all cases *)
+let match_l =
+  let open Base_types in
+  let eval _ eval_st t =
+    let rec match_l e acc l = match l with
+      | [] ->
+        (* return sequence of answers *)
+        E.app_l sequence (List.rev acc)
+      | rule :: tail ->
+        let new_ =
+          Eval.prim_match_ eval_st Subst.empty rule.rr_pat e
+          |> Sequence.map
+            (fun subst -> Subst.apply subst rule.rr_rhs) (* rule fired *)
+          |> Sequence.to_rev_list
+        in
+        match_l e (List.rev_append new_ acc) tail
+    in
+    begin match t with
+      | E.App (E.Const _, [| e; rules |]) ->
+        let rules = Eval.prim_term_as_rules eval_st rules in
+        Some (match_l e [] rules)
+      | _ -> None
+    end
+  in
+  make "MatchL" ~funs:[eval]
+    ~fields:[E.field_hold_rest]
+    ~doc:[
+      `S "MatchL";
+      `P "Pattern-Matching operator, with non-determinism";
+      `P "`MatchL[e, {pat1 :> expr1, …}]` will match `e` with \
+          every rule's pattern.";
+      `P "for each rule `pat_i :> expr_i` and each substitution `sigma` \
+          where `sigma(pat_i) = e`, \
+          yield `expr_i`.";
+      `P "This returns the `Sequence` of all gathered answers";
+      `I ("example", [
+          `Pre "`Times[MatchL[a+b+c,x_+y__:>f[x,Plus[y]]]]`";
+          `P "returns `f[a,b+c] f[b,a+c] f[c,a+b]]";
+        ]);
+    ]
+
 let matches =
   let eval _ eval_st t =
     begin match t with
