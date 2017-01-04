@@ -461,6 +461,9 @@ let suite_eval =
     mk_eval __LINE__
       "Times[MatchL[a+b+c,x_+y__:>f[x,Plus[y]]]]"
       "Times[f[a,Plus[b,c]],f[b,Plus[a,c]],f[c,Plus[a,b]]]";
+    mk_eval __LINE__
+      "Set[MatchL[1+a+b+c,{_?IntegerQ+r__:>f[r], _+r__:>g[r]}]]"
+      "Set[f[a,b,c],g[1,a,b],g[1,a,c],g[1,b,c],g[a,b,c]]";
   ]
 
 (** {2 Main} *)
