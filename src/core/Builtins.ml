@@ -267,6 +267,70 @@ let mod_ =
         ]);
     ]
 
+(* TODO: also for string *)
+type min_max_state =
+  | Min_max_z of Z.t * E.t list
+  | Min_max_q of Q.t * E.t list
+  | Min_max_null of E.t list
+
+let eval_min_max ~f_z ~f_q _ _ e =
+  let compute args =
+    Array.fold_left
+      (fun acc e -> match acc, e with
+         | Min_max_z (n1,l), E.Z n2 -> Min_max_z (f_z n1 n2,l)
+         | Min_max_z (n1,l), E.Q n2 -> Min_max_q (f_q Q.(of_bigint n1) n2,l)
+         | Min_max_q (n1,l), E.Z n2 -> Min_max_q (f_q n1 Q.(of_bigint n2),l)
+         | Min_max_q (n1,l), E.Q n2 -> Min_max_q (f_q n1 n2, l)
+         | Min_max_z (n,l), _ -> Min_max_z (n,e::l)
+         | Min_max_q (n,l), _ -> Min_max_q (n,e::l)
+         | Min_max_null l, E.Z n -> Min_max_z (n,l)
+         | Min_max_null l, E.Q n -> Min_max_q (n,l)
+         | Min_max_null l, e -> Min_max_null (e::l))
+      (Min_max_null []) args
+  in
+  match e with
+    | E.App (_, [| |]) -> None
+    | E.App (E.Const _ as hd, args) ->
+      let args' = match compute args with
+        | Min_max_z (n,[]) -> [E.z n]
+        | Min_max_z (n,l) when Z.sign n=0 -> List.rev l
+        | Min_max_z (n,l) -> E.z n :: List.rev l
+        | Min_max_q (n,[]) -> [E.q n]
+        | Min_max_q (n,l) when Q.sign n=0 -> List.rev l
+        | Min_max_q (n,l) -> E.q n :: List.rev l
+        | Min_max_null _ -> raise Eval_does_not_apply
+      in
+      begin match args' with
+        | [] -> assert false
+        | [e] -> Some e
+        | _ ->
+          let args' = Array.of_list args' in
+          if Array.length args = Array.length args'
+          then None
+          else Some (E.app hd args')
+      end
+    | _ -> None
+
+let max =
+  make "Max"
+    ~funs:[eval_min_max ~f_z:Z.max ~f_q:Q.max]
+    ~fields:[E.field_listable; E.field_flatten;
+             E.field_orderless; E.field_no_duplicates]
+    ~doc:[
+      `S "Max";
+      `P "Max operator on values";
+    ]
+
+let min =
+  make "Min"
+    ~funs:[eval_min_max ~f_z:Z.min ~f_q:Q.min]
+    ~fields:[E.field_listable; E.field_flatten;
+             E.field_orderless; E.field_no_duplicates]
+    ~doc:[
+      `S "Min";
+      `P "Min operator on values";
+    ]
+
 let power =
   (* fast exponentiation on Q *)
   let rec q_pow x n : Q.t =

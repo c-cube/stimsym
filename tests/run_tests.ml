@@ -469,6 +469,8 @@ let suite_eval =
     mk_eval __LINE__ "Let[x_ <- 2,4/x]" "2";
     mk_eval __LINE__ "Mod[3,3]" "0";
     mk_eval __LINE__ "Mod[5,3]" "2";
+    mk_eval __LINE__ "Min[3,2]" "2";
+    mk_eval __LINE__ "Max[a,4,10,b,c]" "Max[10,a,b,c]";
   ]
 
 (** {2 Main} *)

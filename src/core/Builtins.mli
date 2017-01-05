@@ -63,6 +63,8 @@ val plus : t
 val times : t
 val div : t
 val mod_ : t
+val max : t
+val min : t
 val factorial : t
 val power : t
 
