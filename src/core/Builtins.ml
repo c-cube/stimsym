@@ -229,6 +229,44 @@ let times =
       `I ("infix", [`P "`a b c d`"]);
     ]
 
+(* TODO: printer *)
+(* TODO: doc *)
+let div =
+  let as_q = function
+    | E.Z z -> Q.of_bigint z
+    | E.Q q -> q
+    | _ -> assert false
+  in
+  let eval _ st (e:E.t): E.t option = match e with
+    | E.App (_, [| (E.Z _ | E.Q _) as a; (E.Z _ | E.Q _) as b |]) ->
+      let a = as_q a in
+      let b = as_q b in
+      if Q.sign b = 0
+      then Eval.prim_failf st "division by zero in `%a`" E.pp e
+      else Some (E.q (Q.div a b))
+    | _ -> None
+  in
+  make "Div" ~funs:[eval]
+
+(* TODO: doc *)
+let mod_ =
+  let eval _ st (e:E.t): E.t option = match e with
+    | E.App (_, [| E.Z a; E.Z b |]) ->
+      if Z.sign b <= 0
+      then Eval.prim_failf st "in `@[%a@]`: `%a` should be > 0" E.pp e Z.pp_print b
+      else Some (E.z Z.(a mod b))
+    | _ -> None
+  in
+  make "Mod" ~funs:[eval] ~fields:[E.field_listable]
+    ~doc:[
+      `S "Mod";
+      `P "Modulo operator on integers";
+      `I ("example", [
+          `Pre "`{Mod[x,2] :: x_<<- Range[10]}`";
+          `P "returns `{0,1,0,1,0,1,0,1,0,1,0}`";
+        ]);
+    ]
+
 let power =
   (* fast exponentiation on Q *)
   let rec q_pow x n : Q.t =

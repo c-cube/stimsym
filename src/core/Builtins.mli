@@ -61,6 +61,8 @@ val not_ : t
 
 val plus : t
 val times : t
+val div : t
+val mod_ : t
 val factorial : t
 val power : t
 

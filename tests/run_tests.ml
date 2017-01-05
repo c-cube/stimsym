@@ -153,6 +153,8 @@ let suite_parser =
     test_parser __LINE__ "a^b" "Power[a,b]";
     test_parser __LINE__ "x a^b" "Times[x,Power[a,b]]";
     test_parser __LINE__ "x a^b c" "Times[x,Power[a,b],c]";
+    test_parser __LINE__ "a b/c" "Times[a,Div[b,c]]";
+    test_parser __LINE__ "a b/c d" "Times[a,Div[b,c],d]";
   ]
 
 (** {2 Printer} *)
@@ -464,6 +466,9 @@ let suite_eval =
     mk_eval __LINE__
       "Set[MatchL[1+a+b+c,{_?IntegerQ+r__:>f[r], _+r__:>g[r]}]]"
       "Set[f[a,b,c],g[1,a,b],g[1,a,c],g[1,b,c],g[a,b,c]]";
+    mk_eval __LINE__ "Let[x_ <- 2,4/x]" "2";
+    mk_eval __LINE__ "Mod[3,3]" "0";
+    mk_eval __LINE__ "Mod[5,3]" "2";
   ]
 
 (** {2 Main} *)
