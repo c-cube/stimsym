@@ -707,7 +707,7 @@ let eval_full e : E.t * eval_side_effect list =
   let q = Stack.create() in
   let st = create_eval_state ~buf:(Some q) () in
   let e' = eval_rec st e in
-  let effects = Stack.fold (fun acc d -> d::acc) [] q in
+  let effects = Sequence.of_stack q |> Sequence.to_rev_list in
   (* also check if there is a custom display *)
   let e_display = match e' with
     | Const {cst_display=Some f;_}
