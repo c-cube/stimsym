@@ -8,4 +8,4 @@ type completion = {
   summary: string option; (* short description of this particular completion *)
 }
 
-val complete : string -> completion list
+val complete : string -> cursor_pos:int -> completion list

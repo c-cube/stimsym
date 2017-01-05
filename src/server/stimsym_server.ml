@@ -87,8 +87,7 @@ let complete pos str =
   let completion_matches =
     if pos > String.length str then []
     else
-      let left = String.sub str 0 pos in
-      Completion.complete left
+      Completion.complete ~cursor_pos:pos str
       |> List.map (fun c -> c.Completion.text)
   in
   let c = {

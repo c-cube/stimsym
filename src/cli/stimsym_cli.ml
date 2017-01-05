@@ -34,7 +34,7 @@ let display_mime (m:Expr.mime_content): unit = match mime_classify m with
 
 (* completion callback *)
 let completion str (lnoise:LNoise.completions): unit =
-  Completion.complete str
+  Completion.complete str ~cursor_pos:(String.length str)
   |> List.iter (fun c -> LNoise.add_completion lnoise c.Completion.text)
 
 let pp_rule out n =
