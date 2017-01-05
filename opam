@@ -27,6 +27,7 @@ depends: [
     "result"
     "containers"
     "sequence"
+    "linenoise"
     "base-unix"
     "ocamlbuild" {build}
 ]
