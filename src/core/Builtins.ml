@@ -1146,7 +1146,7 @@ let nest =
         ])
     ]
 
-let range =
+let range_seq =
   let mk_ arg i j ~step =
     let rec aux_incr acc i j step =
       if Z.gt i j then List.rev acc
@@ -1160,7 +1160,7 @@ let range =
       | n when n>0 -> aux_incr [] i j step
       | _ -> aux_decr [] i j step
     in
-    Some (E.app_l list l)
+    Some (E.app_l sequence l)
   in
   let eval _ arg e = match e with
     | E.App (_, [| E.Z i |]) -> mk_ arg Z.zero i ~step:Z.one
@@ -1168,8 +1168,27 @@ let range =
     | E.App (_, [| E.Z i; E.Z j; E.Z step |]) -> mk_ arg i j ~step
     | _ -> raise Eval_does_not_apply
   in
+  make "RangeSeq"
+    ~funs:[eval]
+    ~doc:[
+      `S "RangeSeq";
+      `P "Integer range, inclusive of both bounds, but returns \
+          a `Sequence` rather than a list.";
+      `I ("see", [`P "`Range`"]);
+      `I ("example", [
+          `Pre "`{RangeSeq[1,10],RangeSeq[20,30]}`";
+          `P "returns `{1,2,3,4,5,6,7,8,9,10,20,21,22,23,24,25,26,27,28,29,30}`";
+        ]);
+    ]
+
+let range =
+  let rule _ =
+    E.of_string_full_form_exn "Range[Pattern[x,BlankNullSequence[]]]",
+    E.of_string_full_form_exn "List[RangeSeq[x]]"
+  in
   make "Range"
-    ~funs:[eval] ~fields:[E.field_listable]
+    ~rules:[rule]
+    ~fields:[E.field_listable]
     ~doc:[
       `S "Range";
       `P "Integer Range, inclusive of both bounds.";

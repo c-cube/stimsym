@@ -105,6 +105,7 @@ val null : t
 val doc : t
 
 val nest : t
+val range_seq : t
 val range : t
 
 val all_builtins : unit -> t list
