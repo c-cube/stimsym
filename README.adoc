@@ -59,6 +59,10 @@ See link:doc/examples.adoc[the list of commented examples] to
 get an idea of how to use Stimsym.
 The file 'tests/run_tests.ml' also contains a lot of small test cases.
 
+Some notebooks can be found on
+the https://github.com/c-cube/stimsym/tree/gallery[gallery branch],
+including https://github.com/c-cube/stimsym/blob/gallery/data/notebook_examples.ipynb[an improved version of the examples].
+
 === Jupyter Interface
 
 Use the (experimental) library
