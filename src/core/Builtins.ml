@@ -541,7 +541,7 @@ let match_bind =
     | _ -> raise E.Print_default
   in
   make "MatchBind" ~printer:(prec_comprehension_args,pp)
-    ~fields:[E.field_hold_first]
+    ~fields:[E.field_hold_all; E.field_no_flatten]
     ~doc:[
       `S "MatchBind";
       `P "`MatchBind[pat,e]` matches `e` against pattern `pat`. \
@@ -557,7 +557,7 @@ let match_bind1 =
     | _ -> raise E.Print_default
   in
   make "MatchBind1" ~printer:(prec_comprehension_args,pp)
-    ~fields:[E.field_hold_first]
+    ~fields:[E.field_hold_all; E.field_no_flatten]
     ~doc:[
       `S "MatchBind1";
       `P "`MatchBind1[pat,e]` matches every argument of `e` \
@@ -1287,6 +1287,7 @@ module Attrs = struct
     | Hold_first
     | Hold_rest
     | Orderless
+    | No_flatten
     | Flatten
     | One_identity
     | Listable
@@ -1306,6 +1307,7 @@ module Attrs = struct
       mk_pair Hold_rest E.field_hold_rest, make_const "HoldRest";
       mk_pair Orderless E.field_orderless, make_const "Orderless";
       mk_pair Flatten E.field_flatten, make_const "Flatten";
+      mk_pair No_flatten E.field_no_flatten, make_const "NoFlatten";
       mk_pair One_identity E.field_one_identity, make_const "OneIdentity";
       mk_pair Listable E.field_listable, make_const "Listable";
       mk_pair No_duplicates E.field_no_duplicates, make_const "NoDuplicates";

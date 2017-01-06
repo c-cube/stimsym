@@ -11,6 +11,7 @@ let field_hold_all = Properties.mk_field()
 let field_hold_first = Properties.mk_field()
 let field_hold_rest = Properties.mk_field()
 let field_orderless = Properties.mk_field()
+let field_no_flatten = Properties.mk_field()
 let field_flatten = Properties.mk_field()
 let field_one_identity = Properties.mk_field()
 let field_listable = Properties.mk_field ()
@@ -169,12 +170,14 @@ let app_flatten hd args =
            true, len+Array.length sub
          | _ -> must_split, len+1)
       (false,0) args
-  in
-  let is_orderless = match hd with
+  and can_flatten = match hd with
+    | Const c when Cst.get_field field_no_flatten c -> false
+    | _ -> true
+  and is_orderless = match hd with
     | Const c -> Cst.get_field field_orderless c
     | _ -> false
   in
-  let new_args = if must_splice then (
+  let new_args = if can_flatten && must_splice then (
       let args_flat = Array.make res_len null in
       (* make a flattened array *)
       let len' =
@@ -191,11 +194,9 @@ let app_flatten hd args =
       assert (len' = res_len);
       if is_orderless then Array.sort compare args_flat;
       args_flat
-    ) else (
-      if is_orderless
-      then CCArray.sorted compare args (* sorted copy *)
-      else args
-    )
+    ) else if can_flatten && is_orderless then (
+      CCArray.sorted compare args (* sorted copy *)
+    ) else args
   in
   begin match hd, new_args with
     | Const c, [| arg |] when Cst.get_field field_one_identity c ->

@@ -471,6 +471,7 @@ let suite_eval =
     mk_eval __LINE__ "Mod[5,3]" "2";
     mk_eval __LINE__ "Min[3,2]" "2";
     mk_eval __LINE__ "Max[a,4,10,b,c]" "Max[10,a,b,c]";
+    mk_eval __LINE__ "{x:: x_ <<- Sequence[1,2,3]}" "List[1,2,3]";
   ]
 
 (** {2 Main} *)
