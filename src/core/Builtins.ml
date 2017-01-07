@@ -110,7 +110,8 @@ let full_form =
       `I ("example", [`P "`FullForm[1+1]` prints `Plus[1,1]`"]);
     ]
 
-let sequence = make "Sequence" ~fields:[E.field_flatten]
+let sequence =
+  make "Sequence" ~fields:[E.field_flatten; E.field_one_identity]
 
 type arith_res =
   | Arith_q of Q.t * E.t list
@@ -894,6 +895,7 @@ let alternatives =
 let compound_expr =
   make "CompoundExpression"
     ~printer:(prec_semicolon,print_infix_ prec_semicolon ";" "")
+    ~fields:[E.field_protected; E.field_flatten]
     ~doc:[
       `S "CompoundExpression";
       `P "Sequence of operations.";
