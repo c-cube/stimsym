@@ -7,6 +7,7 @@ module Fmt = CCFormat
 include Base_types
 
 let field_protected = Properties.mk_field()
+let field_builtin = Properties.mk_field()
 let field_hold_all = Properties.mk_field()
 let field_hold_first = Properties.mk_field()
 let field_hold_rest = Properties.mk_field()
@@ -36,6 +37,7 @@ module Str_tbl = CCHashtbl.Make(struct
     let hash (a:string) = Hashtbl.hash a
   end)
 
+(* perfect sharing of constants *)
 type bank = {
   by_name: t Str_tbl.t; (* name -> const *)
   mutable const_id: int; (* unique name *)
@@ -112,6 +114,15 @@ module Cst = struct
 
   let set_printer i f c = c.cst_printer <- Some (i,f)
   let set_display f c = c.cst_display <- Some f
+
+  let complete s : t list =
+    Str_tbl.values bank.by_name
+    |> Sequence.filter_map
+      (function
+        | Const c when CCString.prefix ~pre:s c.cst_name -> Some c
+        | _ -> None)
+    |> Sequence.to_rev_list
+    |> List.sort (fun c1 c2 -> String.compare c1.cst_name c2.cst_name)
 end
 
 let const_of_string_with ~f name =

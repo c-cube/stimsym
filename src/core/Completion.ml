@@ -45,4 +45,21 @@ let complete_builtin ~(cursor_pos:int) (s:string): completion list =
             Some { text; summary }
           | _ -> None)
 
-let complete s ~cursor_pos = complete_builtin ~cursor_pos s
+(* completion based on every symbol but builtins *)
+let complete_all ~(cursor_pos:int) (s:string): completion list =
+  match find_suffix_id ~cursor_pos s with
+    | None -> []
+    | Some (prefix,partial_id,_) ->
+      Expr.Cst.complete partial_id
+      |> CCList.filter_map
+        (fun c ->
+           if Builtins.const_is_builtin c
+           then None (* filter builtins out *)
+           else
+             let text = prefix ^ c.E.cst_name in
+             Some { text; summary=None })
+
+let complete s ~cursor_pos : completion list =
+  List.rev_append
+    (complete_builtin ~cursor_pos s)
+    (complete_all ~cursor_pos s)

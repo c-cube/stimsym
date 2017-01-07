@@ -10,6 +10,7 @@ module Properties = Base_types.Properties
 val field_protected : Properties.field
 (** Cannot modify the evaluation function of this constant *)
 
+val field_builtin : Properties.field (* builtin symbol *)
 val field_hold_all : Properties.field
 val field_hold_first : Properties.field
 val field_hold_rest : Properties.field
@@ -132,6 +133,8 @@ module Cst : sig
   val set_display : mime_printer -> t -> unit
 
   val set_doc : Document.t -> t -> unit
+
+  val complete : string -> t list
 end
 
 val null : t

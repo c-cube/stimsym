@@ -24,6 +24,8 @@ val make :
   string -> t
 (** [make s] makes a new constant and sets some options/handlers on it *)
 
+val const_is_builtin : Expr.const -> bool
+
 val hold : t
 val full_form : t
 val blank : t

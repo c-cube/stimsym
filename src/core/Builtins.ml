@@ -27,6 +27,7 @@ let make ?(doc:Document.t=[])
   let c =
     E.const_of_string_with name
       ~f:(fun c ->
+        E.Cst.set_field E.field_builtin true c; (* special field *)
         List.iter
           (fun field -> E.Cst.set_field field true c)
           fields;
@@ -53,6 +54,8 @@ let make ?(doc:Document.t=[])
   in
   all_ := c :: !all_;
   c
+
+let const_is_builtin c = E.Cst.get_field E.field_builtin c
 
 let prec_semicolon = 2
 let prec_set = 3
