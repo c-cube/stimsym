@@ -1537,8 +1537,8 @@ let true_q =
 
 let print =
   let eval _ arg e = match e with
-    | E.App (_, [| t |]) ->
-      Eval.prim_printf arg "%a@." E.pp t;
+    | E.App (_, args) ->
+      Eval.prim_printf arg "@[<2>%a@]@." (Fmt.array ~sep:" " E.pp) args;
       Some null
     | _ -> raise Eval_does_not_apply
   in
