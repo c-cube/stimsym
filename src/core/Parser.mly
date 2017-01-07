@@ -98,8 +98,12 @@ comprehension_expr:
 
 compound_expr:
   | e=set_expr { e }
-  | e=set_expr O_SEMI_COLON l=separated_nonempty_list(O_SEMI_COLON, compound_expr)
+  | e=set_expr O_SEMI_COLON l=separated_nonempty_list(O_SEMI_COLON, compound_expr_elt)
     { E.app_l B.compound_expr (e::l) }
+
+compound_expr_elt:
+  | { B.null }
+  | e=set_expr { e }
 
 set_expr:
   | e = set_expr_rhs { e }

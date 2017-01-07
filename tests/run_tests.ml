@@ -136,6 +136,9 @@ let suite_parser =
     test_parser __LINE__ "(#1 + #2[#0])&" "Function[Plus[Slot[1],Slot[2][Slot[0]]]]";
     test_parser __LINE__ "f = a; 1+#2&"
       "CompoundExpression[Assign[f,a],Function[Plus[1,Slot[2]]]]";
+    test_parser __LINE__ "a;b;c" "CompoundExpression[a,b,c]";
+    test_parser __LINE__ "a;b;c;" "CompoundExpression[a,b,c,Null]";
+    test_parser __LINE__ "a;" "CompoundExpression[a,Null]";
     test_parser __LINE__ "({#0}&)+#1&"
       "Function[Plus[Function[List[Slot[0]]],Slot[1]]]";
     test_parser __LINE__ "a<-b" "MatchBind[a,b]";
