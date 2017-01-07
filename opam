@@ -7,7 +7,7 @@ build: [
     ["./configure"
         "--prefix" prefix
         "--enable-docs"
-        "--%{jupyter-kernel:enable}%-notebook"
+        "--%{jupyter-kernel+tyxml:enable}%-notebook"
     ]
     [make "build"]
 ]
@@ -33,6 +33,7 @@ depends: [
 ]
 depopts: [
     "jupyter-kernel"
+    "tyxml"
 ]
 tags: [ "rewriting" "cas" "logic" "mathematica" "jupyter" ]
 homepage: "https://github.com/c-cube/stimsym/"
