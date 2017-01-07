@@ -409,6 +409,7 @@ and eval_rec (st:eval_state) e =
     in
     aux 0
   | App (Const {cst_name="ReplaceAll";_}, [| a; b |]) ->
+    (* TODO: move into builtins *)
     (* first, eval both *)
     let a = eval_rec st a in
     let b = eval_rec st b in
@@ -433,6 +434,8 @@ and eval_rec (st:eval_state) e =
   | App (Const {cst_name="Comprehension";_}, args) when Array.length args>0 ->
     (* sequence binding_seq. First evaluate all terms but the first
        one, then compile into a binding_seq *)
+    (* TODO: use `;` instead. Move all this into CompoundExpression,
+       make comprehension a thin rule `a::b -> CollectSeq[a;b]`? *)
     let args =
       Array.mapi (fun i arg -> if i>0 then eval_rec st arg else arg) args
     in
@@ -544,6 +547,7 @@ and eval_args_of (st:eval_state) hd args = match hd with
       (fun i a -> if i>0 then a else eval_rec st a)
       args
   | _ ->
+    (* debug_eval_ (fun k->k "eval_args %a" (Fmt.array E.pp) args); *)
     Array.map (eval_rec st) args
 
 (* try rules [rules] and definitions [defs] one by one, until one matches *)

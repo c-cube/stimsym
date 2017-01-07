@@ -305,7 +305,7 @@ let pp out (t:t) =
     | App (Const ({cst_printer=Some (prec', pp_special); _} as c), args) ->
       if prec' > prec
       then pp_const_custom pp_special c args out ()
-      else Fmt.within "(" ")" (pp_special c pp) out args
+      else Fmt.within "(" ")" (pp_const_custom pp_special c args) out ()
     | Const {cst_name; _} -> Format.pp_print_string out cst_name
     | App (head, args) -> pp_default out (head, args)
     | Z n -> Z.pp_print out n
@@ -317,7 +317,10 @@ let pp out (t:t) =
       (pp 0) head (Fmt.array ~start:"" ~stop:"" ~sep:"," (pp 0)) args
   and pp_const_custom pp_special c args out () =
     try pp_special c pp out args
-    with Print_default ->  pp_default out (const c, args)
+    with Print_default ->
+      if args=[||]
+      then Format.pp_print_string out c.cst_name
+      else pp_default out (const c, args)
   in
   begin match t with
     | Const {cst_name="Null";_} -> () (* do not print toplevel "null" *)
