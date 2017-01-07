@@ -721,7 +721,7 @@ let blank_null_seq =
       ]
 
 let pattern =
-  let pp _ _pp_sub out = function
+  let pp _ pp_sub out = function
     | [| E.Const {E.cst_name=x;_}; sub |] ->
       begin match sub with
         | E.App (E.Const {E.cst_name="Blank";_}, [||]) ->
@@ -730,11 +730,13 @@ let pattern =
           Fmt.fprintf out "%s__" x
         | E.App (E.Const {E.cst_name="BlankNullSequence";_}, [||]) ->
           Fmt.fprintf out "%s___" x
-        | _ -> raise E.Print_default
+        | _ ->
+          Fmt.fprintf out "%s:%a" x (pp_sub prec_pattern) sub
       end
     | _ -> raise E.Print_default
   in
-  make "Pattern" ~printer:(prec_pattern,pp) ~fields:[E.field_hold_all; E.field_protected]
+  make "Pattern" ~printer:(prec_pattern,pp)
+    ~fields:[E.field_hold_all; E.field_protected]
 
 let pattern_test =
   let pp = print_infix_bin_ prec_pattern_test "?" in
