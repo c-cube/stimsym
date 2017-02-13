@@ -16,7 +16,7 @@ let rec pp out (p:pattern) = match p with
   | P_const {cst_name; _} -> Format.pp_print_string out cst_name
   | P_app (head, args) ->
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
-      pp head (Fmt.array ~start:"" ~stop:"" ~sep:"," pp) args
+      pp head (Fmt.array ~sep:Fmt.(return ",@,") pp) args
   | P_app_slice (head, arg) ->
     Format.fprintf out "@[<2>%a[@[%a@]]@]"
       pp head pp_slice_pattern arg
@@ -33,7 +33,7 @@ let rec pp out (p:pattern) = match p with
   | P_alt ([] | [_]) -> assert false
   | P_alt l ->
     Format.fprintf out "(@[<hv>%a@])"
-      (Fmt.list ~start:"" ~stop:"" ~sep:"|" pp) l
+      (Fmt.list ~sep:Fmt.(return "|@,") pp) l
   | P_bind (i,p) -> Format.fprintf out "Pattern[%d,@[%a@]]" i pp p
   | P_check_same (i,p) -> Format.fprintf out "CheckSame[%d,@[%a@]]" i pp p
   | P_conditional (p,cond) ->
@@ -51,15 +51,13 @@ and pp_slice_pattern out = function
       pp_slice_pattern apv.sp_left
       pp apv.sp_vantage pp_slice_pattern apv.sp_right
   | SP_pure (l,_) ->
-    Format.fprintf out "[@[<hv>%a@]]"
-      (Fmt.list ~start:"" ~stop:"" pp) l
+    Format.fprintf out "[@[<hv>%a@]]" (Fmt.list pp) l
 
 and pp_sup out = function
   | SUP_vantage (p, sub, _) ->
     Format.fprintf out "[@[<2>vantage(@[%a@]),@,%a@]]" pp p pp_sup sub
   | SUP_pure (l,_) ->
-    Format.fprintf out "[@[<hv>%a@]]"
-      (Fmt.list ~start:"" ~stop:"" pp) l
+    Format.fprintf out "[@[<hv>%a@]]" (Fmt.list pp) l
 
 let pp_binding_seq out (c:binding_seq) =
   let pp_body out = function
@@ -73,7 +71,7 @@ let pp_binding_seq out (c:binding_seq) =
   in
   Format.fprintf out "Comprehension[@[%a,@,@[<hv>%a@]@]]"
     E.pp_full_form c.comp_yield
-    (Fmt.list ~start:"" ~stop:"" ~sep:"," pp_body) c.comp_body
+    (Fmt.list ~sep:Fmt.(return ",@,") pp_body) c.comp_body
 
 let pp_rule out (r:rewrite_rule): unit =
   Format.fprintf out "@[%a @<1>→@ %a@]" pp r.rr_pat E.pp_full_form r.rr_rhs
@@ -264,7 +262,7 @@ module Pat_compile = struct
   and sup_of_pats (l:pattern list): slice_unordered_pattern =
     begin match CCList.find_idx matches_single l with
       | Some (i, vantage) ->
-        let l' = CCList.Idx.remove l i in
+        let l' = CCList.remove_at_idx i l in
         let sup = sup_of_pats l' in
         let min_size = pat_slice_min_size vantage + sup_slice_min_size sup in
         SUP_vantage (vantage, sup, min_size)

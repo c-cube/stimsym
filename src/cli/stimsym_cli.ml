@@ -25,7 +25,7 @@ let display_mime (m:Expr.mime_content): unit = match mime_classify m with
       (fun file ->
          CCIO.with_out file
            (fun oc -> output_string oc m.Expr.mime_data; flush oc);
-         let p = CCUnix.call "xdg-open '%s'" file in
+         let p = CCUnix.call_full "xdg-open '%s'" file in
          ignore p#errcode);
     ()
   | Mime_unknown ->

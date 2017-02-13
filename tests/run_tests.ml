@@ -459,7 +459,7 @@ let suite_eval =
     mk_eval __LINE__ "Matches[a+___,1+a]" "True";
     mk_eval __LINE__ "Match[f[a],{f[_,_]:>b,f[x_]:>x+1}]" "Plus[1,a]";
     mk_eval __LINE__ "Match[g[a],{f[_,_]:>b,f[x_]:>x+1,r_:>else[r]}]" "else[g[a]]";
-    mk_eval __LINE__ "MatchL[f[a],{f[_,_]:>b,f[x_]:>x+1}]" "Sequence[Plus[1,a]]";
+    mk_eval __LINE__ "MatchL[f[a],{f[_,_]:>b,f[x_]:>x+1}]" "Plus[1,a]";
     mk_eval __LINE__
       "MatchL[f[a],{f[_,_]:>b,f[x_]:>x+1,r_:>else[r]}]"
       "Sequence[Plus[1,a],else[f[a]]]";

@@ -157,7 +157,7 @@ module Sat_solve = struct
                 Printf.sprintf "minisat -cpu-lim=%d %s %s" limit file_in file_out
               in
               B.logf "call minisat with `%s`\n" cmd;
-              let p = CCUnix.call "%s" cmd in
+              let p = CCUnix.call_full "%s" cmd in
               let err = p#errcode in
               begin match err with
                 | 10 -> B.log "should return sat\n"
@@ -252,14 +252,14 @@ module Graph = struct
     Array.iter
       (function
         | E.App (E.Const {E.cst_name="Rule";_}, [| lhs; rhs |]) ->
-          let l = E.Tbl.get_or ~or_:[] tbl lhs in
+          let l = E.Tbl.get_or ~default:[] tbl lhs in
           E.Tbl.replace tbl lhs (rhs :: l)
         | _ -> raise B.Eval_does_not_apply)
       edges;
     { vertices; edges=tbl }
 
   let as_graph g =
-    CCGraph.make_tuple (fun v -> E.Tbl.get_or ~or_:[] g.edges v |> Sequence.of_list)
+    CCGraph.of_fun (fun v -> E.Tbl.get_or ~default:[] g.edges v)
 
   let pp_dot out (g:t): unit =
     let fmt = Format.formatter_of_out_channel out in
@@ -279,7 +279,7 @@ module Graph = struct
       (fun dot_file ->
          (* write file, then invoke `dot` *)
          CCIO.with_out dot_file (fun oc -> pp_dot oc g);
-         let p = CCUnix.call "dot '%s' -Tpng " dot_file in
+         let p = CCUnix.call_full "dot '%s' -Tpng " dot_file in
          let _ = p#errcode in
          let data = p#stdout in
          B.logf "got png (%d bytes)\n" (String.length data);
@@ -340,7 +340,7 @@ module Tree_form = struct
     | E.App (f, a) -> V (f, a)
 
   let as_graph =
-    CCGraph.make_labelled_tuple
+    CCGraph.make
       (fun e -> match as_vertex e with
          | L _ -> Sequence.empty
          | V(_,a) -> Sequence.of_array_i a)
@@ -352,7 +352,7 @@ module Tree_form = struct
       | V (hd,_) ->
         [`Label (E.to_string_compact hd); `Shape "box"]
     in
-    let attrs_e (_,i,_) = [`Label (string_of_int i)] in
+    let attrs_e i = [`Label (string_of_int i)] in
     Format.fprintf fmt "%a@."
       (CCGraph.Dot.pp_seq
          ~eq:E.equal ~name:"some_graph"
@@ -367,7 +367,7 @@ module Tree_form = struct
       (fun dot_file ->
          (* write file, then invoke `dot` *)
          CCIO.with_out dot_file (fun oc -> pp_dot oc g);
-         let p = CCUnix.call "dot '%s' -Tpng " dot_file in
+         let p = CCUnix.call_full "dot '%s' -Tpng " dot_file in
          let _ = p#errcode in
          let data = p#stdout in
          B.logf "got png (%d bytes)\n" (String.length data);

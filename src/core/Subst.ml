@@ -18,7 +18,7 @@ let get = IntMap.get
 
 let pp out (s:t) =
   Format.fprintf out "{@[<hv>%a@]}"
-    (IntMap.print ~start:"" ~stop:"" Fmt.int E.pp_full_form) s
+    (IntMap.pp ~start:"" ~stop:"" Fmt.int E.pp_full_form) s
 
 let get_exn i s =
   try IntMap.find i s

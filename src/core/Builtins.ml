@@ -125,7 +125,7 @@ let print_infix_ prec sep neutral _ pp_sub out args = match args with
   | [|x|] -> pp_sub prec out x
   | _ ->
     Fmt.fprintf out "@[<hv>%a@]"
-      (Fmt.array ~start:"" ~stop:"" ~sep (pp_sub prec)) args
+      (Fmt.array ~sep (pp_sub prec)) args
 
 let print_infix_bin_ prec op _ pp_sub out args = match args with
   | [|x;y|] ->
@@ -175,7 +175,7 @@ let plus =
   in
   make "Plus" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
-    ~printer:(prec_plus, print_infix_ prec_plus "+" "0")
+    ~printer:(prec_plus, print_infix_ prec_plus Fmt.(return "+@,") "0")
     ~doc:[
       `S "Plus";
       `P "Addition operator. Associative, Commutative, with \
@@ -224,7 +224,7 @@ let times =
   in
   make "Times" ~funs:[eval]
     ~fields:[ E.field_one_identity; E.field_flatten; E.field_orderless]
-    ~printer:(prec_times, print_infix_ prec_times " " "1")
+    ~printer:(prec_times, print_infix_ prec_times Fmt.(return "@ ") "1")
     ~doc:[
       `S "Times";
       `P "Product operator, associative commutative.\
@@ -365,7 +365,7 @@ let power =
   make "Power"
     ~funs:[eval]
     ~rules:[rule_power_fun]
-    ~printer:(prec_times, print_infix_ prec_power "^" "1")
+    ~printer:(prec_times, print_infix_ prec_power Fmt.(return "^") "1")
     ~doc:[
       `S "Power";
       `P "Power operator, interpreted on numbers if the second argument \
@@ -465,7 +465,7 @@ let random =
 let list =
   let pp_list _ pp_sub out a =
     Fmt.fprintf out "{@[<hv>%a@]}"
-      (Fmt.array ~start:"" ~stop:"" ~sep:"," (pp_sub 0)) a
+      (Fmt.array ~sep:Fmt.(return ",@,") (pp_sub 0)) a
   in
   make ~printer:(prec_list,pp_list) "List"
 
@@ -765,7 +765,7 @@ let same_q =
   in
   make "SameQ" ~funs:[eval]
     ~fields:[E.field_protected]
-    ~printer:(prec_same, print_infix_ prec_same "===" "")
+    ~printer:(prec_same, print_infix_ prec_same Fmt.(return "===") "")
     ~doc:[
       `S "SameQ";
       `P "symbolic identity, returns True on syntactically identical\
@@ -891,12 +891,12 @@ let replace_repeated =
 
 let alternatives =
   make
-    ~printer:(prec_alternatives,print_infix_ prec_alternatives "|" "")
+    ~printer:(prec_alternatives,print_infix_ prec_alternatives Fmt.(return "|") "")
     "Alternatives"
 
 let compound_expr =
   make "CompoundExpression"
-    ~printer:(prec_semicolon,print_infix_ prec_semicolon ";" "")
+    ~printer:(prec_semicolon,print_infix_ prec_semicolon Fmt.(return ";@,") "")
     ~fields:[E.field_protected; E.field_flatten]
     ~doc:[
       `S "CompoundExpression";
@@ -1118,7 +1118,7 @@ let and_ =
     | _ -> None
   in
   make "And" ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
-    ~printer:(prec_and,print_infix_ prec_and "&&" "True")
+    ~printer:(prec_and,print_infix_ prec_and (Fmt.return "&&@,") "True")
     ~doc:[
       `S "And";
       `P "Logical conjunction.";
@@ -1157,7 +1157,7 @@ let or_ =
   in
   make "Or"
     ~fields:[E.field_flatten; E.field_orderless] ~funs:[eval]
-    ~printer:(prec_or,print_infix_ prec_or "||" "False")
+    ~printer:(prec_or,print_infix_ prec_or Fmt.(return "||@,") "False")
     ~doc:[
       `S "Or";
       `P "Logical disjunction.";
@@ -1502,7 +1502,7 @@ let inequality =
     | _ -> raise Eval_does_not_apply
   and pp _ pp_sub out args =
     Fmt.fprintf out "@[%a@]"
-      (Fmt.array ~start:"" ~stop:"" ~sep:"" (pp_sub prec_ineq)) args
+      (Fmt.array ~sep:Fmt.(return "@,") (pp_sub prec_ineq)) args
   in
   make "Inequality"
     ~fields:[E.field_flatten; E.field_protected] ~funs:[eval]
@@ -1542,7 +1542,7 @@ let true_q =
 let print =
   let eval _ arg e = match e with
     | E.App (_, args) ->
-      Eval.prim_printf arg "@[<2>%a@]@." (Fmt.array ~sep:" " E.pp) args;
+      Eval.prim_printf arg "@[<2>%a@]@." (Fmt.array ~sep:Fmt.(return "@ ") E.pp) args;
       Some null
     | _ -> raise Eval_does_not_apply
   in

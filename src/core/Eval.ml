@@ -417,7 +417,7 @@ and eval_rec (st:eval_state) e =
     let rules = term_as_rules st b in
     debug_eval_
       (fun k->k "(@[replace_all@ %a@ rules: (@[%a@])@])"
-          E.pp_full_form a (Fmt.list ~start:"" ~stop:"" Pattern.pp_rule) rules);
+          E.pp_full_form a (Fmt.list Pattern.pp_rule) rules);
     let a = rewrite_rec st ~steps:`Once rules a in
     eval_rec st a
   | App (Const {cst_name="ReplaceRepeated";_}, [| a; b |]) ->
@@ -428,7 +428,7 @@ and eval_rec (st:eval_state) e =
     let rules = term_as_rules st b in
     debug_eval_
       (fun k->k "(@[replace_repeated@ %a@ rules: (@[%a@])@])"
-          E.pp_full_form a (Fmt.list ~start:"" ~stop:"" Pattern.pp_rule) rules);
+          E.pp_full_form a (Fmt.list Pattern.pp_rule) rules);
     let a = rewrite_rec st ~steps:`Repeated rules a in
     eval_rec st a
   | App (Const {cst_name="Comprehension";_}, args) when Array.length args>0 ->

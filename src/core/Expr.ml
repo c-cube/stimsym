@@ -266,7 +266,7 @@ let rec pp_full_form out (t:t) = match t with
   | Const {cst_name; _} -> Format.pp_print_string out cst_name
   | App (head, args) ->
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
-      pp_full_form head (Fmt.array ~start:"" ~stop:"" ~sep:"," pp_full_form) args
+      pp_full_form head (Fmt.array ~sep:Fmt.(return ",@,") pp_full_form) args
   | Z n -> Z.pp_print out n
   | Q n -> Q.pp_print out n
   | String s -> Format.fprintf out "%S" s
@@ -314,7 +314,7 @@ let pp out (t:t) =
     | Reg i -> Format.fprintf out "Reg[%d]" i
   and pp_default out (head, args) =
     Format.fprintf out "@[<2>%a[@[<hv>%a@]]@]"
-      (pp 0) head (Fmt.array ~start:"" ~stop:"" ~sep:"," (pp 0)) args
+      (pp 0) head (Fmt.array ~sep:Fmt.(return ",@,") (pp 0)) args
   and pp_const_custom pp_special c args out () =
     try pp_special c pp out args
     with Print_default ->
