@@ -67,7 +67,9 @@ including https://github.com/c-cube/stimsym/blob/gallery/data/notebook_examples.
 
 Use the (experimental) library
 https://github.com/ocaml-jupyter/jupyter-kernel[jupyter-kernel].
-You should copy 'data/kernel.json' into the directory
+Recommended way is
+`jupyter kernelspec install data/ --name=stimsym --user --replace`
+You can also copy manually 'data/kernel.json' into the directory
 '~/.local/share/jupyter/kernels/stimsym'.
 
 ----
