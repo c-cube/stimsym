@@ -10,3 +10,4 @@ setup.*
 qtest*
 *.html
 .merlin
+*.install
