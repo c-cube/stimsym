@@ -11,25 +11,16 @@ build: [
     ]
     [make "build"]
 ]
-install: [
-    [make "install"]
-]
-build-doc: [ make "doc" ]
+build-doc: [ "jbuilder" "doc" ]
 build-test: [ make "test" ]
-remove: [
-    ["ocamlfind" "remove" "stimsym"]
-    [make "uninstall"]
-]
 depends: [
-    "ocamlfind" {build}
-    "oasis" {build}
+    "jbuilder" {build}
     "base-bytes"
     "result"
     "containers" { >= "1.0" }
     "sequence"
     "linenoise"
     "base-unix"
-    "ocamlbuild" {build}
 ]
 depopts: [
     "jupyter-kernel"
