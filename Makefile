@@ -55,8 +55,8 @@ watch:
 jupyter:
 	cd data; jupyter-notebook notebook1.ipynb
 
-KERNEL_DIR=~/.local/share/jupyter/kernels/stimsym/
+KERNEL_DIR=$${HOME}/.local/share/jupyter/kernels/stimsym/
 
 install_kernel:
-	mkdir -p "$(KERNEL_DIR)"
-	cp data/kernel.json "$(KERNEL_DIR)/"
+	mkdir -p $(KERNEL_DIR)
+	cp data/kernel.json $(KERNEL_DIR)/
