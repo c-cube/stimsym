@@ -4,11 +4,6 @@ version: "dev"
 author: "Simon Cruanes"
 maintainer: "simon.cruanes.2007@m4x.org"
 build: [
-    ["./configure"
-        "--prefix" prefix
-        "--enable-docs"
-        "--%{jupyter-kernel+tyxml:enable}%-notebook"
-    ]
     [make "build"]
 ]
 build-doc: [ "jbuilder" "doc" ]
