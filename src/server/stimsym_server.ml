@@ -112,6 +112,7 @@ let kernel : C.Kernel.t =
     ~inspect:(fun _ -> Lwt.return (Result.Error "not implemented"))
     ~language:"stimsym"
     ~language_version:[0;1;0]
+    ~codemirror_mode:"mathematica"
     ~complete: (fun ~pos msg -> Lwt.return (complete pos msg))
     ()
 
