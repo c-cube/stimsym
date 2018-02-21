@@ -10,12 +10,17 @@ type completion = {
   summary: string option; (* short description of this particular completion *)
 }
 
+type completions = {
+  start: int; (* offset at which completion starts *)
+  stop: int; (* offset at which completion ends *)
+  l : completion list
+}
+
 (* find if there is a part of [str.[0 .. cursor_pos]]
     that looks like the beginning of an identifier.
-   returns [prefix, chunk, suffix] where
-   [length (prefix ^ chunk) = cursor_pos]
-   and [prefix ^ chunk ^ suffix = s] *)
-let find_suffix_id ~cursor_pos (s:string): (string * string * string) option =
+   returns [start, chunk, stop] where
+   [s[..start] ^ chunk ^ s[end..] = s] *)
+let find_suffix_id ~cursor_pos (s:string): (int * string * int) option =
   let is_ok_char =
     function 'A'..'Z' | 'a'..'z' | '0'..'9' -> true | _ -> false
   in
@@ -25,41 +30,38 @@ let find_suffix_id ~cursor_pos (s:string): (string * string * string) option =
   incr i; (* revert last choice *)
   if len - !i >= 1
   then (
-    let prefix = String.sub s 0 !i in
     let chunk = String.sub s !i (len - !i) in
-    let suffix = String.sub s len (String.length s-len) in
-    Some (prefix, chunk, suffix)
+    Some (!i, chunk, len)
   ) else None
 
 (* completion based on builtins' names *)
-let complete_builtin ~(cursor_pos:int) (s:string): completion list =
-  match find_suffix_id ~cursor_pos s with
-    | None -> []
-    | Some (prefix,partial_id,_) ->
-      Builtins.complete_symbol partial_id
-      |> CCList.filter_map
-        (function
-          | E.Const c ->
-            let text = prefix ^ c.E.cst_name in
-            let summary = None in (* TODO *)
-            Some { text; summary }
-          | _ -> None)
+let complete_builtin partial_id : completion list =
+  Builtins.complete_symbol partial_id
+  |> CCList.filter_map
+    (function
+      | E.Const c ->
+        let text = c.E.cst_name in
+        let summary = None in (* TODO? *)
+        Some { text; summary }
+      | _ -> None)
 
 (* completion based on every symbol but builtins *)
-let complete_all ~(cursor_pos:int) (s:string): completion list =
-  match find_suffix_id ~cursor_pos s with
-    | None -> []
-    | Some (prefix,partial_id,_) ->
-      Expr.Cst.complete partial_id
-      |> CCList.filter_map
-        (fun c ->
-           if Builtins.const_is_builtin c
-           then None (* filter builtins out *)
-           else
-             let text = prefix ^ c.E.cst_name in
-             Some { text; summary=None })
+let complete_all partial_id : completion list =
+  Expr.Cst.complete partial_id
+  |> CCList.filter_map
+    (fun c ->
+       if Builtins.const_is_builtin c
+       then None (* filter builtins out *)
+       else (
+         let text = c.E.cst_name in
+         Some { text; summary=None }
+       ))
 
-let complete s ~cursor_pos : completion list =
-  List.rev_append
-    (complete_builtin ~cursor_pos s)
-    (complete_all ~cursor_pos s)
+let complete s ~cursor_pos : completions =
+  match find_suffix_id ~cursor_pos s with
+    | None -> {start=0;stop=0;l=[]}
+    | Some (start,partial_id,stop) ->
+      let l =
+        List.rev_append (complete_builtin partial_id) (complete_all partial_id)
+      in
+      { start;stop;l }

@@ -84,17 +84,24 @@ let run_ count str : C.Kernel.exec_status_ok C.or_error =
 
 (* auto-completion *)
 let complete pos str = 
-  let completion_matches =
-    if pos > String.length str then []
-    else
-      Completion.complete ~cursor_pos:pos str
-      |> List.map (fun c -> c.Completion.text)
+  let start, stop, l =
+    if pos > String.length str then 0,0, []
+    else (
+      let {Completion.start;stop;l} = Completion.complete ~cursor_pos:pos str in
+      start, stop, List.map (fun c -> c.Completion.text) l
+    )
   in
   let c = {
-    C.Kernel.completion_matches;
-    completion_start=0; completion_end=pos
+    C.Kernel.completion_matches=l;
+    completion_start=start; completion_end=stop;
   } in
   c
+
+(* inspection *)
+let inspect (r:C.Kernel.inspect_request) : _ result =
+  let {C.Kernel.ir_code=c; ir_cursor_pos=pos; ir_detail_level=lvl} = r in
+  Log.logf "inspection request %s :pos %d :lvl %d" c pos lvl;
+  Result.Error "not implemented"
 
 (* is the block of code complete?
    TODO: a way of asking the parser if it failed because of EOI/unbalanced []*)
@@ -109,7 +116,7 @@ let kernel : C.Kernel.t =
     ~exec:(fun ~count msg -> Lwt.return (run_ count msg))
     ~is_complete
     ~history:(fun _ -> Lwt.return [])
-    ~inspect:(fun _ -> Lwt.return (Result.Error "not implemented"))
+    ~inspect:(fun r -> Lwt.return (inspect r))
     ~language:"stimsym"
     ~language_version:[0;1;0]
     ~codemirror_mode:"mathematica"

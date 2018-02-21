@@ -34,8 +34,14 @@ let display_mime (m:Expr.mime_content): unit = match mime_classify m with
 
 (* completion callback *)
 let completion str (lnoise:LNoise.completions): unit =
-  Completion.complete str ~cursor_pos:(String.length str)
-  |> List.iter (fun c -> LNoise.add_completion lnoise c.Completion.text)
+  let {Completion.start;l;_} =
+    Completion.complete str ~cursor_pos:(String.length str)
+  in
+  List.iter
+    (fun c ->
+       let prefix = String.sub str 0 start in
+       LNoise.add_completion lnoise (prefix ^ c.Completion.text))
+    l
 
 let pp_rule out n =
   Format.fprintf out "%s@," (String.make n '=')

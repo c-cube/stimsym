@@ -8,4 +8,10 @@ type completion = {
   summary: string option; (* short description of this particular completion *)
 }
 
-val complete : string -> cursor_pos:int -> completion list
+type completions = {
+  start: int; (* offset at which completion starts *)
+  stop: int; (* offset at which completion ends *)
+  l : completion list
+}
+
+val complete : string -> cursor_pos:int -> completions
