@@ -81,6 +81,7 @@ let history_file =
   with _ -> None
 
 let () =
+  Stimsym.init();
   let verbose = ref false in
   Arg.parse
     [ "-v", Arg.Set verbose, " enable verbose output";

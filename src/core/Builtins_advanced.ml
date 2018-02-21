@@ -220,7 +220,7 @@ let sat_solve =
       (* TODO: update once we have typing? *)
       `I ("example", [
           `P "The following call will return `Unsat[]`.";
-          `Pre "`SatSolve[(A || B)&& (!A || !B) && !B]`";
+          `Pre "`SatSolve[(A || B)&& (!A || B) && !B]`";
         ]);
       `I ("example", [
           `P "The following call will return `Sat[A -> False,B->True]`, \
@@ -278,6 +278,7 @@ module Graph = struct
     CCIO.File.with_temp ~prefix:"stimsym_graph" ~suffix:".dot"
       (fun dot_file ->
          (* write file, then invoke `dot` *)
+         B.logf "try to serialise graph into %S" dot_file;
          CCIO.with_out dot_file (fun oc -> pp_dot oc g);
          let p = CCUnix.call_full "dot '%s' -Tpng " dot_file in
          let _ = p#errcode in
@@ -385,3 +386,5 @@ let tree_form =
           `P "displays a nested expression as a graph"
         ])
     ]
+
+let init() = ()

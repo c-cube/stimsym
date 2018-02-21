@@ -119,5 +119,6 @@ let kernel : C.Kernel.t =
 (* main *)
 
 let () =
+  Stimsym.init();
   Lwt_main.run
     (Main.main ~usage:"stimsym" kernel)

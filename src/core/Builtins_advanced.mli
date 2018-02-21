@@ -13,3 +13,5 @@ val graph : t
 
 val tree_form : t
 (** Display the structure of a term *)
+
+val init : unit -> unit
