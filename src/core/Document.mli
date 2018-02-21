@@ -23,3 +23,5 @@ val indent : string -> t -> block
 
 val pp : t CCFormat.printer
 (** Regular pretty printer *)
+
+val to_string : t -> string

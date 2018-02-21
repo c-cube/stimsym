@@ -36,3 +36,5 @@ and pp_block out : block -> unit = function
   | `L l ->
     let pp_item out x = Fmt.fprintf out "@[<2>- %a@]" pp x in
     Fmt.fprintf out "@[<v>%a@]" (Fmt.list ~sep:Fmt.(return "@,") pp_item) l
+
+let to_string = Fmt.to_string pp

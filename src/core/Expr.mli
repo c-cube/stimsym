@@ -134,6 +134,8 @@ module Cst : sig
 
   val set_doc : Document.t -> t -> unit
 
+  val get_doc : t -> Document.t
+
   val complete : string -> t list
 end
 

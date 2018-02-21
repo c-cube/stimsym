@@ -111,6 +111,7 @@ module Cst = struct
     | _ -> c.cst_rules <- d :: c.cst_rules
 
   let set_doc d c = c.cst_doc <- d
+  let get_doc c = c.cst_doc
 
   let set_printer i f c = c.cst_printer <- Some (i,f)
   let set_display f c = c.cst_display <- Some f

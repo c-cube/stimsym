@@ -46,6 +46,9 @@ let mime_of_html (h:_ H.elt) : C.mime_data =
   let s = CCFormat.sprintf "%a@." (H.pp_elt ()) h in
   {C.mime_type="text/html"; mime_content=s; mime_b64=false}
 
+let mime_of_txt (s:string) : C.mime_data =
+  {C.mime_type="text/plain"; mime_content=s; mime_b64=false}
+
 (* blocking function *)
 let run_ count str : C.Kernel.exec_status_ok C.or_error =
   let buf = Lexing.from_string str in
@@ -98,10 +101,20 @@ let complete pos str =
   c
 
 (* inspection *)
-let inspect (r:C.Kernel.inspect_request) : _ result =
+let inspect (r:C.Kernel.inspect_request) : (C.Kernel.inspect_reply_ok, string) result =
   let {C.Kernel.ir_code=c; ir_cursor_pos=pos; ir_detail_level=lvl} = r in
   Log.logf "inspection request %s :pos %d :lvl %d" c pos lvl;
-  Result.Error "not implemented"
+  let cl = Completion.find_constants c ~cursor_pos:pos in
+  let r = match cl with
+    | {Completion.l=[e];_} ->
+      let txt = mime_of_txt @@ Document.to_string @@ Expr.Cst.get_doc e in
+      let html = Expr.Cst.get_doc e |> html_of_doc |> mime_of_html in
+      {C.Kernel.iro_status="ok"; iro_found=true; iro_data=[txt;html]}
+    | _ ->
+      (* not found *)
+      {C.Kernel.iro_status="ok"; iro_found=false; iro_data=[]}
+  in
+  Result.Ok r
 
 (* is the block of code complete?
    TODO: a way of asking the parser if it failed because of EOI/unbalanced []*)
