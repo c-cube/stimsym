@@ -43,8 +43,9 @@ see which one exactly, but it should be something along:
 
 Once installed, you can either use the simple command line interface:
 
+[source,mathematica]
 ----
-stimsym_cli
+$ stimsym_cli
 > 1+1
 2
 > f[1,2,g[3],4,5] //. f[l1__,l2__,g[x_],r__] :> h[r,x,l2,l1]
