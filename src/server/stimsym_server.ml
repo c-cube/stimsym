@@ -104,9 +104,9 @@ let complete pos str =
 let inspect (r:C.Kernel.inspect_request) : (C.Kernel.inspect_reply_ok, string) result =
   let {C.Kernel.ir_code=c; ir_cursor_pos=pos; ir_detail_level=lvl} = r in
   Log.logf "inspection request %s :pos %d :lvl %d" c pos lvl;
-  let cl = Completion.find_constants c ~cursor_pos:pos in
-  let r = match cl with
-    | {Completion.l=[e];_} ->
+  let cl = Completion.find_constants ~exact:true c ~cursor_pos:pos in
+  let r = match cl.Completion.l with
+    | [e] ->
       let txt = mime_of_txt @@ Document.to_string @@ Expr.Cst.get_doc e in
       let html = Expr.Cst.get_doc e |> html_of_doc |> mime_of_html in
       {C.Kernel.iro_status="ok"; iro_found=true; iro_data=[txt;html]}

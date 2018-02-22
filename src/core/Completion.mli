@@ -15,7 +15,7 @@ type 'a within_ctx = {
 }
 
 (* find constants that correspond to this position *)
-val find_constants : string -> cursor_pos:int -> Expr.Cst.t within_ctx
+val find_constants : ?exact:bool -> string -> cursor_pos:int -> Expr.Cst.t within_ctx
 
 (* completions based on constants that can complete to this position *)
 val complete : string -> cursor_pos:int -> completion within_ctx

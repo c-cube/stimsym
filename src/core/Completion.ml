@@ -47,12 +47,16 @@ let complete_all partial_id : E.Cst.t list =
   Expr.Cst.complete partial_id
   |> List.filter (fun c -> not (Builtins.const_is_builtin c))
 
-let find_constants s ~cursor_pos : _ within_ctx =
+let find_constants ?(exact=false) s ~cursor_pos : _ within_ctx =
   match find_suffix_id ~cursor_pos s with
     | None -> {start=0;stop=0;l=[]}
     | Some (start,partial_id,stop) ->
       let l =
         List.rev_append (complete_builtin partial_id) (complete_all partial_id)
+      in
+      let l =
+        if exact then List.filter (fun e -> e.E.cst_name = partial_id) l
+        else l
       in
       {start;stop;l}
 
