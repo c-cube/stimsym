@@ -1428,6 +1428,22 @@ let clear_attributes =
   in
   make "ClearAttributes" ~funs:[eval] ~doc:Attrs.doc
 
+let clear =
+  let eval _ _ = function
+    | E.App (_, [| E.Const c |]) ->
+      if E.Cst.get_field E.field_protected c then None
+      else (
+        E.Cst.clear_defs c;
+        Some null
+      )
+    | _ -> raise Eval_does_not_apply
+  and doc : Document.t =
+    [`S "Clear";
+     `P "clear all and rules definitions of the function";
+    ]
+  in
+  make "Clear" ~funs:[eval] ~doc
+
 let equal = mk_ineq_ "Equal" "value identity" "=="
 let not_equal = mk_ineq_ "NotEqual" "negation of `==`" "!="
 let less = mk_ineq_ "Less" "value comparison" "<"

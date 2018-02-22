@@ -110,6 +110,8 @@ module Cst = struct
       c.cst_rules <- [d] (* shadowing *)
     | _ -> c.cst_rules <- d :: c.cst_rules
 
+  let clear_defs c = c.cst_rules <- []
+
   let set_doc d c = c.cst_doc <- d
   let get_doc c = c.cst_doc
 

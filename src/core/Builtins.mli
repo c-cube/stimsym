@@ -86,6 +86,8 @@ val comprehension : t
 val let_ : t
 val fixpoint : t
 
+val clear : t
+
 val set_attributes : t
 val remove_attributes : t
 val get_attributes : t

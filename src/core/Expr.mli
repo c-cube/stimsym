@@ -128,6 +128,9 @@ module Cst : sig
 
   val add_def : def -> t -> unit
 
+  val clear_defs : t -> unit
+  (** remove all definitions *)
+
   val set_printer : int -> const_printer -> t -> unit
 
   val set_display : mime_printer -> t -> unit
