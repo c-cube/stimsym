@@ -295,7 +295,7 @@ module Graph = struct
     | _ -> []
 
   let eval _ _ e = match e with
-    | E.App (hd, [| E.App (E.Const {E.cst_name="List";_}, edges) |]) ->
+    | E.App (hd, [| E.App (E.Const {E.cst_name=("List"|"Set");_}, edges) |]) ->
       (* convert to the canonical form *)
       let vertices =
         Sequence.of_array edges
@@ -309,6 +309,12 @@ module Graph = struct
         |> Array.of_list
       in
       Some (E.app hd [| E.app B.list vertices; E.app B.list edges |])
+    | E.App (hd, [| vertices; E.App (E.Const {E.cst_name="Set";_}, edges) |]) ->
+      (* normalize Set to List *)
+      Some (E.app hd [| vertices; E.app B.list edges |])
+    | E.App (hd, [| E.App (E.Const {E.cst_name="Set";_}, vertices); edges |]) ->
+      (* normalize Set to List *)
+      Some (E.app hd [| E.app B.list vertices; edges |])
     | _ -> raise B.Eval_does_not_apply
 end
 
@@ -318,6 +324,7 @@ let graph =
       `S "Graph";
       `P "A directed graph structure.";
       `P "`Graph[{a->b,…}]` builds a graph from a list of edges.";
+      `P "`Graph[Set[a->b,…]]` builds a graph from a set of edges.";
       `P "`Graph[{a,b,c},{a->b,…}]` builds a graph from a list of vertices \
           and a list of edges.";
       `P "The graph has a graphical display in the notebook.";
