@@ -2,13 +2,13 @@
 all: build test
 
 build:
-	jbuilder build @install
+	@dune build @install
 
 clean:
-	jbuilder clean
+	@dune clean
 
 test:
-	jbuilder runtest
+	@dune runtest
 
 watch:
 	while find src/ tests/ -print0 | \

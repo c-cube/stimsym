@@ -1,4 +1,3 @@
-
 (* This file is free software. See file "license" for more details. *)
 
 (** {1 Notebook interface} *)
@@ -27,15 +26,15 @@ let html_of_doc : Document.t -> [<Html_types.div] H.elt =
     H.div (List.map (aux_block ~depth) doc)
   and aux_block ~depth (b:Document.block) =
     let h = match b with
-      | `S s -> mk_header ~depth [H.pcdata s]
-      | `P s -> H.p [H.pcdata s]
-      | `Pre s -> H.pre [H.pcdata s]
+      | `S s -> mk_header ~depth [H.txt s]
+      | `P s -> H.p [H.txt s]
+      | `Pre s -> H.pre [H.txt s]
       | `L l ->
         H.ul (List.map (fun sub -> H.li [aux ~depth sub]) l)
       | `I (s,sub) ->
         let depth = depth+1 in
         H.div (
-          mk_header ~depth [H.pcdata s] :: List.map (aux_block ~depth) sub
+          mk_header ~depth [H.txt s] :: List.map (aux_block ~depth) sub
         )
     in
     H.div [h]
@@ -140,5 +139,5 @@ let kernel : C.Kernel.t =
 
 let () =
   Stimsym.init();
-  Lwt_main.run
-    (Main.main ~usage:"stimsym" kernel)
+  let config = Main.mk_config ~usage:"stimsym" () in
+  Lwt_main.run (Main.main ~config ~kernel)

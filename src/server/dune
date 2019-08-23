@@ -1,0 +1,4 @@
+(executable
+ (name stimsym_server)
+ (public_name stimsym_server)
+ (libraries stimsym jupyter-kernel unix threads tyxml))

@@ -1,0 +1,12 @@
+(library
+ (name stimsym)
+ (public_name stimsym)
+ ;(modules (:standard \ Base_types))  ; TODO: only hide this
+ (flags :standard -warn-error -32)
+ (libraries bytes result containers sequence zarith unix containers.unix
+   containers.data))
+
+(ocamllex Lexer Lexer_full_form)
+
+(menhir
+ (modules Parser))
