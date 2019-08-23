@@ -1,4 +1,5 @@
 (executable
  (name stimsym_cli)
  (public_name stimsym_cli)
+ (package stimsym)
  (libraries stimsym linenoise))
