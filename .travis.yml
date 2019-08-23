@@ -8,9 +8,9 @@ env:
   - PINS="stimsym:."
   - DISTRO="ubuntu-16.04"
   matrix:
-  - PACKAGE="stimsym" OCAML_VERSION="4.02.3" TESTS=false
-  - PACKAGE="stimsym" OCAML_VERSION="4.03"
-  - PACKAGE="stimsym" OCAML_VERSION="4.04"
+   #- PACKAGE="stimsym" OCAML_VERSION="4.02.3" TESTS=false
+   #- PACKAGE="stimsym" OCAML_VERSION="4.03"
+   #- PACKAGE="stimsym" OCAML_VERSION="4.04"
     #- PACKAGE="stimsym" OCAML_VERSION="4.05" EXTRA_DEPS="base-bigarray"
   - PACKAGE="stimsym" OCAML_VERSION="4.06"
-  - PACKAGE="stimsym" OCAML_VERSION="4.07"
+  #- PACKAGE="stimsym" OCAML_VERSION="4.07"

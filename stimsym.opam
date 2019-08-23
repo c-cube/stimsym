@@ -20,7 +20,7 @@ depends: [
     "zarith"
     "menhir"
     "ocaml" {>= "4.02.0"}
-    "oUnit" {with-test}
+    "ounit" {with-test}
 ]
 tags: [ "rewriting" "cas" "logic" "mathematica" "jupyter" ]
 homepage: "https://github.com/c-cube/stimsym/"
