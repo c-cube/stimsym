@@ -19,7 +19,6 @@ depends: [
     "base-unix"
     "zarith"
     "menhir"
-    "ocaml" {>= "4.02.0"}
     "ounit" {with-test}
 ]
 tags: [ "rewriting" "cas" "logic" "mathematica" "jupyter" ]
