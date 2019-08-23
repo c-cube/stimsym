@@ -18,6 +18,7 @@ depends: [
     "linenoise"
     "base-unix"
     "ocaml" {>= "4.02.0"}
+    "oUnit" {with-test}
 ]
 depopts: [
     "jupyter-kernel" { >= "0.4" & < "0.5" }
