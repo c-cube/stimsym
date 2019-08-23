@@ -17,6 +17,8 @@ depends: [
     "iter"
     "linenoise"
     "base-unix"
+    "zarith"
+    "menhir"
     "ocaml" {>= "4.02.0"}
     "oUnit" {with-test}
 ]

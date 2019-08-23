@@ -14,9 +14,8 @@ depends: [
     "base-bytes"
     "result"
     "containers" { >= "1.0" }
+    "stimsym"
     "iter"
-    "linenoise"
-    "base-unix"
     "ocaml" {>= "4.02.0"}
     "jupyter-kernel" { >= "0.4" & < "0.5" }
     "tyxml"
