@@ -5,9 +5,9 @@ author: "Simon Cruanes"
 maintainer: "simon.cruanes.2007@m4x.org"
 synopsis: "Rewrite system designed for symbolic manipulations and maximal expressiveness"
 build: [
-  ["dune" "build" "@install""-p" name "-j" jobs]
-  [ "dune" "build" "@doc" ] {with-doc}
-  [ "dune" "build" "@test" ] {with-test}
+  ["dune" "build" "@install" "-p" name "-j" jobs]
+  ["dune" "build" "@doc" "-p" name] {with-doc}
+  ["dune" "runtest" "-p" name] {with-test}
 ]
 depends: [
     "dune" {>= "1.0"}
