@@ -1,4 +1,3 @@
-
 (* This file is free software. See file "license" for more details. *)
 
 (** {1 Expressions} *)
@@ -120,11 +119,11 @@ module Cst = struct
 
   let complete s : t list =
     Str_tbl.values bank.by_name
-    |> Sequence.filter_map
+    |> Iter.filter_map
       (function
         | Const c when CCString.prefix ~pre:s c.cst_name -> Some c
         | _ -> None)
-    |> Sequence.to_rev_list
+    |> Iter.to_rev_list
     |> List.sort (fun c1 c2 -> String.compare c1.cst_name c2.cst_name)
 end
 

@@ -1,4 +1,3 @@
-
 (* This file is free software. See file "license" for more details. *)
 
 (** {1 More Advanced Builtins} *)
@@ -72,7 +71,7 @@ module Sat_solve = struct
       a
 
   (* all the ways to pick one element in each list *)
-  let array_prod (a:'a list array) : 'a list Sequence.t =
+  let array_prod (a:'a list array) : 'a list Iter.t =
     let rec aux i k =
       if i=Array.length a then k []
       else (
@@ -107,8 +106,8 @@ module Sat_solve = struct
         (* TODO: tseitin transformation *)
         let a = Array.map aux_cnf a in
         array_prod a
-        |> Sequence.map List.flatten
-        |> Sequence.to_rev_list
+        |> Iter.map List.flatten
+        |> Iter.to_rev_list
       | And a ->
         Array.map aux_cnf a |> Array.to_list |> List.flatten
     in
@@ -271,7 +270,7 @@ module Graph = struct
          ~attrs_v ~attrs_e
          ~tbl:(CCGraph.mk_table ~eq:E.equal ~hash:E.hash 32)
          ~graph:(as_graph g))
-       (Sequence.of_array g.vertices)
+       (Iter.of_array g.vertices)
 
   let get_png (g:t): E.mime_content =
     B.log "get png for graph...\n";
@@ -298,8 +297,8 @@ module Graph = struct
     | E.App (hd, [| E.App (E.Const {E.cst_name=("List"|"Set");_}, edges) |]) ->
       (* convert to the canonical form *)
       let vertices =
-        Sequence.of_array edges
-        |> Sequence.flat_map_l
+        Iter.of_array edges
+        |> Iter.flat_map_l
           (function
             | E.App (E.Const {E.cst_name="Rule";_}, [| lhs; rhs |]) ->
               [lhs;rhs]
@@ -350,8 +349,8 @@ module Tree_form = struct
   let as_graph =
     CCGraph.make
       (fun e -> match as_vertex e with
-         | L _ -> Sequence.empty
-         | V(_,a) -> Sequence.of_array_i a)
+         | L _ -> Iter.empty
+         | V(_,a) -> Iter.of_array_i a)
 
   let pp_dot out (g:t): unit =
     let fmt = Format.formatter_of_out_channel out in
@@ -367,7 +366,7 @@ module Tree_form = struct
          ~attrs_v ~attrs_e
          ~tbl:(CCGraph.mk_table ~eq:E.equal ~hash:E.hash 32)
          ~graph:as_graph)
-       (Sequence.return g)
+       (Iter.return g)
 
   let get_png (g:t): E.mime_content =
     B.logf "get png for tree_form `%s`...\n" (E.to_string_compact g);

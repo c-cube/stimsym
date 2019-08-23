@@ -1,4 +1,3 @@
-
 (* This file is free software. See file "license" for more details. *)
 
 (** {1 Evaluation} *)
@@ -570,7 +569,7 @@ and try_defs (st:eval_state) t (rs:rewrite_set) = match rs with
 
 and try_rule st t rule (rs:rewrite_set) =
   let subst_opt =
-    match_ st Subst.empty rule.rr_pat t |> Sequence.head
+    match_ st Subst.empty rule.rr_pat t |> Iter.head
   in
   begin match subst_opt with
     | None -> try_defs st t rs
@@ -606,22 +605,22 @@ and eval_beta_reduce st e fun_body args =
   st.st_trace e e';
   eval_rec st e'
 
-and eval_bindings st subst (l:binding_seq_body_item list): Subst.t Sequence.t =
-  let open Sequence.Infix in
+and eval_bindings st subst (l:binding_seq_body_item list): Subst.t Iter.t =
+  let open Iter.Infix in
   match l with
-    | [] -> Sequence.return subst
+    | [] -> Iter.return subst
     | op :: tail ->
       eval_binding st subst op >>= fun subst -> eval_bindings st subst tail
 
-and eval_binding st subst (op:binding_seq_body_item): Subst.t Sequence.t =
-  let open Sequence.Infix in
+and eval_binding st subst (op:binding_seq_body_item): Subst.t Iter.t =
+  let open Iter.Infix in
   let eval_subst subst t = Subst.apply subst t |> eval_rec st in
   match op with
     | Comp_test t ->
       let t' = Subst.apply subst t |> eval_rec st in
       begin match t' with
-        | Const {cst_name="True";_} -> Sequence.return subst
-        | _ -> Sequence.empty
+        | Const {cst_name="True";_} -> Iter.return subst
+        | _ -> Iter.empty
       end
     | Comp_match (pat, rhs) ->
       match_ st subst pat (eval_subst subst rhs)
@@ -630,10 +629,10 @@ and eval_binding st subst (op:binding_seq_body_item): Subst.t Sequence.t =
       (* match each subterm of [rhs] with [pat] *)
       begin match rhs' with
         | App (_, args) ->
-          Sequence.of_array args
+          Iter.of_array args
           >>= fun sub_rhs ->
           match_ st subst pat sub_rhs
-        | _ -> Sequence.empty
+        | _ -> Iter.empty
       end
 
 (* evaluate a comprehension *)
@@ -642,8 +641,8 @@ and eval_comprehension st e (c:binding_seq) =
   (* recurse through the body *)
   let e' =
     eval_bindings st Subst.empty c.comp_body
-    |> Sequence.map (fun subst -> eval_subst subst c.comp_yield)
-    |> Sequence.to_list
+    |> Iter.map (fun subst -> eval_subst subst c.comp_yield)
+    |> Iter.to_list
     |> Array.of_list
     |> E.app_flatten sequence
   in
@@ -656,8 +655,8 @@ and eval_let st e (c:binding_seq) =
   (* recurse through the body *)
   let e' =
     eval_bindings st Subst.empty c.comp_body
-    |> Sequence.map (fun subst -> eval_subst subst c.comp_yield)
-    |> Sequence.head
+    |> Iter.map (fun subst -> eval_subst subst c.comp_yield)
+    |> Iter.head
     |> (function
       | Some t -> t
       | None -> eval_failf "no match for `Let`")
@@ -681,7 +680,7 @@ and rewrite_rec st ~(steps:[`Once|`Repeated]) (rules:rewrite_rule list)(e:expr):
     | [] -> e
     | r :: tail ->
       let subst_opt =
-        match_ st Subst.empty r.rr_pat e |> Sequence.head
+        match_ st Subst.empty r.rr_pat e |> Iter.head
       in
       begin match subst_opt with
         | None -> try_rewrite_with e tail
@@ -711,7 +710,7 @@ let eval_full e : E.t * eval_side_effect list =
   let q = Stack.create() in
   let st = create_eval_state ~buf:(Some q) () in
   let e' = eval_rec st e in
-  let effects = Sequence.of_stack q |> Sequence.to_rev_list in
+  let effects = Iter.of_stack q |> Iter.to_rev_list in
   (* also check if there is a custom display *)
   let e_display = match e' with
     | Const {cst_display=Some f;_}

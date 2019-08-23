@@ -1,4 +1,3 @@
-
 (* This file is free software. See file "license" for more details. *)
 
 (** {1 Builtin Functions} *)
@@ -993,7 +992,7 @@ let match_ =
       | rule :: tail ->
         begin match
             Eval.prim_match_ eval_st Subst.empty rule.rr_pat e
-            |> Sequence.head
+            |> Iter.head
           with
             | Some subst -> Subst.apply subst rule.rr_rhs (* rule fired *)
             | None ->
@@ -1030,9 +1029,9 @@ let match_l =
       | rule :: tail ->
         let new_ =
           Eval.prim_match_ eval_st Subst.empty rule.rr_pat e
-          |> Sequence.map
+          |> Iter.map
             (fun subst -> Subst.apply subst rule.rr_rhs) (* rule fired *)
-          |> Sequence.to_rev_list
+          |> Iter.to_rev_list
         in
         match_l e (List.rev_append new_ acc) tail
     in
@@ -1069,7 +1068,7 @@ let matches =
           | Some pat ->
             let fail =
               Eval.prim_match_ eval_st Subst.empty pat e
-              |> Sequence.is_empty
+              |> Iter.is_empty
             in
             Some (if fail then false_ else true_)
         end

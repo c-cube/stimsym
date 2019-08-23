@@ -1,4 +1,3 @@
-
 (* This file is free software. See file "license" for more details. *)
 
 (** {1 Patterns} *)
@@ -152,7 +151,7 @@ module Pat_compile = struct
     | App (Const {cst_name="Pattern";_},
         [| Const {cst_name=x;_}; sub |]) ->
       (* [x] on the stack -> failure, would lead to cyclical subst *)
-      if Sequence.of_stack st.surrounding |> Sequence.mem x then (
+      if Iter.of_stack st.surrounding |> Iter.mem x then (
         invalid_rulef "variable `%s` cannot appear in its own pattern" x
       );
       (* compute pattern itself *)

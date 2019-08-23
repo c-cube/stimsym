@@ -1,4 +1,3 @@
-
 (* This file is free software. See file "license" for more details. *)
 
 (** {1 Evaluation} *)
@@ -34,7 +33,7 @@ val prim_with_trace : prim_fun_args -> trace_fun -> (unit -> 'a) -> 'a
 val prim_fail : prim_fun_args -> string -> 'a
 (** To be called by primitives on failure *)
 
-val prim_match_ : prim_fun_args -> Subst.t -> Pattern.t -> expr -> Subst.t Sequence.t
+val prim_match_ : prim_fun_args -> Subst.t -> Pattern.t -> expr -> Subst.t Iter.t
 
 val prim_term_as_rule : prim_fun_args -> expr -> Expr.rewrite_rule
 

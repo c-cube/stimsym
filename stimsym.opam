@@ -14,7 +14,7 @@ depends: [
     "base-bytes"
     "result"
     "containers" { >= "1.0" }
-    "sequence"
+    "iter"
     "linenoise"
     "base-unix"
     "ocaml" {>= "4.02.0"}
