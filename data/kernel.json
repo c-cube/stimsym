@@ -4,6 +4,7 @@
       "--connection-file",
       "{connection_file}"
     ],
+  "interrupt_mode": "message",
   "display_name": "Stimsym",
   "language": "stimsym"
 }
