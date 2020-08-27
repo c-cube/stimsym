@@ -13,12 +13,13 @@ depends: [
     "dune" {>= "1.0"}
     "base-bytes"
     "result"
-    "containers" { >= "1.0" }
+    "containers" { >= "2.0" & < "3.0" }
     "stimsym"
     "iter"
     "ocaml" {>= "4.03.0"}
-    "jupyter-kernel" { >= "0.4" & < "0.5" }
+    "jupyter-kernel" { >= "0.6" & < "0.8" }
     "tyxml"
+    "logs"
 ]
 tags: [ "rewriting" "cas" "logic" "mathematica" "jupyter" ]
 homepage: "https://github.com/c-cube/stimsym/"

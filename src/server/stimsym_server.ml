@@ -7,7 +7,7 @@ open Stimsym
 module H = Tyxml.Html
 module C = Jupyter_kernel.Client
 module Main = Jupyter_kernel.Client_main
-module Log = Jupyter_kernel.Log
+module Log = (val Logs.src_log (Logs.Src.create "stimsym"))
 
 (** {2 Execution of queries} *)
 
@@ -54,7 +54,7 @@ let run_ count str : C.Kernel.exec_status_ok C.or_error =
   Parse_loc.set_file buf ("cell_" ^ string_of_int count);
   begin match Parser.parse_expr Lexer.token buf with
     | e ->
-      Log.log (CCFormat.sprintf "parsed: @[%a@]@." Expr.pp_full_form e);
+      Log.debug (fun k->k  "parsed: @[%a@]@." Expr.pp_full_form e);
       begin
         try
           let e', effects = Eval.eval_full e in
@@ -102,7 +102,7 @@ let complete pos str =
 (* inspection *)
 let inspect (r:C.Kernel.inspect_request) : (C.Kernel.inspect_reply_ok, string) result =
   let {C.Kernel.ir_code=c; ir_cursor_pos=pos; ir_detail_level=lvl} = r in
-  Log.logf "inspection request %s :pos %d :lvl %d" c pos lvl;
+  Log.debug (fun k->k "inspection request %s :pos %d :lvl %d" c pos lvl);
   let cl = Completion.find_constants ~exact:true c ~cursor_pos:pos in
   let r = match cl.Completion.l with
     | [e] ->
@@ -120,7 +120,7 @@ let inspect (r:C.Kernel.inspect_request) : (C.Kernel.inspect_reply_ok, string) r
 let is_complete _ = Lwt.return C.Kernel.Is_complete
 
 let () =
-  Builtins.log_ := Log.log
+  Builtins.log_ := (fun s -> Log.debug (fun k->k "%s" s))
 
 let kernel : C.Kernel.t =
   C.Kernel.make
