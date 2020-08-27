@@ -135,9 +135,22 @@ let kernel : C.Kernel.t =
     ~complete: (fun ~pos msg -> Lwt.return (complete pos msg))
     ()
 
+let setup_logs () =
+  Logs.set_reporter (Logs.format_reporter ());
+  Logs.set_level ~all:true (Some Logs.Debug);
+  begin match Sys.getenv "STIMSYM_LOG" with
+    | "debug" -> Logs.set_level ~all:true (Some Logs.Debug)
+    | "info" -> Logs.set_level ~all:true (Some Logs.Info)
+    | "error" -> Logs.set_level ~all:true (Some Logs.Error)
+    | "warning" -> Logs.set_level ~all:true (Some Logs.Warning)
+    | s -> failwith ("unknown log level: " ^ s)
+    | exception _ -> ()
+  end
+
 (* main *)
 
 let () =
+  setup_logs ();
   Stimsym.init();
   let config = Main.mk_config ~usage:"stimsym" () in
   Lwt_main.run (Main.main ~config ~kernel)
