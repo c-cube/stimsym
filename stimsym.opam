@@ -11,7 +11,7 @@ build: [
 ]
 depends: [
     "dune" {>= "1.1"}
-    "containers" { >= "2.0" }
+    "containers" { >= "2.0" & < "3.0" }
     "iter"
     "linenoise"
     "base-unix"
