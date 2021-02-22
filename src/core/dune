@@ -4,7 +4,7 @@
  ;(modules (:standard \ Base_types))  ; TODO: only hide this
  (flags :standard -warn-error -3-32)
  (libraries bytes result containers iter zarith unix containers.unix
-   containers.data))
+   containers-data))
 
 (ocamllex Lexer Lexer_full_form)
 

@@ -265,7 +265,7 @@ module Graph = struct
     let attrs_v v = [`Label (E.to_string v); `Shape "box"] in
     let attrs_e _ = [] in
     Format.fprintf fmt "%a@."
-      (CCGraph.Dot.pp_seq
+      (CCGraph.Dot.pp_all
          ~eq:E.equal ~name:"some_graph"
          ~attrs_v ~attrs_e
          ~tbl:(CCGraph.mk_table ~eq:E.equal ~hash:E.hash 32)
@@ -303,7 +303,7 @@ module Graph = struct
             | E.App (E.Const {E.cst_name="Rule";_}, [| lhs; rhs |]) ->
               [lhs;rhs]
             | _ -> raise B.Eval_does_not_apply)
-        |> E.Tbl.of_seq_count
+        |> E.Tbl.of_iter_count
         |> E.Tbl.keys_list
         |> Array.of_list
       in
@@ -361,7 +361,7 @@ module Tree_form = struct
     in
     let attrs_e i = [`Label (string_of_int i)] in
     Format.fprintf fmt "%a@."
-      (CCGraph.Dot.pp_seq
+      (CCGraph.Dot.pp_all
          ~eq:E.equal ~name:"some_graph"
          ~attrs_v ~attrs_e
          ~tbl:(CCGraph.mk_table ~eq:E.equal ~hash:E.hash 32)
