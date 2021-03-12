@@ -1,10 +1,10 @@
 (executable
  (name run_tests)
- (libraries stimsym oUnit))
+ (libraries stimsym ounit2))
 
 (alias
  (name runtest)
  (deps
   (:< run_tests.exe))
  (action
-  (run %{<})))
+  (run %{<} -runner sequential)))

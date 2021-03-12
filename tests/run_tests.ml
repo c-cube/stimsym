@@ -4,7 +4,7 @@
 (** {1 Test Suite} *)
 
 open Stimsym
-open OUnit
+open OUnit2
 
 let mk_name prefix line = Printf.sprintf "%s_line_%d" prefix line
 
@@ -487,5 +487,5 @@ let suite =
   ]
 
 let () =
-  let _ = OUnit.run_test_tt_main suite in
+  let _ = OUnit2.run_test_tt_main suite in
   ()
