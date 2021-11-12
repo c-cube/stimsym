@@ -126,6 +126,7 @@ let kernel : C.Kernel.t =
   C.Kernel.make
     ~banner:"Stimsym"
     ~exec:(fun ~count msg -> Lwt.return (run_ count msg))
+    ~deinit:(fun () -> Log.info (fun k->k "stimsym: deinit"); Lwt.return())
     ~is_complete
     ~history:(fun _ -> Lwt.return [])
     ~inspect:(fun r -> Lwt.return (inspect r))
@@ -153,4 +154,5 @@ let () =
   setup_logs ();
   Stimsym.init();
   let config = Main.mk_config ~usage:"stimsym" () in
-  Lwt_main.run (Main.main ~config ~kernel)
+  let main = Main.main ~config ~kernel in
+  Lwt_main.run main
