@@ -6,6 +6,7 @@ open Stimsym
 
 module H = Tyxml.Html
 module C = Jupyter_kernel.Client
+module JK = Jupyter_kernel
 module Main = Jupyter_kernel.Client_main
 module Log = (val Logs.src_log (Logs.Src.create "stimsym"))
 
@@ -41,15 +42,15 @@ let html_of_doc : Document.t -> [<Html_types.div] H.elt =
   in
   aux ~depth:3
 
-let mime_of_html (h:_ H.elt) : C.mime_data = 
+let mime_of_html (h:_ H.elt) : JK.mime_data =
   let s = CCFormat.sprintf "%a@." (H.pp_elt ()) h in
-  {C.mime_type="text/html"; mime_content=s; mime_b64=false}
+  {mime_type="text/html"; mime_content=s; mime_b64=false}
 
-let mime_of_txt (s:string) : C.mime_data =
-  {C.mime_type="text/plain"; mime_content=s; mime_b64=false}
+let mime_of_txt (s:string) : JK.mime_data =
+  {mime_type="text/plain"; mime_content=s; mime_b64=false}
 
 (* blocking function *)
-let run_ count str : C.Kernel.exec_status_ok C.or_error =
+let run_ count str : JK.exec_status_ok C.or_error =
   let buf = Lexing.from_string str in
   Parse_loc.set_file buf ("cell_" ^ string_of_int count);
   begin match Parser.parse_expr Lexer.token buf with
@@ -66,12 +67,12 @@ let run_ count str : C.Kernel.exec_status_ok C.or_error =
             List.map
               (function
                 | Eval.Print_doc d ->
-                  C.Kernel.Mime [d |> html_of_doc |> mime_of_html]
+                  JK.Mime [d |> html_of_doc |> mime_of_html]
                 | Eval.Print_mime {Expr.mime_ty;mime_data;mime_base64} ->
-                  C.Kernel.mime ~base64:mime_base64 ~ty:mime_ty mime_data)
+                  JK.mime ~base64:mime_base64 ~ty:mime_ty mime_data)
               effects
           in
-          Result.Ok (C.Kernel.ok ~actions res)
+          Ok (JK.ok ~actions res)
         with
           | Stack_overflow ->
             Result.Error "stack overflow."
@@ -85,7 +86,7 @@ let run_ count str : C.Kernel.exec_status_ok C.or_error =
   end
 
 (* auto-completion *)
-let complete pos str = 
+let complete pos str =
   let start, stop, l =
     if pos > String.length str then 0,0, []
     else (
@@ -94,45 +95,45 @@ let complete pos str =
     )
   in
   let c = {
-    C.Kernel.completion_matches=l;
+    JK.completion_matches=l;
     completion_start=start; completion_end=stop;
   } in
   c
 
 (* inspection *)
-let inspect (r:C.Kernel.inspect_request) : (C.Kernel.inspect_reply_ok, string) result =
-  let {C.Kernel.ir_code=c; ir_cursor_pos=pos; ir_detail_level=lvl} = r in
+let inspect (r:JK.inspect_request) : (JK.inspect_reply_ok, string) result =
+  let {JK.ir_code=c; ir_cursor_pos=pos; ir_detail_level=lvl} = r in
   Log.debug (fun k->k "inspection request %s :pos %d :lvl %d" c pos lvl);
   let cl = Completion.find_constants ~exact:true c ~cursor_pos:pos in
   let r = match cl.Completion.l with
     | [e] ->
       let txt = mime_of_txt @@ Document.to_string @@ Expr.Cst.get_doc e in
       let html = Expr.Cst.get_doc e |> html_of_doc |> mime_of_html in
-      {C.Kernel.iro_status="ok"; iro_found=true; iro_data=[txt;html]}
+      {JK.iro_status="ok"; iro_found=true; iro_data=[txt;html]}
     | _ ->
       (* not found *)
-      {C.Kernel.iro_status="ok"; iro_found=false; iro_data=[]}
+      {JK.iro_status="ok"; iro_found=false; iro_data=[]}
   in
   Result.Ok r
 
 (* is the block of code complete?
    TODO: a way of asking the parser if it failed because of EOI/unbalanced []*)
-let is_complete _ = Lwt.return C.Kernel.Is_complete
+let is_complete _ = JK.Ivar.return JK.Is_complete
 
 let () =
   Builtins.log_ := (fun s -> Log.debug (fun k->k "%s" s))
 
-let kernel : C.Kernel.t =
-  C.Kernel.make
+let kernel : JK.t =
+  JK.make
     ~banner:"Stimsym"
-    ~exec:(fun ~count msg -> Lwt.return (run_ count msg))
+    ~exec:(fun ~count msg -> JK.Ivar.return_res (run_ count msg))
     ~is_complete
-    ~history:(fun _ -> Lwt.return [])
-    ~inspect:(fun r -> Lwt.return (inspect r))
+    ~history:(fun _ -> JK.Ivar.return [])
+    ~inspect:(fun r -> JK.Ivar.return_res (inspect r))
     ~language:"stimsym"
     ~language_version:[0;1;0]
     ~codemirror_mode:"mathematica"
-    ~complete: (fun ~pos msg -> Lwt.return (complete pos msg))
+    ~complete: (fun ~pos msg -> JK.Ivar.return (complete pos msg))
     ()
 
 let setup_logs () =
@@ -153,4 +154,4 @@ let () =
   setup_logs ();
   Stimsym.init();
   let config = Main.mk_config ~usage:"stimsym" () in
-  Lwt_main.run (Main.main ~config ~kernel)
+  Main.main ~config ~kernel

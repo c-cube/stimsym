@@ -104,11 +104,11 @@ let () =
   } in
   ignore (LNoise.history_set ~max_length:1000);
   LNoise.set_completion_callback completion;
-  CCOpt.iter (fun f -> ignore (LNoise.history_load ~filename:f)) history_file;
+  Option.iter (fun f -> ignore (LNoise.history_load ~filename:f)) history_file;
   if config.verbose then (
     Builtins.log_ := (fun s -> print_endline ("log: " ^ s));
   );
   main_loop ~config ();
-  CCOpt.iter (fun f -> ignore (LNoise.history_save ~filename:f)) history_file;
+  Option.iter (fun f -> ignore (LNoise.history_save ~filename:f)) history_file;
   ()
 
