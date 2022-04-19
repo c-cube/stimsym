@@ -5,9 +5,11 @@
 
   (** Main parser *)
 
-  module L = Parse_loc
-  module E = Expr
-  module B = Builtins
+  open struct
+    module L = Parse_loc
+    module E = Expr
+    module B = Builtins
+  end
 
   (* remove quote from some symbols *)
   let remove_quotes s =

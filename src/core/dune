@@ -9,4 +9,5 @@
 (ocamllex Lexer Lexer_full_form)
 
 (menhir
- (modules Parser))
+  (infer true)
+  (modules Parser))
