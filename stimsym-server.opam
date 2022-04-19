@@ -17,7 +17,7 @@ depends: [
     "stimsym"
     "iter"
     "ocaml" {>= "4.08.0"}
-    "jupyter-kernel" { >= "0.6" & < "0.8" }
+    "jupyter-kernel" { >= "0.8" }
     "tyxml"
     "logs"
 ]
