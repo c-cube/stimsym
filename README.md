@@ -1,4 +1,4 @@
-# Stimsym [![build status](https://travis-ci.org/c-cube/stimsym.svg?branch=master)](https://travis-ci.org/c-cube/stimsym)
+# Stimsym [![build](https://github.com/c-cube/stimsym/actions/workflows/main.yml/badge.svg)](https://github.com/c-cube/stimsym/actions/workflows/main.yml)
 
 Rewrite system designed for symbolic manipulations and maximal expressiveness.
 
